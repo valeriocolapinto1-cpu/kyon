@@ -15,13 +15,20 @@ import { authedRoute, json, parseJson, rateLimit } from '../http';
 type Id = { id: string };
 type Member = { id: string; userId: string };
 
-export const GET = authedRoute<Id>(async ({ db, actor }, { id }) => json(await getProjectDetail(db, actor, id)));
+export const GET = authedRoute<Id>(async ({ db, actor }, { id }) =>
+  json(await getProjectDetail(db, actor, id)),
+);
 
 const Settings = z
   .object({
     name: z.string().trim().min(1).max(80),
     commitMode: z.enum(['direct', 'branch_pr']),
-    workBranch: z.string().trim().max(100).regex(/^[\w./-]*$/).nullable(),
+    workBranch: z
+      .string()
+      .trim()
+      .max(100)
+      .regex(/^[\w./-]*$/)
+      .nullable(),
     viewersCanComment: z.boolean(),
     planHeadings: z.array(z.string().trim().min(1).max(40)).max(30),
     ignoreGlobs: z.array(z.string().trim().min(1).max(120)).max(30),
@@ -43,7 +50,10 @@ export const DELETE = authedRoute<Id>(async ({ request, db, actor }, { id }) => 
   return json({ ok: true });
 });
 
-const AddMember = z.object({ userId: z.string().min(1).max(64), role: z.enum(['member', 'viewer']).default('member') });
+const AddMember = z.object({
+  userId: z.string().min(1).max(64),
+  role: z.enum(['member', 'viewer']).default('member'),
+});
 
 export const addMemberRoute = authedRoute<Id>(async ({ request, db, actor }, { id }) => {
   const body = await parseJson(request, AddMember);
@@ -53,11 +63,13 @@ export const addMemberRoute = authedRoute<Id>(async ({ request, db, actor }, { i
 
 const Role = z.object({ role: z.enum(['member', 'viewer']) });
 
-export const memberRoleRoute = authedRoute<Member>(async ({ request, db, actor }, { id, userId }) => {
-  const { role } = await parseJson(request, Role);
-  await setMemberRole(db, actor, id, userId, role);
-  return json(await getProjectDetail(db, actor, id));
-});
+export const memberRoleRoute = authedRoute<Member>(
+  async ({ request, db, actor }, { id, userId }) => {
+    const { role } = await parseJson(request, Role);
+    await setMemberRole(db, actor, id, userId, role);
+    return json(await getProjectDetail(db, actor, id));
+  },
+);
 
 export const removeMemberRoute = authedRoute<Member>(async ({ db, actor }, { id, userId }) => {
   await removeMember(db, actor, id, userId);

@@ -68,6 +68,10 @@ export function writeDeployConfig(dir: string, ids: { d1: string; kv: string }) 
     if (db.database_name === D1_NAME) db.database_id = ids.d1;
   }
   for (const ns of config.kv_namespaces ?? []) ns.id = ids.kv;
-  config.vars = { ...config.vars, KYON_ENV: 'production' };
+  config.vars = {
+    ...config.vars,
+    KYON_ENV: 'production',
+    ...(process.env.KYON_GH_APP_SLUG ? { GITHUB_APP_SLUG: process.env.KYON_GH_APP_SLUG } : {}),
+  };
   writeFileSync(path.join(dir, DEPLOY_CONFIG), JSON.stringify(config, null, 2));
 }

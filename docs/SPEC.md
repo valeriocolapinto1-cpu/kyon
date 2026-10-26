@@ -285,4 +285,6 @@ Implementa **tutto** `CLAUDE.md` §9. Obblighi di fase:
 
 - **Prima versione utilizzabile = tutto il perimetro**: auth, task e kanban bidirezionali, prompt con tracciamento PR, chat realtime, home, notifiche, PWA. Le fasi indicano solo l'ordine di costruzione.
 - **L'app parte vuota**: nessun dato di esempio; fixture solo nei test.
+- **Indirizzi con query string**: `/join?code=…`, `/reset?token=…`, `/progetti?id=…&tab=…` (invece di `/join/<codice>` e simili), così ogni pagina resta statica e non consuma CPU del Worker.
+- **GitHub con soli token utente** (niente token di installazione né chiave privata dell'app).
 - **Prerender serviti dagli asset statici** (Fase 0): le pagine statiche non vengono ri-renderizzate dal Worker a ogni richiesta (`staticAssetsIncrementalCache` di OpenNext). Niente ISR/revalidate finché non serve davvero.

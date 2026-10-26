@@ -4,15 +4,15 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 3 — GitHub, repo, visibilità, progetti, membri** (da iniziare).
+**Fase 4 — Motore task da `.md`** (da iniziare).
 
 | Fase | Titolo                                          | Stato      |
 | ---- | ----------------------------------------------- | ---------- |
 | 0    | Scaffold e infrastruttura                       | ✅ fatta   |
 | 1    | Design system Liquid Glass, a11y di base, shell | ✅ fatta   |
 | 2    | Auth, inviti, admin, Settings account           | ✅ fatta   |
-| 3    | GitHub, repo, visibilità, progetti, membri      | ⏭ prossima |
-| 4    | Motore task da `.md`                            | —          |
+| 3    | GitHub, repo, visibilità, progetti, membri      | ✅ fatta   |
+| 4    | Motore task da `.md`                            | ⏭ prossima |
 | 5    | Pagina progetto: Task                           | —          |
 | 6    | Prompt, esecuzioni, tracciamento PR; Status     | —          |
 | 7    | Realtime, chat e thread                         | —          |
@@ -25,6 +25,7 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 - [ ] **Cloudflare + secrets GitHub** (`docs/SETUP.md` §A): sottodominio `workers.dev`, attivazione R2, token API, `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` nei secrets della repo. Finché mancano, il workflow Deploy viene saltato con un avviso (la CI resta verde).
 - [ ] (Facoltativo) Secret GitHub `ADMIN_BOOTSTRAP_CODE` per creare il primo account admin dal telefono (`docs/SETUP.md` §A6). In alternativa `pnpm admin:create-invite --remote`.
 - [ ] Dopo il primo deploy: aprire `/api/health` e guardare **CPU Time** nelle metriche di `kyon-web` (prima misura reale della CPU), in particolare su `/api/auth/sign-in/email`.
+- [ ] **GitHub App** (`docs/SETUP.md` §B): creala, poi secrets `KYON_GH_CLIENT_ID`, `KYON_GH_CLIENT_SECRET`, `KYON_GH_WEBHOOK_SECRET` e variabile `KYON_GH_APP_SLUG` nella repo. Senza, Settings → GitHub dice che l'app non è configurata.
 - [ ] Un `.md` reale di Biohybrid (es. `PROSSIMI-PASSI.md`) per le fixture del parser (serve in Fase 4).
 
 ## Numeri del bundle (gzip, `pnpm size`)
@@ -36,6 +37,7 @@ Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 | 0    | 969,1 KiB  | 0,6 KiB       | 0,4 KiB   | Next 16.4.3 + OpenNext 1.20.13, pagina + `/api/health` con D1                                                       |
 | 1    | 1307,4 KiB | 0,6 KiB       | 0,4 KiB   | + Tailwind, Radix (dialog, radio, toast, switch, slider), motion, cmdk, lucide                                      |
 | 2    | 1574,0 KiB | 0,6 KiB       | 0,4 KiB   | + Better Auth, TanStack Query, Hono. Con 15 route Next separate era 2531 KiB (oltre soglia): ora un'unica route API |
+| 3    | 1597,4 KiB | 0,6 KiB       | 0,4 KiB   | + GitHub, repo, progetti (tutto nel router unico)                                                                   |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -45,6 +47,8 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | ---- | --------------- | ------------------- | ----------------- | ------------------------------------ |
 | 0    | `/` (prerender) | ~45 ms              | ~8 ms             | per questo la cache statica è attiva |
 | 0    | `/api/health`   | ~11 ms              | ~11 ms            | include una query D1 locale          |
+
+**Pagina statica vs dinamica** (Fase 3, tempo totale locale): shell statica ~10 ms, pagina renderizzata dal Worker (`/join/[code]`) ~30 ms, galleria `/dev/ui` ~33 ms, API con D1 ~11–13 ms. Per questo tutte le pagine restano statiche e gli identificativi viaggiano in query string.
 
 **PBKDF2-SHA256 su workerd locale** (Fase 2): 10.000 iterazioni ≈ 1 ms, 50.000 ≈ 6 ms, 100.000 ≈ 12 ms, 600.000 ≈ 88 ms. Con Node sullo stesso host: 100.000 ≈ 16 ms. Conclusione: un PBKDF2 server-side con un costo sicuro non sta nei 10 ms del piano Free → hashing a due stadi (vedi Fase 2).
 
@@ -63,6 +67,32 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 2    | `/login`              | 96          | 100           | 100            |
 
 ## Log delle fasi
+
+### Fase 3 — GitHub, repo, visibilità, progetti, membri ✅ (2026-10-26)
+
+Fatto:
+
+- **`can(user, action, resource)`** in `packages/core/src/permissions`: repo (`view`, `configure`, `create_project`) per esposizione × chi × disponibilità; progetti (12 azioni) per ruolo × archiviato × "osservatori possono commentare"; azioni di gruppo/admin. Tabella di verità scritta a mano e testata (≈180 casi). Gli admin globali non vedono repo o progetti altrui.
+- **GitHub App, autorizzazione utente**: `Collega GitHub` (OAuth con `state` in cookie HttpOnly), scambio del codice, token d'accesso e refresh **cifrati AES-GCM** (contesto = utente, così un valore non si sposta su un'altra riga), refresh automatico 5 minuti prima della scadenza, segnalazione "ricollega" quando scade il refresh token. Nessuna chiave privata dell'app: bastano Client ID/secret e webhook secret.
+- **Repo**: sincronizzazione delle repo raggiungibili (installazioni × accesso utente, paginazione entro i limiti di subrequest), riga per utente con **esposizione** `hidden` (default) / `self` / `selected` (con persone) / `group`; repo non più raggiungibili segnate "non disponibili" (scelte conservate). Restringere la visibilità non rimuove i membri ma avvisa chi l'ha cambiata con i nomi di chi non vede più la repo.
+- **Webhook** `POST /api/github/webhook`: firma HMAC SHA-256 verificata a tempo costante prima di leggere il corpo; `installation` (eliminata/sospesa) e `installation_repositories` (rimosse → non disponibili; aggiunte → risincronizza chi l'ha fatto).
+- **Progetti**: 1 repo = 1 progetto (anche se più utenti hanno collegato la stessa repo); creazione solo da repo esposte e visibili; membri iniziali = chi vede la repo, il creatore è proprietario; impostazioni (nome, commit diretto o branch+PR, branch di lavoro, osservatori che commentano, parole chiave "di piano", percorsi ignorati, mostra archivio); membri (aggiungi solo chi vede la repo, ruolo membro/osservatore, rimuovi); abbandona; trasferisci proprietà; archivia/ripristina (sola lettura); elimina con conferma del nome (mai la repo). Chi non è membro riceve 404.
+- **UI**: Settings → GitHub (collega/scollega, installa, aggiorna elenco, visibilità per repo in un bottom sheet con descrizioni e scelta delle persone); Progetti (elenco con ruolo e archiviati, nuovo progetto, dettaglio `?id=…&tab=…` con intestazione, membri, indicatore di sincronizzazione, schede Task/Prompt/Status accessibili da tastiera, menu progetto). Due colonne da iPad.
+- **GitHub finto** (`apps/web/src/test/fakeGithub.ts`): OAuth con pagina di consenso, refresh, utenti, installazioni, repo, controlli per i test. Usato dai test di integrazione, dagli e2e (server locale su :8799) e da `pnpm dev` quando non c'è una GitHub App vera.
+- Deploy: genera `TOKEN_ENCRYPTION_KEY`; passa a Cloudflare i secret `KYON_GH_*` e la variabile `KYON_GH_APP_SLUG`.
+- Test: crypto (vettore HMAC della documentazione GitHub, AES-GCM con contesto), tabella `can()`, **13 test di integrazione** (OAuth, stato falsificato, token cifrati, visibilità, unicità progetto, persone scelte, avviso di restrizione, ruoli, 404, trasferimento/archivio/eliminazione, refresh token, webhook firmati/non firmati), e2e completo (collega GitHub, esponi, crea progetto, membro che vede il progetto ma non la repo nascosta, schede da tastiera, eliminazione) con axe.
+
+Decisioni:
+
+- **URL con query string** (`/progetti?id=…`, `/join?code=…`, `/reset?token=…`) invece di segmenti dinamici: una pagina renderizzata dal Worker costa ~3 volte una statica (misure sopra). Deviazione voluta dal `/join/<codice>` della specifica.
+- Solo **token utente** (niente token di installazione): coerente con la specifica (§4.3.4 "token dell'utente che agisce, altrimenti del proprietario della repo").
+- I secret della GitHub App in Actions si chiamano `KYON_GH_*` (Actions vieta il prefisso `GITHUB_`).
+- La config e2e di wrangler vive in `.wrangler/e2e/` (fuori da `apps/web`), così il `.dev.vars` di uno sviluppatore non si mescola ai test.
+
+Debito tecnico / da controllare:
+
+- Le richieste reali a GitHub (OAuth, `/user/installations`) sono testate solo contro il finto: da verificare al primo collegamento vero.
+- "Ultima task completata" nell'elenco progetti arriva con la Fase 4.
 
 ### Fase 2 — Auth, inviti, admin, Settings account ✅ (2026-10-26)
 

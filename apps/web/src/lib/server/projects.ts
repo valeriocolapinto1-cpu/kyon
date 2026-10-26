@@ -1,5 +1,11 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import { can, type Actor, type ProjectAction, type ProjectResource, type ProjectRole } from '@kyon/core';
+import {
+  can,
+  type Actor,
+  type ProjectAction,
+  type ProjectResource,
+  type ProjectRole,
+} from '@kyon/core';
 import type { Db } from '@/db/client';
 import { githubRepo, project, projectMember, user } from '@/db/schema';
 import { ApiError } from './errors';
@@ -8,13 +14,26 @@ import { loadRepo } from './github/repos';
 
 export type ProjectRow = typeof project.$inferSelect;
 
-export const DEFAULT_PLAN_HEADINGS = ['piano', 'todo', 'to-do', 'da fare', 'fasi', 'roadmap', 'prossimi passi', 'backlog', 'task', 'attività'];
+export const DEFAULT_PLAN_HEADINGS = [
+  'piano',
+  'todo',
+  'to-do',
+  'da fare',
+  'fasi',
+  'roadmap',
+  'prossimi passi',
+  'backlog',
+  'task',
+  'attività',
+];
 
 function parseList(value: string | null, fallback: string[]): string[] {
   if (!value) return fallback;
   try {
     const parsed: unknown = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed.filter((x): x is string => typeof x === 'string') : fallback;
+    return Array.isArray(parsed)
+      ? parsed.filter((x): x is string => typeof x === 'string')
+      : fallback;
   } catch (error) {
     console.warn('Invalid JSON list on project', error);
     return fallback;
@@ -22,24 +41,42 @@ function parseList(value: string | null, fallback: string[]): string[] {
 }
 
 export function projectResource(row: ProjectRow, role: ProjectRole | null): ProjectResource {
-  return { kind: 'project', membership: role, viewersCanComment: row.viewersCanComment, archived: row.archivedAt !== null };
+  return {
+    kind: 'project',
+    membership: role,
+    viewersCanComment: row.viewersCanComment,
+    archived: row.archivedAt !== null,
+  };
 }
 
 /**
  * Loads a project and checks `action`. Non-members get 404, never 403: nobody can probe for
  * projects they can't see.
  */
-export async function authorizeProject(db: Db, actor: Actor, projectId: string, action: ProjectAction) {
+export async function authorizeProject(
+  db: Db,
+  actor: Actor,
+  projectId: string,
+  action: ProjectAction,
+) {
   const [row] = await db
     .select({ project, role: projectMember.role })
     .from(project)
-    .leftJoin(projectMember, and(eq(projectMember.projectId, project.id), eq(projectMember.userId, actor.id)))
+    .leftJoin(
+      projectMember,
+      and(eq(projectMember.projectId, project.id), eq(projectMember.userId, actor.id)),
+    )
     .where(eq(project.id, projectId))
     .limit(1);
   const role = (row?.role ?? null) as ProjectRole | null;
   if (!row || !role) throw new ApiError('not_found');
   if (!can(actor, action, projectResource(row.project, role))) {
-    throw new ApiError('forbidden', row.project.archivedAt ? 'Il progetto è archiviato: ripristinalo per modificarlo.' : undefined);
+    throw new ApiError(
+      'forbidden',
+      row.project.archivedAt
+        ? 'Il progetto è archiviato: ripristinalo per modificarlo.'
+        : undefined,
+    );
   }
   return { project: row.project, role };
 }
@@ -76,16 +113,25 @@ async function usersWhoCanSeeRepo(db: Db, repoId: string) {
   const loaded = await loadRepo(db, repoId);
   if (!loaded) return [];
   const everyone = await db.select({ id: user.id, role: user.role }).from(user);
-  return everyone.filter((u) => can({ id: u.id, role: u.role === 'admin' ? 'admin' : 'user' }, 'repo:view', loaded.resource));
+  return everyone.filter((u) =>
+    can({ id: u.id, role: u.role === 'admin' ? 'admin' : 'user' }, 'repo:view', loaded.resource),
+  );
 }
 
 export async function createProject(db: Db, actor: Actor, repoId: string, name: string) {
   const loaded = await loadRepo(db, repoId);
   if (!loaded || !can(actor, 'repo:view', loaded.resource)) throw new ApiError('not_found');
   if (!can(actor, 'repo:create_project', loaded.resource)) {
-    throw new ApiError('bad_request', 'Esponi la repo (Settings → GitHub) prima di farne un progetto.');
+    throw new ApiError(
+      'bad_request',
+      'Esponi la repo (Settings → GitHub) prima di farne un progetto.',
+    );
   }
-  const [existing] = await db.select({ id: project.id }).from(project).where(eq(project.githubRepoId, loaded.row.githubRepoId)).limit(1);
+  const [existing] = await db
+    .select({ id: project.id })
+    .from(project)
+    .where(eq(project.githubRepoId, loaded.row.githubRepoId))
+    .limit(1);
   if (existing) throw new ApiError('conflict', 'Questa repo è già un progetto.');
 
   const id = crypto.randomUUID();
@@ -94,10 +140,19 @@ export async function createProject(db: Db, actor: Actor, repoId: string, name: 
   // Initial members: whoever can see the repo; the creator is the owner.
   const members = [
     { projectId: id, userId: actor.id, role: 'owner', createdAt: now },
-    ...viewers.filter((u) => u.id !== actor.id).map((u) => ({ projectId: id, userId: u.id, role: 'member', createdAt: now })),
+    ...viewers
+      .filter((u) => u.id !== actor.id)
+      .map((u) => ({ projectId: id, userId: u.id, role: 'member', createdAt: now })),
   ];
   await db.batch([
-    db.insert(project).values({ id, name, repoId, githubRepoId: loaded.row.githubRepoId, createdAt: now, updatedAt: now }),
+    db.insert(project).values({
+      id,
+      name,
+      repoId,
+      githubRepoId: loaded.row.githubRepoId,
+      createdAt: now,
+      updatedAt: now,
+    }),
     db.insert(projectMember).values(members),
   ]);
   return id;
@@ -130,10 +185,15 @@ export async function getProjectDetail(db: Db, actor: Actor, projectId: string) 
   // Candidates to add: group members who can see the repo and aren't in yet (owner only).
   const candidates =
     role === 'owner' && loaded
-      ? (await usersWhoCanSeeRepo(db, row.repoId)).filter((u) => !members.some((m) => m.id === u.id)).map((u) => u.id)
+      ? (await usersWhoCanSeeRepo(db, row.repoId))
+          .filter((u) => !members.some((m) => m.id === u.id))
+          .map((u) => u.id)
       : [];
   const candidateUsers = candidates.length
-    ? await db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, candidates))
+    ? await db
+        .select({ id: user.id, name: user.name })
+        .from(user)
+        .where(inArray(user.id, candidates))
     : [];
   const permissions = Object.fromEntries(
     (
@@ -158,7 +218,12 @@ export async function getProjectDetail(db: Db, actor: Actor, projectId: string) 
     role,
     archived: row.archivedAt !== null,
     repo: loaded
-      ? { fullName: loaded.row.fullName, htmlUrl: loaded.row.htmlUrl, defaultBranch: loaded.row.defaultBranch, available: loaded.row.available }
+      ? {
+          fullName: loaded.row.fullName,
+          htmlUrl: loaded.row.htmlUrl,
+          defaultBranch: loaded.row.defaultBranch,
+          available: loaded.row.available,
+        }
       : null,
     settings: {
       commitMode: row.commitMode as 'direct' | 'branch_pr',
@@ -184,7 +249,12 @@ export interface SettingsPatch {
   showArchive?: boolean;
 }
 
-export async function updateProjectSettings(db: Db, actor: Actor, projectId: string, patch: SettingsPatch) {
+export async function updateProjectSettings(
+  db: Db,
+  actor: Actor,
+  projectId: string,
+  patch: SettingsPatch,
+) {
   await authorizeProject(db, actor, projectId, 'project:settings');
   const values: Partial<typeof project.$inferInsert> = { updatedAt: new Date() };
   if (patch.name !== undefined) values.name = patch.name;
@@ -197,33 +267,67 @@ export async function updateProjectSettings(db: Db, actor: Actor, projectId: str
   await db.update(project).set(values).where(eq(project.id, projectId));
 }
 
-export async function addMember(db: Db, actor: Actor, projectId: string, userId: string, role: 'member' | 'viewer') {
+export async function addMember(
+  db: Db,
+  actor: Actor,
+  projectId: string,
+  userId: string,
+  role: 'member' | 'viewer',
+) {
   const { project: row } = await authorizeProject(db, actor, projectId, 'project:manage_members');
   const allowed = await usersWhoCanSeeRepo(db, row.repoId);
   // Adding someone would show them the repo's content: only people who can already see it.
-  if (!allowed.some((u) => u.id === userId)) throw new ApiError('bad_request', 'Questa persona non vede la repo: cambia prima la visibilità.');
-  await db.insert(projectMember).values({ projectId, userId, role, createdAt: new Date() }).onConflictDoNothing();
+  if (!allowed.some((u) => u.id === userId))
+    throw new ApiError(
+      'bad_request',
+      'Questa persona non vede la repo: cambia prima la visibilità.',
+    );
+  await db
+    .insert(projectMember)
+    .values({ projectId, userId, role, createdAt: new Date() })
+    .onConflictDoNothing();
 }
 
-export async function setMemberRole(db: Db, actor: Actor, projectId: string, userId: string, role: 'member' | 'viewer') {
+export async function setMemberRole(
+  db: Db,
+  actor: Actor,
+  projectId: string,
+  userId: string,
+  role: 'member' | 'viewer',
+) {
   await authorizeProject(db, actor, projectId, 'project:manage_members');
   const updated = await db
     .update(projectMember)
     .set({ role })
-    .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId), inArray(projectMember.role, ['member', 'viewer'])))
+    .where(
+      and(
+        eq(projectMember.projectId, projectId),
+        eq(projectMember.userId, userId),
+        inArray(projectMember.role, ['member', 'viewer']),
+      ),
+    )
     .returning({ userId: projectMember.userId });
-  if (updated.length === 0) throw new ApiError('bad_request', 'Per cambiare il proprietario usa “Trasferisci proprietà”.');
+  if (updated.length === 0)
+    throw new ApiError('bad_request', 'Per cambiare il proprietario usa “Trasferisci proprietà”.');
 }
 
 export async function removeMember(db: Db, actor: Actor, projectId: string, userId: string) {
   await authorizeProject(db, actor, projectId, 'project:manage_members');
-  if (userId === actor.id) throw new ApiError('bad_request', 'Il proprietario non può rimuoversi: trasferisci prima la proprietà.');
-  await db.delete(projectMember).where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId)));
+  if (userId === actor.id)
+    throw new ApiError(
+      'bad_request',
+      'Il proprietario non può rimuoversi: trasferisci prima la proprietà.',
+    );
+  await db
+    .delete(projectMember)
+    .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, userId)));
 }
 
 export async function leaveProject(db: Db, actor: Actor, projectId: string) {
   await authorizeProject(db, actor, projectId, 'project:leave');
-  await db.delete(projectMember).where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, actor.id)));
+  await db
+    .delete(projectMember)
+    .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, actor.id)));
 }
 
 export async function transferOwnership(db: Db, actor: Actor, projectId: string, toUserId: string) {
@@ -233,10 +337,17 @@ export async function transferOwnership(db: Db, actor: Actor, projectId: string,
     .from(projectMember)
     .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, toUserId)))
     .limit(1);
-  if (!target || toUserId === actor.id) throw new ApiError('bad_request', 'Scegli un altro membro del progetto.');
+  if (!target || toUserId === actor.id)
+    throw new ApiError('bad_request', 'Scegli un altro membro del progetto.');
   await db.batch([
-    db.update(projectMember).set({ role: 'owner' }).where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, toUserId))),
-    db.update(projectMember).set({ role: 'member' }).where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, actor.id))),
+    db
+      .update(projectMember)
+      .set({ role: 'owner' })
+      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, toUserId))),
+    db
+      .update(projectMember)
+      .set({ role: 'member' })
+      .where(and(eq(projectMember.projectId, projectId), eq(projectMember.userId, actor.id))),
     db.update(project).set({ updatedAt: new Date() }).where(eq(project.id, projectId)),
   ]);
 }
@@ -244,12 +355,16 @@ export async function transferOwnership(db: Db, actor: Actor, projectId: string,
 export async function setArchived(db: Db, actor: Actor, projectId: string, archived: boolean) {
   await authorizeProject(db, actor, projectId, 'project:archive');
   const now = new Date();
-  await db.update(project).set({ archivedAt: archived ? now : null, updatedAt: now }).where(eq(project.id, projectId));
+  await db
+    .update(project)
+    .set({ archivedAt: archived ? now : null, updatedAt: now })
+    .where(eq(project.id, projectId));
 }
 
 /** Deletes Kyon's data for the project. The GitHub repo is never touched. */
 export async function deleteProject(db: Db, actor: Actor, projectId: string, confirmName: string) {
   const { project: row } = await authorizeProject(db, actor, projectId, 'project:delete');
-  if (confirmName.trim() !== row.name) throw new ApiError('bad_request', 'Scrivi esattamente il nome del progetto per confermare.');
+  if (confirmName.trim() !== row.name)
+    throw new ApiError('bad_request', 'Scrivi esattamente il nome del progetto per confermare.');
   await db.delete(project).where(eq(project.id, projectId));
 }

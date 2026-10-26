@@ -14,10 +14,19 @@ export default function AppTemplate({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   useEffect(() => {
     // Compare paths (not a boolean) so React Strict Mode's double effect doesn't steal focus.
+    let frame = 0;
     if (lastPath !== null && lastPath !== pathname) {
-      document.querySelector<HTMLElement>('main h1')?.focus({ preventScroll: true });
+      // The title may render a few frames later (Suspense, data): wait for it, up to ~1 s.
+      let tries = 0;
+      const focusTitle = () => {
+        const title = document.querySelector<HTMLElement>('main h1');
+        if (title) title.focus({ preventScroll: true });
+        else if (tries++ < 60) frame = requestAnimationFrame(focusTitle);
+      };
+      focusTitle();
     }
     lastPath = pathname;
+    return () => cancelAnimationFrame(frame);
   }, [pathname]);
 
   return (

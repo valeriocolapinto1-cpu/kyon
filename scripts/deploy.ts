@@ -5,8 +5,10 @@
  * 1. Makes sure D1, KV and R2 exist (creates them on first run) and reads their IDs.
  * 2. Writes wrangler.deploy.json next to each wrangler.jsonc with the real IDs.
  * 3. Applies D1 migrations, then deploys realtime (owns the Durable Objects), cron and web.
- * 4. Makes sure the web Worker has its secrets: BETTER_AUTH_SECRET is generated once and never
- *    leaves Cloudflare; ADMIN_BOOTSTRAP_CODE is copied from the GitHub secret when provided.
+ * 4. Makes sure the web Worker has its secrets: BETTER_AUTH_SECRET and TOKEN_ENCRYPTION_KEY are
+ *    generated once and never leave Cloudflare; ADMIN_BOOTSTRAP_CODE and the GitHub App secrets are
+ *    copied from GitHub Actions secrets when provided (names can't start with GITHUB_ there, hence
+ *    KYON_GH_*).
  *
  * Expects `pnpm build` to have produced the OpenNext bundle.
  */

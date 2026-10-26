@@ -26,6 +26,11 @@ jobs:
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
       # Optional: lets the first account sign up at /join/<code> (see docs/SETUP.md).
       ADMIN_BOOTSTRAP_CODE: ${{ secrets.ADMIN_BOOTSTRAP_CODE }}
+      # GitHub App (docs/SETUP.md §B). Actions forbids names starting with GITHUB_.
+      KYON_GH_CLIENT_ID: ${{ secrets.KYON_GH_CLIENT_ID }}
+      KYON_GH_CLIENT_SECRET: ${{ secrets.KYON_GH_CLIENT_SECRET }}
+      KYON_GH_WEBHOOK_SECRET: ${{ secrets.KYON_GH_WEBHOOK_SECRET }}
+      KYON_GH_APP_SLUG: ${{ vars.KYON_GH_APP_SLUG }}
     steps:
       - name: Check Cloudflare secrets
         id: secrets

@@ -61,7 +61,7 @@ kyon/
 
 La logica di dominio pura (parser Markdown, riconciliazione task, permessi, template prompt, generazione/lettura del marcatore `Kyon-Run`) vive in `packages/core` con test unitari completi. Nessun import di Next o Cloudflare lì dentro.
 
-**API (regola importante per il bundle)**: tutta l'API JSON sta in `apps/web/src/lib/server/routes/*.ts` ed è montata dal router Hono `src/lib/server/router.ts` dentro **un'unica** route Next, `app/api/[[...route]]/route.ts`. Non creare altri `route.ts` sotto `app/api`: Turbopack duplica il codice condiviso (Better Auth, Drizzle…) in ogni route e il Worker supera la soglia (misurato: 2,5 MB con 15 route contro 1,6 MB con una). Le pagine sono shell statiche; i dati arrivano dalle API (con controllo sessione) tramite TanStack Query.
+**API (regola importante per il bundle)**: tutta l'API JSON sta in `apps/web/src/lib/server/routes/*.ts` ed è montata dal router Hono `src/lib/server/router.ts` dentro **un'unica** route Next, `app/api/[[...route]]/route.ts`. Non creare altri `route.ts` sotto `app/api`: Turbopack duplica il codice condiviso (Better Auth, Drizzle…) in ogni route e il Worker supera la soglia (misurato: 2,5 MB con 15 route contro 1,6 MB con una). Le pagine sono shell statiche; i dati arrivano dalle API (con controllo sessione) tramite TanStack Query. **Niente segmenti dinamici nelle pagine** (`[id]`): usa la query string (`/progetti?id=…`), perché una pagina renderizzata dal Worker costa ~3× una statica. Nei test GitHub si usa sempre il finto (`apps/web/src/test/fakeGithub.ts`): estendilo quando servono nuove API.
 
 ## 4. Comandi (devono funzionare su macOS, Linux e Windows)
 

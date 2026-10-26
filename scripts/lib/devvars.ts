@@ -26,6 +26,24 @@ export function ensureDevVars(): Record<string, string> {
     vars.ADMIN_BOOTSTRAP_CODE = `kyon-${randomSecret(12)}`;
     changed = true;
   }
+  if (!vars.TOKEN_ENCRYPTION_KEY) {
+    vars.TOKEN_ENCRYPTION_KEY = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(
+      'base64',
+    );
+    changed = true;
+  }
+  // No real GitHub App configured: use the fake GitHub that `pnpm dev` starts on :8799.
+  if (!vars.GITHUB_APP_CLIENT_ID) {
+    Object.assign(vars, {
+      GITHUB_APP_CLIENT_ID: 'fake-dev-client',
+      GITHUB_APP_CLIENT_SECRET: 'fake-dev-secret',
+      GITHUB_APP_SLUG: 'kyon-dev',
+      GITHUB_WEBHOOK_SECRET: 'fake-dev-webhook',
+      GITHUB_API_URL: 'http://localhost:8799',
+      GITHUB_WEB_URL: 'http://localhost:8799',
+    });
+    changed = true;
+  }
   if (changed) {
     const body = Object.entries(vars)
       .map(([k, v]) => `${k}=${v}`)

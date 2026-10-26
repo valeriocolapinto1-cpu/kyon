@@ -51,14 +51,19 @@ export type ProjectAction =
   | 'project:delete'
   | 'project:leave';
 
-export type GroupAction = 'admin:invites' | 'admin:users' | 'admin:export' | 'admin:health' | 'group:chat';
+export type GroupAction =
+  'admin:invites' | 'admin:users' | 'admin:export' | 'admin:health' | 'group:chat';
 
 export type Action = RepoAction | ProjectAction | GroupAction;
 
 export function can(actor: Actor, action: RepoAction, resource: RepoResource): boolean;
 export function can(actor: Actor, action: ProjectAction, resource: ProjectResource): boolean;
 export function can(actor: Actor, action: GroupAction, resource: GroupResource): boolean;
-export function can(actor: Actor, action: Action, resource: RepoResource | ProjectResource | GroupResource): boolean {
+export function can(
+  actor: Actor,
+  action: Action,
+  resource: RepoResource | ProjectResource | GroupResource,
+): boolean {
   switch (resource.kind) {
     case 'repo':
       return canOnRepo(actor, action as RepoAction, resource);

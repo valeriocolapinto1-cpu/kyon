@@ -24,9 +24,17 @@ export function call(path: string, init: RequestInit & { jar?: CookieJar; json?:
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const body = async (res: Response | Promise<Response>): Promise<any> => (await res).json();
 
-export async function joinAs(code: string, name: string, email: string, password = 'password di prova') {
+export async function joinAs(
+  code: string,
+  name: string,
+  email: string,
+  password = 'password di prova',
+) {
   const jar = new CookieJar();
-  const res = await call('/api/join', { method: 'POST', json: { code, name, email, key: await key(email, password) } });
+  const res = await call('/api/join', {
+    method: 'POST',
+    json: { code, name, email, key: await key(email, password) },
+  });
   if (res.status !== 200) throw new Error(`join failed: ${res.status} ${await res.text()}`);
   jar.store(res);
   return jar;
@@ -44,6 +52,8 @@ export async function signInAs(email: string, password = 'password di prova') {
 
 /** Admin creates an invite and a new member joins with it. */
 export async function inviteAndJoin(admin: CookieJar, name: string, email: string) {
-  const invite = await body(call('/api/admin/invites', { method: 'POST', jar: admin, json: { note: name } }));
+  const invite = await body(
+    call('/api/admin/invites', { method: 'POST', jar: admin, json: { note: name } }),
+  );
   return joinAs(invite.code, name, email);
 }

@@ -3,7 +3,8 @@ import { eq } from 'drizzle-orm';
 import { hmacSha256Hex } from '@kyon/core';
 import { createDb } from '@/db/client';
 import { githubConnection, githubRepo } from '@/db/schema';
-import { CookieJar, createTestD1, testEnv } from '@/test/d1';
+import type { CookieJar } from '@/test/d1';
+import { createTestD1, testEnv } from '@/test/d1';
 import { createFakeGitHub, installFakeFetch } from '@/test/fakeGithub';
 import { body, call, inviteAndJoin, joinAs } from '@/test/http';
 
@@ -29,8 +30,11 @@ async function connectGitHub(jar: CookieJar, login: string) {
   expect(done.headers.get('location')).toContain('/settings?github=connected');
 }
 
-const repoOf = (repos: { fullName: string; mine: boolean; id: string }[], name: string, mine = true) =>
-  repos.find((r) => r.fullName === name && r.mine === mine);
+const repoOf = (
+  repos: { fullName: string; mine: boolean; id: string }[],
+  name: string,
+  mine = true,
+) => repos.find((r) => r.fullName === name && r.mine === mine);
 
 describe('GitHub, repo visibility and projects', () => {
   let dispose: () => Promise<void>;
@@ -56,7 +60,11 @@ describe('GitHub, repo visibility and projects', () => {
 
   it('reports the app as configured and not yet connected', async () => {
     const status = await body(call('/api/github', { jar: valerio }));
-    expect(status).toMatchObject({ configured: true, connection: null, installUrl: 'http://fake-github.test/apps/kyon-test/installations/new' });
+    expect(status).toMatchObject({
+      configured: true,
+      connection: null,
+      installUrl: 'http://fake-github.test/apps/kyon-test/installations/new',
+    });
   });
 
   it('rejects a callback with the wrong state', async () => {
@@ -74,7 +82,10 @@ describe('GitHub, repo visibility and projects', () => {
     expect(row?.accessToken.startsWith('v1.')).toBe(true);
 
     const { repos } = await body(call('/api/repos', { jar: valerio }));
-    expect(repos.map((r: { fullName: string }) => r.fullName).sort()).toEqual(['cerbero/allenamento', 'valerio-gh/sito-personale']);
+    expect(repos.map((r: { fullName: string }) => r.fullName).sort()).toEqual([
+      'cerbero/allenamento',
+      'valerio-gh/sito-personale',
+    ]);
     expect(repos.every((r: { exposure: string }) => r.exposure === 'hidden')).toBe(true);
   });
 
@@ -90,67 +101,153 @@ describe('GitHub, repo visibility and projects', () => {
     const { repos } = await body(call('/api/repos', { jar: valerio }));
     const allenamento = repoOf(repos, 'cerbero/allenamento');
     // A hidden repo can't become a project.
-    const refused = await call('/api/projects', { method: 'POST', jar: valerio, json: { repoId: allenamento?.id, name: 'Biohybrid' } });
+    const refused = await call('/api/projects', {
+      method: 'POST',
+      jar: valerio,
+      json: { repoId: allenamento?.id, name: 'Biohybrid' },
+    });
     expect(refused.status).toBe(400);
 
-    await call(`/api/repos/${allenamento?.id}`, { method: 'PATCH', jar: valerio, json: { exposure: 'group' } });
+    await call(`/api/repos/${allenamento?.id}`, {
+      method: 'PATCH',
+      jar: valerio,
+      json: { exposure: 'group' },
+    });
     const seenByTerzo = (await body(call('/api/repos', { jar: terzo }))).repos;
-    expect(seenByTerzo.map((r: { fullName: string }) => r.fullName)).toEqual(['cerbero/allenamento']);
+    expect(seenByTerzo.map((r: { fullName: string }) => r.fullName)).toEqual([
+      'cerbero/allenamento',
+    ]);
     expect(seenByTerzo[0].sharedWith).toEqual([]);
 
-    const created = await call('/api/projects', { method: 'POST', jar: valerio, json: { repoId: allenamento?.id, name: 'Biohybrid' } });
+    const created = await call('/api/projects', {
+      method: 'POST',
+      jar: valerio,
+      json: { repoId: allenamento?.id, name: 'Biohybrid' },
+    });
     expect(created.status).toBe(201);
     projectId = (await body(created)).id;
     const detail = await body(call(`/api/projects/${projectId}`, { jar: christian }));
     expect(detail.role).toBe('member');
-    expect(detail.members.map((m: { name: string; role: string }) => `${m.name}:${m.role}`).sort()).toEqual([
-      'Christian:member',
-      'Terzo:member',
-      'Valerio:owner',
-    ]);
+    expect(
+      detail.members.map((m: { name: string; role: string }) => `${m.name}:${m.role}`).sort(),
+    ).toEqual(['Christian:member', 'Terzo:member', 'Valerio:owner']);
   });
 
   it('allows one project per repo, whoever connected it', async () => {
     const { repos } = await body(call('/api/repos', { jar: christian }));
     const mine = repoOf(repos, 'cerbero/allenamento');
-    await call(`/api/repos/${mine?.id}`, { method: 'PATCH', jar: christian, json: { exposure: 'group' } });
-    const res = await call('/api/projects', { method: 'POST', jar: christian, json: { repoId: mine?.id, name: 'Doppione' } });
+    await call(`/api/repos/${mine?.id}`, {
+      method: 'PATCH',
+      jar: christian,
+      json: { exposure: 'group' },
+    });
+    const res = await call('/api/projects', {
+      method: 'POST',
+      jar: christian,
+      json: { repoId: mine?.id, name: 'Doppione' },
+    });
     expect(res.status).toBe(409);
   });
 
   it('shares with selected people only', async () => {
-    const people = (await body(call('/api/people', { jar: valerio }))).people as { id: string; name: string }[];
+    const people = (await body(call('/api/people', { jar: valerio }))).people as {
+      id: string;
+      name: string;
+    }[];
     const christianId = people.find((p) => p.name === 'Christian')?.id;
-    const sito = repoOf((await body(call('/api/repos', { jar: valerio }))).repos, 'valerio-gh/sito-personale');
-    await call(`/api/repos/${sito?.id}`, { method: 'PATCH', jar: valerio, json: { exposure: 'selected', sharedWith: [christianId] } });
-    expect((await body(call('/api/repos', { jar: christian }))).repos.some((r: { fullName: string }) => r.fullName === 'valerio-gh/sito-personale')).toBe(true);
-    expect((await body(call('/api/repos', { jar: terzo }))).repos.some((r: { fullName: string }) => r.fullName === 'valerio-gh/sito-personale')).toBe(false);
+    const sito = repoOf(
+      (await body(call('/api/repos', { jar: valerio }))).repos,
+      'valerio-gh/sito-personale',
+    );
+    await call(`/api/repos/${sito?.id}`, {
+      method: 'PATCH',
+      jar: valerio,
+      json: { exposure: 'selected', sharedWith: [christianId] },
+    });
+    expect(
+      (await body(call('/api/repos', { jar: christian }))).repos.some(
+        (r: { fullName: string }) => r.fullName === 'valerio-gh/sito-personale',
+      ),
+    ).toBe(true);
+    expect(
+      (await body(call('/api/repos', { jar: terzo }))).repos.some(
+        (r: { fullName: string }) => r.fullName === 'valerio-gh/sito-personale',
+      ),
+    ).toBe(false);
     // Terzo can't create a project from it either (it doesn't exist for him).
-    const res = await call('/api/projects', { method: 'POST', jar: terzo, json: { repoId: sito?.id, name: 'x' } });
+    const res = await call('/api/projects', {
+      method: 'POST',
+      jar: terzo,
+      json: { repoId: sito?.id, name: 'x' },
+    });
     expect(res.status).toBe(404);
   });
 
   it('warns the owner when narrowing visibility, without removing members', async () => {
-    const allenamento = repoOf((await body(call('/api/repos', { jar: valerio }))).repos, 'cerbero/allenamento');
-    const res = await body(call(`/api/repos/${allenamento?.id}`, { method: 'PATCH', jar: valerio, json: { exposure: 'self' } }));
+    const allenamento = repoOf(
+      (await body(call('/api/repos', { jar: valerio }))).repos,
+      'cerbero/allenamento',
+    );
+    const res = await body(
+      call(`/api/repos/${allenamento?.id}`, {
+        method: 'PATCH',
+        jar: valerio,
+        json: { exposure: 'self' },
+      }),
+    );
     expect(res.lostAccess.sort()).toEqual(['Christian', 'Terzo']);
     expect((await call(`/api/projects/${projectId}`, { jar: terzo })).status).toBe(200);
-    await call(`/api/repos/${allenamento?.id}`, { method: 'PATCH', jar: valerio, json: { exposure: 'group' } });
+    await call(`/api/repos/${allenamento?.id}`, {
+      method: 'PATCH',
+      jar: valerio,
+      json: { exposure: 'group' },
+    });
   });
 
   it('enforces project roles', async () => {
-    const people = (await body(call('/api/people', { jar: valerio }))).people as { id: string; name: string }[];
+    const people = (await body(call('/api/people', { jar: valerio }))).people as {
+      id: string;
+      name: string;
+    }[];
     const terzoId = people.find((p) => p.name === 'Terzo')?.id ?? '';
     // Members can't change settings.
-    expect((await call(`/api/projects/${projectId}`, { method: 'PATCH', jar: christian, json: { commitMode: 'branch_pr' } })).status).toBe(403);
+    expect(
+      (
+        await call(`/api/projects/${projectId}`, {
+          method: 'PATCH',
+          jar: christian,
+          json: { commitMode: 'branch_pr' },
+        })
+      ).status,
+    ).toBe(403);
     // Owner can, and can demote someone to viewer.
-    expect((await call(`/api/projects/${projectId}`, { method: 'PATCH', jar: valerio, json: { commitMode: 'branch_pr', viewersCanComment: true } })).status).toBe(200);
-    const after = await body(call(`/api/projects/${projectId}/members/${terzoId}`, { method: 'PATCH', jar: valerio, json: { role: 'viewer' } }));
+    expect(
+      (
+        await call(`/api/projects/${projectId}`, {
+          method: 'PATCH',
+          jar: valerio,
+          json: { commitMode: 'branch_pr', viewersCanComment: true },
+        })
+      ).status,
+    ).toBe(200);
+    const after = await body(
+      call(`/api/projects/${projectId}/members/${terzoId}`, {
+        method: 'PATCH',
+        jar: valerio,
+        json: { role: 'viewer' },
+      }),
+    );
     expect(after.members.find((m: { name: string }) => m.name === 'Terzo').role).toBe('viewer');
     const asViewer = await body(call(`/api/projects/${projectId}`, { jar: terzo }));
-    expect(asViewer.permissions).toMatchObject({ 'project:edit_tasks': false, 'project:comment': true, 'project:settings': false });
+    expect(asViewer.permissions).toMatchObject({
+      'project:edit_tasks': false,
+      'project:comment': true,
+      'project:settings': false,
+    });
     // The owner can't leave or remove themselves.
-    expect((await call(`/api/projects/${projectId}/leave`, { method: 'POST', jar: valerio })).status).toBe(403);
+    expect(
+      (await call(`/api/projects/${projectId}/leave`, { method: 'POST', jar: valerio })).status,
+    ).toBe(403);
   });
 
   it('hides projects from non-members with a 404', async () => {
@@ -160,22 +257,55 @@ describe('GitHub, repo visibility and projects', () => {
   });
 
   it('transfers ownership, archives (read-only) and deletes with a typed confirmation', async () => {
-    const people = (await body(call('/api/people', { jar: valerio }))).people as { id: string; name: string }[];
+    const people = (await body(call('/api/people', { jar: valerio }))).people as {
+      id: string;
+      name: string;
+    }[];
     const christianId = people.find((p) => p.name === 'Christian')?.id;
-    const transferred = await body(call(`/api/projects/${projectId}/transfer`, { method: 'POST', jar: valerio, json: { userId: christianId } }));
+    const transferred = await body(
+      call(`/api/projects/${projectId}/transfer`, {
+        method: 'POST',
+        jar: valerio,
+        json: { userId: christianId },
+      }),
+    );
     expect(transferred.role).toBe('member');
-    const archived = await body(call(`/api/projects/${projectId}/archive`, { method: 'POST', jar: christian, json: { archived: true } }));
+    const archived = await body(
+      call(`/api/projects/${projectId}/archive`, {
+        method: 'POST',
+        jar: christian,
+        json: { archived: true },
+      }),
+    );
     expect(archived.archived).toBe(true);
     expect(archived.permissions['project:edit_tasks']).toBe(false);
-    expect((await call(`/api/projects/${projectId}`, { method: 'DELETE', jar: christian, json: { confirmName: 'sbagliato' } })).status).toBe(400);
-    expect((await call(`/api/projects/${projectId}`, { method: 'DELETE', jar: christian, json: { confirmName: 'Biohybrid' } })).status).toBe(200);
+    expect(
+      (
+        await call(`/api/projects/${projectId}`, {
+          method: 'DELETE',
+          jar: christian,
+          json: { confirmName: 'sbagliato' },
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await call(`/api/projects/${projectId}`, {
+          method: 'DELETE',
+          jar: christian,
+          json: { confirmName: 'Biohybrid' },
+        })
+      ).status,
+    ).toBe(200);
     expect((await call(`/api/projects/${projectId}`, { jar: christian })).status).toBe(404);
   });
 
   it('refreshes expired access tokens transparently', async () => {
     fake.state.accessTokenTtlSeconds = 60; // below the 5-minute refresh margin
     await connectGitHub(terzo, 'valerio-gh');
-    const before = (await createDb(env.DB).select().from(githubConnection)).find((c) => c.login === 'valerio-gh' && c.accessToken);
+    const before = (await createDb(env.DB).select().from(githubConnection)).find(
+      (c) => c.login === 'valerio-gh' && c.accessToken,
+    );
     const res = await call('/api/github/sync', { method: 'POST', jar: terzo });
     expect(res.status).toBe(200);
     const rows = await createDb(env.DB).select().from(githubConnection);
@@ -184,8 +314,17 @@ describe('GitHub, repo visibility and projects', () => {
   });
 
   it('accepts only signed webhooks and marks removed repos unavailable', async () => {
-    const payload = JSON.stringify({ action: 'removed', repositories_removed: [{ id: 9002 }], installation: { id: 501 }, sender: { id: 1001 } });
-    const unsigned = await call('/api/github/webhook', { method: 'POST', body: payload, headers: { 'x-github-event': 'installation_repositories' } });
+    const payload = JSON.stringify({
+      action: 'removed',
+      repositories_removed: [{ id: 9002 }],
+      installation: { id: 501 },
+      sender: { id: 1001 },
+    });
+    const unsigned = await call('/api/github/webhook', {
+      method: 'POST',
+      body: payload,
+      headers: { 'x-github-event': 'installation_repositories' },
+    });
     expect(unsigned.status).toBe(401);
     const signature = `sha256=${await hmacSha256Hex('fake-webhook-secret', payload)}`;
     const signed = await call('/api/github/webhook', {
@@ -194,9 +333,16 @@ describe('GitHub, repo visibility and projects', () => {
       headers: { 'x-github-event': 'installation_repositories', 'x-hub-signature-256': signature },
     });
     expect(signed.status).toBe(200);
-    const rows = await createDb(env.DB).select().from(githubRepo).where(eq(githubRepo.githubRepoId, 9002));
+    const rows = await createDb(env.DB)
+      .select()
+      .from(githubRepo)
+      .where(eq(githubRepo.githubRepoId, 9002));
     expect(rows.every((r) => !r.available)).toBe(true);
     // Unavailable repos disappear for everyone but the person who connected them.
-    expect((await body(call('/api/repos', { jar: christian }))).repos.some((r: { fullName: string; mine: boolean }) => r.fullName === 'valerio-gh/sito-personale')).toBe(false);
+    expect(
+      (await body(call('/api/repos', { jar: christian }))).repos.some(
+        (r: { fullName: string; mine: boolean }) => r.fullName === 'valerio-gh/sito-personale',
+      ),
+    ).toBe(false);
   });
 });

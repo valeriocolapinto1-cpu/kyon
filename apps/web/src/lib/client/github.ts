@@ -7,7 +7,12 @@ import { api } from './api';
 export interface GitHubStatus {
   configured: boolean;
   installUrl: string | null;
-  connection: { login: string; avatarUrl: string | null; lastSyncAt: string | null; needsReconnect: boolean } | null;
+  connection: {
+    login: string;
+    avatarUrl: string | null;
+    lastSyncAt: string | null;
+    needsReconnect: boolean;
+  } | null;
 }
 
 export interface RepoView {
@@ -40,7 +45,10 @@ export function useGitHubStatus() {
 }
 
 export function useRepos() {
-  return useQuery({ queryKey: reposKey, queryFn: () => api<{ repos: RepoView[] }>('/api/repos').then((r) => r.repos) });
+  return useQuery({
+    queryKey: reposKey,
+    queryFn: () => api<{ repos: RepoView[] }>('/api/repos').then((r) => r.repos),
+  });
 }
 
 export function usePeople() {

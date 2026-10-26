@@ -28,16 +28,30 @@ export const POST = route(async ({ request, env, db }) => {
   const event = request.headers.get('x-github-event') ?? '';
   const payload = JSON.parse(new TextDecoder().decode(body)) as InstallationPayload;
 
-  if (event === 'installation' && (payload.action === 'deleted' || payload.action === 'suspend') && payload.installation) {
+  if (
+    event === 'installation' &&
+    (payload.action === 'deleted' || payload.action === 'suspend') &&
+    payload.installation
+  ) {
     await markInstallationUnavailable(db, payload.installation.id);
   } else if (event === 'installation_repositories' && payload.repositories_removed?.length) {
-    await markReposUnavailable(db, payload.repositories_removed.map((r) => r.id));
+    await markReposUnavailable(
+      db,
+      payload.repositories_removed.map((r) => r.id),
+    );
   }
   // New repos or a new installation: refresh the list of whoever made the change, if connected.
-  if ((event === 'installation' && payload.action === 'created') || (event === 'installation_repositories' && payload.action === 'added')) {
+  if (
+    (event === 'installation' && payload.action === 'created') ||
+    (event === 'installation_repositories' && payload.action === 'added')
+  ) {
     const senderId = payload.sender?.id;
     if (senderId) {
-      const [connection] = await db.select().from(githubConnection).where(eq(githubConnection.githubUserId, senderId)).limit(1);
+      const [connection] = await db
+        .select()
+        .from(githubConnection)
+        .where(eq(githubConnection.githubUserId, senderId))
+        .limit(1);
       if (connection) {
         try {
           await syncRepos(db, env, githubConfig(env), connection.userId);

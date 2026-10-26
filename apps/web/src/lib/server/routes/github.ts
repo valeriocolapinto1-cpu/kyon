@@ -1,7 +1,18 @@
 import { z } from 'zod';
 import { ApiError } from '../errors';
-import { authorizeUrl, exchangeCode, githubConfig, githubConfigured, installUrl } from '../github/client';
-import { deleteConnection, fetchGitHubUser, getConnection, saveConnection } from '../github/connections';
+import {
+  authorizeUrl,
+  exchangeCode,
+  githubConfig,
+  githubConfigured,
+  installUrl,
+} from '../github/client';
+import {
+  deleteConnection,
+  fetchGitHubUser,
+  getConnection,
+  saveConnection,
+} from '../github/connections';
 import { listVisibleRepos, syncRepos } from '../github/repos';
 import { authedRoute, json, rateLimit } from '../http';
 
@@ -33,7 +44,11 @@ export const DELETE = authedRoute(async ({ db, auth }) => {
 
 export const connect = authedRoute(async ({ request, env }) => {
   const config = githubConfig(env);
-  if (!githubConfigured(config)) throw new ApiError('bad_request', 'La GitHub App non è ancora configurata (vedi docs/SETUP.md).');
+  if (!githubConfigured(config))
+    throw new ApiError(
+      'bad_request',
+      'La GitHub App non è ancora configurata (vedi docs/SETUP.md).',
+    );
   const origin = new URL(request.url).origin;
   const state = crypto.randomUUID();
   const secure = origin.startsWith('https://') ? '; Secure' : '';
@@ -54,7 +69,10 @@ function readCookie(request: Request, name: string): string | null {
 function redirectToSettings(origin: string, status: string) {
   return new Response(null, {
     status: 302,
-    headers: { location: `${origin}/settings?github=${status}#github`, 'set-cookie': `${STATE_COOKIE}=; Path=/api/github; Max-Age=0` },
+    headers: {
+      location: `${origin}/settings?github=${status}#github`,
+      'set-cookie': `${STATE_COOKIE}=; Path=/api/github; Max-Age=0`,
+    },
   });
 }
 
@@ -64,7 +82,8 @@ export const callback = authedRoute(async ({ request, env, db, auth }) => {
   const state = url.searchParams.get('state');
   const code = url.searchParams.get('code');
   const expected = readCookie(request, STATE_COOKIE);
-  if (!code || !state || !expected || state !== expected) return redirectToSettings(url.origin, 'error');
+  if (!code || !state || !expected || state !== expected)
+    return redirectToSettings(url.origin, 'error');
   const config = githubConfig(env);
   const tokens = await exchangeCode(config, code, `${url.origin}/api/github/callback`);
   const ghUser = await fetchGitHubUser(config, tokens.accessToken);

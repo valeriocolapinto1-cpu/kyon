@@ -9,7 +9,8 @@ import { gh, refreshAccessToken, type GitHubConfig, type TokenSet } from './clie
 const REFRESH_MARGIN_MS = 5 * 60 * 1000;
 
 function encryptionKey(env: CloudflareEnv): string {
-  if (!env.TOKEN_ENCRYPTION_KEY) throw new ApiError('internal', 'Chiave di cifratura dei token mancante.');
+  if (!env.TOKEN_ENCRYPTION_KEY)
+    throw new ApiError('internal', 'Chiave di cifratura dei token mancante.');
   return env.TOKEN_ENCRYPTION_KEY;
 }
 
@@ -19,7 +20,13 @@ export interface GitHubUser {
   avatar_url?: string;
 }
 
-export async function saveConnection(db: Db, env: CloudflareEnv, userId: string, tokens: TokenSet, ghUser: GitHubUser) {
+export async function saveConnection(
+  db: Db,
+  env: CloudflareEnv,
+  userId: string,
+  tokens: TokenSet,
+  ghUser: GitHubUser,
+) {
   const key = encryptionKey(env);
   const now = new Date();
   const values = {
@@ -29,7 +36,9 @@ export async function saveConnection(db: Db, env: CloudflareEnv, userId: string,
     avatarUrl: ghUser.avatar_url ?? null,
     accessToken: await encryptSecret(key, tokens.accessToken, `gh-access:${userId}`),
     accessTokenExpiresAt: tokens.accessTokenExpiresAt,
-    refreshToken: tokens.refreshToken ? await encryptSecret(key, tokens.refreshToken, `gh-refresh:${userId}`) : null,
+    refreshToken: tokens.refreshToken
+      ? await encryptSecret(key, tokens.refreshToken, `gh-refresh:${userId}`)
+      : null,
     refreshTokenExpiresAt: tokens.refreshTokenExpiresAt,
     lastError: null,
     updatedAt: now,
@@ -41,7 +50,11 @@ export async function saveConnection(db: Db, env: CloudflareEnv, userId: string,
 }
 
 export async function getConnection(db: Db, userId: string) {
-  const [row] = await db.select().from(githubConnection).where(eq(githubConnection.userId, userId)).limit(1);
+  const [row] = await db
+    .select()
+    .from(githubConnection)
+    .where(eq(githubConnection.userId, userId))
+    .limit(1);
   return row ?? null;
 }
 
@@ -49,7 +62,12 @@ export async function getConnection(db: Db, userId: string) {
  * Returns a valid user access token, refreshing it (and persisting the new pair) when needed.
  * Returns null when the user hasn't connected GitHub or the refresh token has expired.
  */
-export async function getAccessToken(db: Db, env: CloudflareEnv, config: GitHubConfig, userId: string): Promise<string | null> {
+export async function getAccessToken(
+  db: Db,
+  env: CloudflareEnv,
+  config: GitHubConfig,
+  userId: string,
+): Promise<string | null> {
   const row = await getConnection(db, userId);
   if (!row) return null;
   const key = encryptionKey(env);
@@ -58,8 +76,14 @@ export async function getAccessToken(db: Db, env: CloudflareEnv, config: GitHubC
   if (expiresAt - REFRESH_MARGIN_MS > now) {
     return decryptSecret(key, row.accessToken, `gh-access:${userId}`);
   }
-  if (!row.refreshToken || (row.refreshTokenExpiresAt && row.refreshTokenExpiresAt.getTime() <= now)) {
-    await db.update(githubConnection).set({ lastError: 'refresh_expired', updatedAt: new Date() }).where(eq(githubConnection.userId, userId));
+  if (
+    !row.refreshToken ||
+    (row.refreshTokenExpiresAt && row.refreshTokenExpiresAt.getTime() <= now)
+  ) {
+    await db
+      .update(githubConnection)
+      .set({ lastError: 'refresh_expired', updatedAt: new Date() })
+      .where(eq(githubConnection.userId, userId));
     return null;
   }
   const refreshToken = await decryptSecret(key, row.refreshToken, `gh-refresh:${userId}`);

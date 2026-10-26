@@ -58,7 +58,10 @@ const routes: [string, Module][] = [
   ['/api/projects', projects],
   ['/api/projects/:id', projectRoutes],
   ['/api/projects/:id/members', { POST: projectRoutes.addMemberRoute }],
-  ['/api/projects/:id/members/:userId', { PATCH: projectRoutes.memberRoleRoute, DELETE: projectRoutes.removeMemberRoute }],
+  [
+    '/api/projects/:id/members/:userId',
+    { PATCH: projectRoutes.memberRoleRoute, DELETE: projectRoutes.removeMemberRoute },
+  ],
   ['/api/projects/:id/leave', { POST: projectRoutes.leaveRoute }],
   ['/api/projects/:id/transfer', { POST: projectRoutes.transferRoute }],
   ['/api/projects/:id/archive', { POST: projectRoutes.archiveRoute }],

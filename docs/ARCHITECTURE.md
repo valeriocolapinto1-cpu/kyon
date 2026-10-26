@@ -56,12 +56,20 @@ Browser ──GET /settings──▶ asset statico (shell prerenderizzata, nessu
         ──fetch /api/me──▶ app/api/[[...route]] ─▶ router Hono ─▶ lib/server/routes/me.ts ─▶ D1
 ```
 
-- **Pagine**: shell statiche (`○` nella build) servite dalla cache statica. `AuthGate` legge `/api/me`: senza sessione porta a `/login?next=…`. Ogni blocco mostra il suo skeleton.
+- **Pagine**: shell statiche (`○` nella build) servite dalla cache statica. Gli identificativi vanno in query string (`/progetti?id=…&tab=…`): niente segmenti dinamici, che il Worker renderizzerebbe a ogni richiesta. `AuthGate` legge `/api/me`: senza sessione porta a `/login?next=…`. Ogni blocco mostra il suo skeleton.
 - **API**: un'unica route Next (`app/api/[[...route]]/route.ts`) e un router Hono (`lib/server/router.ts`) che monta i moduli di `lib/server/routes/`. Ogni handler passa da `route()`/`authedRoute()` (`lib/server/http.ts`): env, Drizzle, errori JSON `{ error: { code, message } }` in italiano, controllo di origine sulle scritture, sessione e ruolo admin. Validazione con Zod.
 - **Better Auth** (`lib/server/auth.ts`), una istanza per isolate e origine: email + password, sessioni in D1 senza cookie cache, plugin `rotate-session`. Il sign-up pubblico è bloccato: gli account nascono da `/api/join` (invito o codice di bootstrap).
 - **Password**: il browser calcola PBKDF2-SHA256 (600k) e manda una chiave derivata; il server la ri-hasha (PBKDF2 10k, salt casuale). Logica in `packages/core/src/auth`.
 - **Rate limit**: binding `AUTH_LIMITER` (10/min per IP su login, reset, inviti) e `WRITE_LIMITER` (120/min per utente).
 - **Client**: TanStack Query (`lib/client/*`), `api()` che normalizza gli errori; preferenze in localStorage + account (`lib/preferences/*`).
+
+## 3ter. GitHub e permessi
+
+- **Accesso**: GitHub App con autorizzazione utente. Ogni utente ha una `github_connection` (token cifrati AES-GCM con `TOKEN_ENCRYPTION_KEY`) e vede le repo dove l'app è installata **e** lui ha accesso (`/user/installations/*/repositories`). Per le chiamate si usa il token di chi agisce; per cron e webhook quello di chi ha esposto la repo.
+- **Esposizione** per riga `github_repo` (utente × repo): `hidden`, `self`, `selected` (+ `github_repo_share`), `group`. **Progetto** = una repo GitHub (`github_repo_id` unico), membri in `project_member` con ruolo `owner`/`member`/`viewer`.
+- **Permessi**: solo `can()` (`packages/core/src/permissions/can.ts`). Le liste filtrano le righe con `can()`; le singole risorse rispondono 404 a chi non deve vederle. L'accesso a un progetto dipende solo dall'appartenenza; la visibilità della repo decide chi si può aggiungere.
+- **Webhook**: `POST /api/github/webhook`, firma verificata prima di tutto. Fase 3: eventi di installazione; push/PR/check nelle fasi 4 e 6.
+- **Test**: il GitHub finto (`apps/web/src/test/fakeGithub.ts`) è un'app Hono; nei test di integrazione sostituisce `fetch`, negli e2e e in `pnpm dev` gira su `localhost:8799` (`GITHUB_API_URL` / `GITHUB_WEB_URL`).
 
 ## 4. Realtime (Fase 7, impostato in Fase 0)
 

@@ -103,11 +103,22 @@ export interface TokenSet {
   refreshTokenExpiresAt: Date | null;
 }
 
-async function tokenRequest(config: GitHubConfig, params: Record<string, string>): Promise<TokenSet> {
+async function tokenRequest(
+  config: GitHubConfig,
+  params: Record<string, string>,
+): Promise<TokenSet> {
   const response = await config.fetch(`${config.webUrl}/login/oauth/access_token`, {
     method: 'POST',
-    headers: { accept: 'application/json', 'content-type': 'application/json', 'user-agent': 'Kyon' },
-    body: JSON.stringify({ client_id: config.clientId, client_secret: config.clientSecret, ...params }),
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'user-agent': 'Kyon',
+    },
+    body: JSON.stringify({
+      client_id: config.clientId,
+      client_secret: config.clientSecret,
+      ...params,
+    }),
   });
   const data = (await response.json()) as {
     access_token?: string;
@@ -125,11 +136,17 @@ async function tokenRequest(config: GitHubConfig, params: Record<string, string>
     accessToken: data.access_token,
     accessTokenExpiresAt: data.expires_in ? new Date(now + data.expires_in * 1000) : null,
     refreshToken: data.refresh_token ?? null,
-    refreshTokenExpiresAt: data.refresh_token_expires_in ? new Date(now + data.refresh_token_expires_in * 1000) : null,
+    refreshTokenExpiresAt: data.refresh_token_expires_in
+      ? new Date(now + data.refresh_token_expires_in * 1000)
+      : null,
   };
 }
 
-export function exchangeCode(config: GitHubConfig, code: string, redirectUri: string): Promise<TokenSet> {
+export function exchangeCode(
+  config: GitHubConfig,
+  code: string,
+  redirectUri: string,
+): Promise<TokenSet> {
   return tokenRequest(config, { code, redirect_uri: redirectUri });
 }
 
@@ -138,7 +155,11 @@ export function refreshAccessToken(config: GitHubConfig, refreshToken: string): 
 }
 
 export function authorizeUrl(config: GitHubConfig, redirectUri: string, state: string): string {
-  const params = new URLSearchParams({ client_id: config.clientId, redirect_uri: redirectUri, state });
+  const params = new URLSearchParams({
+    client_id: config.clientId,
+    redirect_uri: redirectUri,
+    state,
+  });
   return `${config.webUrl}/login/oauth/authorize?${params}`;
 }
 

@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { can, type Actor, type Exposure, type ProjectAction, type ProjectRole, type RepoAction } from './can';
+import {
+  can,
+  type Actor,
+  type Exposure,
+  type ProjectAction,
+  type ProjectRole,
+  type RepoAction,
+} from './can';
 
 const alice: Actor = { id: 'alice', role: 'user' };
 const bob: Actor = { id: 'bob', role: 'user' };
@@ -39,7 +46,13 @@ describe('can() — repos (exposure × who × action)', () => {
   for (const [exposure, available, shared, who, action, expected] of table) {
     it(`${who} ${action} on ${exposure}${available ? '' : ' (unavailable)'}${shared ? ' shared' : ''} → ${expected}`, () => {
       const actor = who === 'owner' ? alice : who === 'bob' ? bob : admin;
-      const resource = { kind: 'repo' as const, exposedBy: alice.id, exposure, sharedWith: shared ? [bob.id] : [], available };
+      const resource = {
+        kind: 'repo' as const,
+        exposedBy: alice.id,
+        exposure,
+        sharedWith: shared ? [bob.id] : [],
+        available,
+      };
       expect(can(actor, action, resource)).toBe(expected);
     });
   }
@@ -66,20 +79,20 @@ describe('can() — projects (role × action × state), full truth table', () =>
   // Columns follow `actions`. o = allowed.
   const expected: Record<string, string> = {
     // active project, viewers cannot comment
-    'owner|active|no':  'o o o o o o o o o o o .',
+    'owner|active|no': 'o o o o o o o o o o o .',
     'member|active|no': 'o o o o o o . . . . . o',
     'viewer|active|no': 'o . . . . . . . . . . o',
-    'none|active|no':   '. . . . . . . . . . . .',
+    'none|active|no': '. . . . . . . . . . . .',
     // active project, viewers can comment
-    'owner|active|yes':  'o o o o o o o o o o o .',
+    'owner|active|yes': 'o o o o o o o o o o o .',
     'member|active|yes': 'o o o o o o . . . . . o',
     'viewer|active|yes': 'o . . . o . . . . . . o',
-    'none|active|yes':   '. . . . . . . . . . . .',
+    'none|active|yes': '. . . . . . . . . . . .',
     // archived: read-only, owner can still restore (archive) or delete
-    'owner|archived|no':  'o . . . . . . . . o o .',
+    'owner|archived|no': 'o . . . . . . . . o o .',
     'member|archived|no': 'o . . . . . . . . . . o',
     'viewer|archived|yes': 'o . . . . . . . . . . o',
-    'none|archived|no':   '. . . . . . . . . . . .',
+    'none|archived|no': '. . . . . . . . . . . .',
   };
 
   for (const [key, row] of Object.entries(expected)) {
@@ -90,20 +103,37 @@ describe('can() — projects (role × action × state), full truth table', () =>
       const allowed = flags[i] === 'o';
       it(`${roleKey} · ${state} · viewersCanComment=${comment}: ${action} → ${allowed}`, () => {
         expect(
-          can(alice, action, { kind: 'project', membership, archived: state === 'archived', viewersCanComment: comment === 'yes' }),
+          can(alice, action, {
+            kind: 'project',
+            membership,
+            archived: state === 'archived',
+            viewersCanComment: comment === 'yes',
+          }),
         ).toBe(allowed);
       });
     });
   }
 
   it('gives global admins no access to projects they are not in', () => {
-    expect(can(admin, 'project:view', { kind: 'project', membership: null, archived: false, viewersCanComment: true })).toBe(false);
+    expect(
+      can(admin, 'project:view', {
+        kind: 'project',
+        membership: null,
+        archived: false,
+        viewersCanComment: true,
+      }),
+    ).toBe(false);
   });
 });
 
 describe('can() — group', () => {
   it('reserves admin actions to admins', () => {
-    for (const action of ['admin:invites', 'admin:users', 'admin:export', 'admin:health'] as const) {
+    for (const action of [
+      'admin:invites',
+      'admin:users',
+      'admin:export',
+      'admin:health',
+    ] as const) {
       expect(can(admin, action, { kind: 'group' })).toBe(true);
       expect(can(alice, action, { kind: 'group' })).toBe(false);
     }

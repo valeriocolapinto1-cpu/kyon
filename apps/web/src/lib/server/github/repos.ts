@@ -1,7 +1,14 @@
 import { and, eq, inArray, notInArray } from 'drizzle-orm';
 import { can, type Actor, type Exposure, type RepoResource } from '@kyon/core';
 import type { Db } from '@/db/client';
-import { githubConnection, githubRepo, githubRepoShare, project, projectMember, user } from '@/db/schema';
+import {
+  githubConnection,
+  githubRepo,
+  githubRepoShare,
+  project,
+  projectMember,
+  user,
+} from '@/db/schema';
 import { ApiError } from '../errors';
 import { ghPaginate, type GitHubConfig } from './client';
 import { getAccessToken } from './connections';
@@ -26,9 +33,15 @@ interface GhRepo {
  * where the app is installed AND the user has access). Exposure choices are kept; repos no longer
  * reachable are marked unavailable instead of deleted.
  */
-export async function syncRepos(db: Db, env: CloudflareEnv, config: GitHubConfig, userId: string): Promise<number> {
+export async function syncRepos(
+  db: Db,
+  env: CloudflareEnv,
+  config: GitHubConfig,
+  userId: string,
+): Promise<number> {
   const token = await getAccessToken(db, env, config, userId);
-  if (!token) throw new ApiError('bad_request', 'Collega di nuovo GitHub: l’autorizzazione è scaduta.');
+  if (!token)
+    throw new ApiError('bad_request', 'Collega di nuovo GitHub: l’autorizzazione è scaduta.');
   const installations = await ghPaginate<{ installations: GhInstallation[] }, GhInstallation>(
     config,
     token,
@@ -60,15 +73,28 @@ export async function syncRepos(db: Db, env: CloudflareEnv, config: GitHubConfig
       };
       await db
         .insert(githubRepo)
-        .values({ id: crypto.randomUUID(), userId, githubRepoId: repo.id, createdAt: now, ...values })
+        .values({
+          id: crypto.randomUUID(),
+          userId,
+          githubRepoId: repo.id,
+          createdAt: now,
+          ...values,
+        })
         .onConflictDoUpdate({ target: [githubRepo.userId, githubRepo.githubRepoId], set: values });
     }
   }
   await db
     .update(githubRepo)
     .set({ available: false, updatedAt: now })
-    .where(seen.length ? and(eq(githubRepo.userId, userId), notInArray(githubRepo.githubRepoId, seen)) : eq(githubRepo.userId, userId));
-  await db.update(githubConnection).set({ lastSyncAt: now, lastError: null }).where(eq(githubConnection.userId, userId));
+    .where(
+      seen.length
+        ? and(eq(githubRepo.userId, userId), notInArray(githubRepo.githubRepoId, seen))
+        : eq(githubRepo.userId, userId),
+    );
+  await db
+    .update(githubConnection)
+    .set({ lastSyncAt: now, lastError: null })
+    .where(eq(githubConnection.userId, userId));
   return seen.length;
 }
 
@@ -77,7 +103,10 @@ export type RepoRow = typeof githubRepo.$inferSelect;
 export async function sharesFor(db: Db, repoIds: string[]): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
   if (repoIds.length === 0) return map;
-  const rows = await db.select().from(githubRepoShare).where(inArray(githubRepoShare.repoId, repoIds));
+  const rows = await db
+    .select()
+    .from(githubRepoShare)
+    .where(inArray(githubRepoShare.repoId, repoIds));
   for (const row of rows) map.set(row.repoId, [...(map.get(row.repoId) ?? []), row.userId]);
   return map;
 }
@@ -149,13 +178,20 @@ export async function loadRepo(db: Db, repoId: string) {
  * Changes exposure. Members already in a project keep their access, but the owner is told who
  * can no longer see the repo (returned as names).
  */
-export async function setExposure(db: Db, actor: Actor, repoId: string, exposure: Exposure, sharedWith: string[]) {
+export async function setExposure(
+  db: Db,
+  actor: Actor,
+  repoId: string,
+  exposure: Exposure,
+  sharedWith: string[],
+) {
   const loaded = await loadRepo(db, repoId);
   if (!loaded || !can(actor, 'repo:configure', loaded.resource)) throw new ApiError('not_found');
   const unique = [...new Set(sharedWith.filter((id) => id !== actor.id))];
   if (unique.length) {
     const existing = await db.select({ id: user.id }).from(user).where(inArray(user.id, unique));
-    if (existing.length !== unique.length) throw new ApiError('bad_request', 'Una delle persone scelte non esiste.');
+    if (existing.length !== unique.length)
+      throw new ApiError('bad_request', 'Una delle persone scelte non esiste.');
   }
   await db.batch([
     db.update(githubRepo).set({ exposure, updatedAt: new Date() }).where(eq(githubRepo.id, repoId)),
@@ -166,7 +202,11 @@ export async function setExposure(db: Db, actor: Actor, repoId: string, exposure
   ]);
   const after = await loadRepo(db, repoId);
   if (!after) return { lostAccess: [] as string[] };
-  const [proj] = await db.select({ id: project.id }).from(project).where(eq(project.repoId, repoId)).limit(1);
+  const [proj] = await db
+    .select({ id: project.id })
+    .from(project)
+    .where(eq(project.repoId, repoId))
+    .limit(1);
   if (!proj) return { lostAccess: [] };
   const members = await db
     .select({ id: user.id, name: user.name, role: projectMember.role })
@@ -182,9 +222,15 @@ export async function setExposure(db: Db, actor: Actor, repoId: string, exposure
 /** Webhook: repos removed from an installation are no longer reachable for anyone. */
 export async function markReposUnavailable(db: Db, githubRepoIds: number[]) {
   if (githubRepoIds.length === 0) return;
-  await db.update(githubRepo).set({ available: false, updatedAt: new Date() }).where(inArray(githubRepo.githubRepoId, githubRepoIds));
+  await db
+    .update(githubRepo)
+    .set({ available: false, updatedAt: new Date() })
+    .where(inArray(githubRepo.githubRepoId, githubRepoIds));
 }
 
 export async function markInstallationUnavailable(db: Db, installationId: number) {
-  await db.update(githubRepo).set({ available: false, updatedAt: new Date() }).where(eq(githubRepo.installationId, installationId));
+  await db
+    .update(githubRepo)
+    .set({ available: false, updatedAt: new Date() })
+    .where(eq(githubRepo.installationId, installationId));
 }

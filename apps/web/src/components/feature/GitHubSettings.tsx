@@ -14,14 +14,27 @@ import { Sheet } from '@/components/ui/Sheet';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
 import { ApiClientError, api } from '@/lib/client/api';
-import { githubKey, reposKey, useGitHubStatus, usePeople, useRepos, type RepoView } from '@/lib/client/github';
+import {
+  githubKey,
+  reposKey,
+  useGitHubStatus,
+  usePeople,
+  useRepos,
+  type RepoView,
+} from '@/lib/client/github';
 import type { Me } from '@/lib/client/me';
 import { relativeTime } from '@/lib/format/relative';
 import { it } from '@/lib/i18n/it';
 
 const g = it.github;
-const tones: Record<Exposure, BadgeTone> = { hidden: 'neutral', self: 'accent', selected: 'warning', group: 'success' };
-const message = (error: unknown) => (error instanceof ApiClientError ? error.message : it.common.errorBody);
+const tones: Record<Exposure, BadgeTone> = {
+  hidden: 'neutral',
+  self: 'accent',
+  selected: 'warning',
+  group: 'success',
+};
+const message = (error: unknown) =>
+  error instanceof ApiClientError ? error.message : it.common.errorBody;
 
 function ExposureSheet({ repo, me, onClose }: { repo: RepoView; me: Me; onClose: () => void }) {
   const queryClient = useQueryClient();
@@ -37,7 +50,8 @@ function ExposureSheet({ repo, me, onClose }: { repo: RepoView; me: Me; onClose:
       }),
     onSuccess: (data) => {
       queryClient.setQueryData(reposKey, data.repos);
-      if (data.lostAccess.length) toast({ title: g.lostAccess(data.lostAccess.join(', ')), tone: 'info', durationMs: 9000 });
+      if (data.lostAccess.length)
+        toast({ title: g.lostAccess(data.lostAccess.join(', ')), tone: 'info', durationMs: 9000 });
       onClose();
     },
     onError: (error) => toast({ title: message(error), tone: 'error' }),
@@ -65,7 +79,11 @@ function ExposureSheet({ repo, me, onClose }: { repo: RepoView; me: Me; onClose:
           label={g.visibility}
           value={exposure}
           onChange={setExposure}
-          options={(['hidden', 'self', 'selected', 'group'] as const).map((value) => ({ value, label: g.exposure[value], description: g.exposureHelp[value] }))}
+          options={(['hidden', 'self', 'selected', 'group'] as const).map((value) => ({
+            value,
+            label: g.exposure[value],
+            description: g.exposureHelp[value],
+          }))}
         />
         {exposure === 'selected' && (
           <fieldset className="flex flex-col">
@@ -75,7 +93,11 @@ function ExposureSheet({ repo, me, onClose }: { repo: RepoView; me: Me; onClose:
                 key={p.id}
                 label={p.name}
                 checked={shared.includes(p.id)}
-                onChange={(e) => setShared((s) => (e.target.checked ? [...s, p.id] : s.filter((id) => id !== p.id)))}
+                onChange={(e) =>
+                  setShared((s) =>
+                    e.target.checked ? [...s, p.id] : s.filter((id) => id !== p.id),
+                  )
+                }
               />
             ))}
           </fieldset>
@@ -135,7 +157,11 @@ export function GitHubSettings({ me }: { me: Me }) {
         <p className="text-subhead text-muted">{g.notConfigured}</p>
       ) : !connection || connection.needsReconnect ? (
         <div className="flex flex-col gap-3">
-          <p className="text-subhead text-muted">{connection?.needsReconnect ? g.reconnectHelp : g.connectIntro}</p>
+          <p className="text-subhead text-muted">
+            {connection?.needsReconnect ? g.reconnectHelp : g.connectIntro}
+          </p>
+          {/* Full-page navigation to the OAuth redirect (an API route, not a page). */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a
             href="/api/github/connect"
             data-plain
@@ -149,13 +175,20 @@ export function GitHubSettings({ me }: { me: Me }) {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-body font-semibold text-fg">{g.connectedAs(connection.login)}</p>
-              {connection.lastSyncAt && <p className="text-footnote text-muted">{relativeTime(connection.lastSyncAt)}</p>}
+              {connection.lastSyncAt && (
+                <p className="text-footnote text-muted">{relativeTime(connection.lastSyncAt)}</p>
+              )}
             </div>
             <div className="flex flex-wrap gap-2">
               <GlassButton size="sm" onClick={() => sync.mutate()} disabled={sync.isPending}>
                 <RefreshCw className="size-4" aria-hidden="true" /> {g.refresh}
               </GlassButton>
-              <GlassButton size="sm" variant="plain" onClick={() => disconnect.mutate()} disabled={disconnect.isPending}>
+              <GlassButton
+                size="sm"
+                variant="plain"
+                onClick={() => disconnect.mutate()}
+                disabled={disconnect.isPending}
+              >
                 {g.disconnect}
               </GlassButton>
             </div>
@@ -185,16 +218,20 @@ export function GitHubSettings({ me }: { me: Me }) {
                     type="button"
                     onClick={() => setEditing(repo)}
                     className="k-pressable flex min-h-touch w-full flex-wrap items-center justify-between gap-2 py-3 text-left"
-                    aria-label={`${repo.fullName}: ${g.exposure[repo.exposure]}. ${g.visibility}`}
                   >
                     <span className="flex items-center gap-2">
-                      {repo.private ? <Lock className="size-4 text-muted" aria-label={g.private} /> : <Unlock className="size-4 text-muted" aria-label={g.public} />}
+                      {repo.private ? (
+                        <Lock className="size-4 text-muted" aria-label={g.private} />
+                      ) : (
+                        <Unlock className="size-4 text-muted" aria-label={g.public} />
+                      )}
                       <span className="text-body text-fg">{repo.fullName}</span>
                     </span>
                     <span className="flex flex-wrap items-center gap-1">
                       {!repo.available && <Badge tone="danger">{g.unavailable}</Badge>}
                       {repo.projectId && <Badge tone="accent">{g.isProject}</Badge>}
                       <Badge tone={tones[repo.exposure]}>{g.exposure[repo.exposure]}</Badge>
+                      <span className="sr-only">— {g.visibility}</span>
                     </span>
                   </button>
                 </li>

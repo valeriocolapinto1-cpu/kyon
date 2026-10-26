@@ -43,9 +43,30 @@ export function defaultFakeState(kyonOrigin = 'http://localhost:8787'): FakeStat
       { id: 1002, login: 'christian-gh', repoIds: [9001, 9003] },
     ],
     repos: [
-      { id: 9001, owner: 'cerbero', name: 'allenamento', private: true, defaultBranch: 'main', installationId: 501 },
-      { id: 9002, owner: 'valerio-gh', name: 'sito-personale', private: false, defaultBranch: 'main', installationId: 501 },
-      { id: 9003, owner: 'christian-gh', name: 'dotfiles', private: true, defaultBranch: 'master', installationId: 502 },
+      {
+        id: 9001,
+        owner: 'cerbero',
+        name: 'allenamento',
+        private: true,
+        defaultBranch: 'main',
+        installationId: 501,
+      },
+      {
+        id: 9002,
+        owner: 'valerio-gh',
+        name: 'sito-personale',
+        private: false,
+        defaultBranch: 'main',
+        installationId: 501,
+      },
+      {
+        id: 9003,
+        owner: 'christian-gh',
+        name: 'dotfiles',
+        private: true,
+        defaultBranch: 'master',
+        installationId: 502,
+      },
     ],
     accessTokens: new Map(),
     refreshTokens: new Map(),
@@ -84,7 +105,10 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
     state.counter += 1;
     const access = `fake_at_${login}_${state.counter}`;
     const refresh = `fake_rt_${login}_${state.counter}`;
-    state.accessTokens.set(access, { login, expiresAt: Date.now() + state.accessTokenTtlSeconds * 1000 });
+    state.accessTokens.set(access, {
+      login,
+      expiresAt: Date.now() + state.accessTokenTtlSeconds * 1000,
+    });
     state.refreshTokens.set(refresh, login);
     return {
       access_token: access,
@@ -109,7 +133,11 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
     const { redirect_uri: redirectUri = '', state: oauthState = '' } = c.req.query();
     const buttons = state.users
       .map((u) => {
-        const q = new URLSearchParams({ login: u.login, redirect_uri: redirectUri, state: oauthState });
+        const q = new URLSearchParams({
+          login: u.login,
+          redirect_uri: redirectUri,
+          state: oauthState,
+        });
         return `<p><a href="/login/oauth/authorize/approve?${q}">Autorizza come ${u.login}</a></p>`;
       })
       .join('');
@@ -127,7 +155,12 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
   });
 
   app.post('/login/oauth/access_token', async (c) => {
-    const body = (await c.req.json()) as { code?: string; grant_type?: string; refresh_token?: string; client_id?: string };
+    const body = (await c.req.json()) as {
+      code?: string;
+      grant_type?: string;
+      refresh_token?: string;
+      client_id?: string;
+    };
     if (!body.client_id) return c.json({ error: 'incorrect_client_credentials' }, 401);
     if (body.grant_type === 'refresh_token') {
       const login = state.refreshTokens.get(body.refresh_token ?? '');
@@ -144,9 +177,18 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
   // ---- App installation page (redirects to the app's Setup URL) ----
 
   app.get('/apps/:slug/installations/new', (c) =>
-    c.html(page(`<h1>Installa ${c.req.param('slug')}</h1><p><a href="/__fake/installed">Installa</a></p>`)),
+    c.html(
+      page(
+        `<h1>Installa ${c.req.param('slug')}</h1><p><a href="/__fake/installed">Installa</a></p>`,
+      ),
+    ),
   );
-  app.get('/__fake/installed', (c) => c.redirect(`${state.kyonOrigin}/api/github/setup?installation_id=501&setup_action=install`, 302));
+  app.get('/__fake/installed', (c) =>
+    c.redirect(
+      `${state.kyonOrigin}/api/github/setup?installation_id=501&setup_action=install`,
+      302,
+    ),
+  );
 
   // ---- REST API ----
 
@@ -159,8 +201,13 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
   app.get('/user/installations', (c) => {
     const u = currentUser(c.req.header('authorization'));
     if (!u) return c.json({ message: 'Bad credentials' }, 401);
-    const ids = [...new Set(state.repos.filter((r) => u.repoIds.includes(r.id)).map((r) => r.installationId))];
-    return c.json({ total_count: ids.length, installations: ids.map((id) => ({ id, account: { login: 'cerbero' } })) });
+    const ids = [
+      ...new Set(state.repos.filter((r) => u.repoIds.includes(r.id)).map((r) => r.installationId)),
+    ];
+    return c.json({
+      total_count: ids.length,
+      installations: ids.map((id) => ({ id, account: { login: 'cerbero' } })),
+    });
   });
 
   app.get('/user/installations/:id/repositories', (c) => {
@@ -168,7 +215,9 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
     if (!u) return c.json({ message: 'Bad credentials' }, 401);
     const installationId = Number(c.req.param('id'));
     const base = new URL(c.req.url).origin;
-    const repos = state.repos.filter((r) => r.installationId === installationId && u.repoIds.includes(r.id));
+    const repos = state.repos.filter(
+      (r) => r.installationId === installationId && u.repoIds.includes(r.id),
+    );
     return c.json({ total_count: repos.length, repositories: repos.map((r) => repoJson(r, base)) });
   });
 
@@ -180,9 +229,36 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
   });
 
   app.post('/__fake/config', async (c) => {
-    const body = (await c.req.json()) as Partial<Pick<FakeState, 'accessTokenTtlSeconds' | 'kyonOrigin'>>;
+    const body = (await c.req.json()) as Partial<
+      Pick<FakeState, 'accessTokenTtlSeconds' | 'kyonOrigin'>
+    >;
     Object.assign(state, body);
     return c.json({ ok: true });
+  });
+
+  /** Creates a fresh user with its own installation and repos (isolates parallel e2e tests). */
+  app.post('/__fake/users', async (c) => {
+    const body = (await c.req.json()) as {
+      login: string;
+      repos: { name: string; private?: boolean }[];
+    };
+    state.counter += 1;
+    const userId = 2000 + state.counter;
+    const installationId = 600 + state.counter;
+    const repoIds = body.repos.map((repo, i) => {
+      const id = 10_000 + state.counter * 100 + i;
+      state.repos.push({
+        id,
+        owner: body.login,
+        name: repo.name,
+        private: repo.private ?? true,
+        defaultBranch: 'main',
+        installationId,
+      });
+      return id;
+    });
+    state.users.push({ id: userId, login: body.login, repoIds });
+    return c.json({ id: userId, repoIds });
   });
 
   app.post('/__fake/repos/:id/remove-access', async (c) => {
@@ -200,7 +276,10 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
  * Replaces global fetch so requests to `baseUrl` reach the fake (integration tests).
  * Returns a restore function.
  */
-export function installFakeFetch(fake: ReturnType<typeof createFakeGitHub>, baseUrl = 'http://fake-github.test'): () => void {
+export function installFakeFetch(
+  fake: ReturnType<typeof createFakeGitHub>,
+  baseUrl = 'http://fake-github.test',
+): () => void {
   const original = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const request = new Request(input, init);

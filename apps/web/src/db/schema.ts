@@ -212,5 +212,8 @@ export const projectMember = sqliteTable(
     role: text('role').notNull(),
     createdAt: timestamp('created_at').notNull().default(now),
   },
-  (t) => [uniqueIndex('project_member_idx').on(t.projectId, t.userId), index('project_member_user_idx').on(t.userId)],
+  (t) => [
+    uniqueIndex('project_member_idx').on(t.projectId, t.userId),
+    index('project_member_user_idx').on(t.userId),
+  ],
 );

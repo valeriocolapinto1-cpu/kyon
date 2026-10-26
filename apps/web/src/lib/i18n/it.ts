@@ -207,8 +207,10 @@ export const it = {
   },
   github: {
     title: 'GitHub',
-    notConfigured: 'La GitHub App non è ancora configurata. Segui la guida in docs/SETUP.md (sezione GitHub App).',
-    connectIntro: 'Collega il tuo account GitHub per usare le tue repo nei progetti. Kyon vede solo le repo su cui installi l’app.',
+    notConfigured:
+      'La GitHub App non è ancora configurata. Segui la guida in docs/SETUP.md (sezione GitHub App).',
+    connectIntro:
+      'Collega il tuo account GitHub per usare le tue repo nei progetti. Kyon vede solo le repo su cui installi l’app.',
     connect: 'Collega GitHub',
     reconnect: 'Ricollega GitHub',
     reconnectHelp: 'L’autorizzazione è scaduta: ricollega GitHub per continuare.',
@@ -225,7 +227,12 @@ export const it = {
     yourRepos: 'Le tue repo',
     noRepos: 'Nessuna repo ancora: installa l’app su almeno una repo.',
     visibility: 'Visibilità',
-    exposure: { hidden: 'Non esposta', self: 'Solo io', selected: 'Persone scelte', group: 'Tutto il gruppo' },
+    exposure: {
+      hidden: 'Non esposta',
+      self: 'Solo io',
+      selected: 'Persone scelte',
+      group: 'Tutto il gruppo',
+    },
     exposureHelp: {
       hidden: 'Nessuno la vede, nemmeno nei conteggi.',
       self: 'La vedi solo tu e puoi farne un progetto personale.',
@@ -236,13 +243,15 @@ export const it = {
     unavailable: 'Non più raggiungibile (app disinstallata o accesso rimosso)',
     private: 'Privata',
     public: 'Pubblica',
-    lostAccess: (names: string) => `Ora non vedono più la repo: ${names}. Restano nel progetto, ma valuta se toglierli.`,
+    lostAccess: (names: string) =>
+      `Ora non vedono più la repo: ${names}. Restano nel progetto, ma valuta se toglierli.`,
     isProject: 'È già un progetto',
   },
   projects2: {
     newProject: 'Nuovo progetto',
     chooseRepo: 'Scegli una repo',
-    chooseRepoHelp: 'Puoi usare le repo esposte che vedi. Ogni repo può diventare un solo progetto.',
+    chooseRepoHelp:
+      'Puoi usare le repo esposte che vedi. Ogni repo può diventare un solo progetto.',
     noRepos: 'Nessuna repo disponibile. Collega GitHub ed esponi una repo in Settings → GitHub.',
     name: 'Nome del progetto',
     create: 'Crea progetto',
@@ -266,7 +275,8 @@ export const it = {
     restoredToast: 'Progetto ripristinato',
     archivedBanner: 'Progetto archiviato: è in sola lettura.',
     delete: 'Elimina progetto',
-    deleteHelp: 'Elimina i dati di Kyon (task, prompt, commenti). La repo su GitHub non viene toccata.',
+    deleteHelp:
+      'Elimina i dati di Kyon (task, prompt, commenti). La repo su GitHub non viene toccata.',
     deleteConfirmLabel: (name: string) => `Scrivi “${name}” per confermare`,
     deleted: 'Progetto eliminato',
     commitMode: 'Modalità di commit',
@@ -275,7 +285,8 @@ export const it = {
     workBranch: 'Branch di lavoro (facoltativo)',
     viewersCanComment: 'Gli osservatori possono commentare',
     planHeadings: 'Parole chiave delle sezioni "di piano"',
-    planHeadingsHelp: 'Separate da virgola. Gli elenchi sotto titoli con queste parole diventano task.',
+    planHeadingsHelp:
+      'Separate da virgola. Gli elenchi sotto titoli con queste parole diventano task.',
     ignoreGlobs: 'Percorsi da ignorare',
     ignoreGlobsHelp: 'Separati da virgola, es. docs/vecchio/**',
     showArchive: 'Mostra i file di archivio (sola lettura)',

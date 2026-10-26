@@ -21,5 +21,4 @@ wrangler.deploy.json
 playwright-report/
 test-results/
 .lighthouseci/
-apps/web/wrangler.e2e.json
 e2e/.auth/

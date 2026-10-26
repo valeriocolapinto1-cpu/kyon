@@ -62,7 +62,79 @@ Poi, da **Settings → Admin → Inviti**, crei un invito per ciascun amico e gl
 
 ---
 
-## B. Sviluppo in locale (facoltativo, macOS / Linux / Windows)
+## B. GitHub App (serve per collegare le repo, Fase 3)
+
+Kyon usa una **GitHub App** tua: ognuno del gruppo la installa sulle proprie repo e poi, in Kyon, preme "Collega GitHub". Sostituisci `<sito>` con `https://kyon-web.<sottodominio>.workers.dev`.
+
+### B1. Crea l'app
+
+1. Su GitHub: foto profilo → **Settings → Developer settings → GitHub Apps → New GitHub App** (<https://github.com/settings/apps/new>).
+2. Compila:
+
+   | Campo                                                  | Valore                                                                                             |
+   | ------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+   | GitHub App name                                        | `Kyon Cerbero` (deve essere unico su GitHub: aggiungi qualcosa se è preso)                         |
+   | Homepage URL                                           | `<sito>`                                                                                           |
+   | Callback URL                                           | `<sito>/api/github/callback`                                                                       |
+   | Expire user authorization tokens                       | ✅ (lascialo attivo)                                                                               |
+   | Request user authorization (OAuth) during installation | ❌ (lascialo spento)                                                                               |
+   | Setup URL                                              | `<sito>/api/github/setup` e spunta **Redirect on update**                                          |
+   | Webhook → Active                                       | ✅                                                                                                 |
+   | Webhook URL                                            | `<sito>/api/github/webhook`                                                                        |
+   | Webhook secret                                         | una stringa casuale lunga (es. genera 40 caratteri con un password manager) e **tienila da parte** |
+
+3. **Repository permissions**:
+
+   | Permesso        | Accesso                                               |
+   | --------------- | ----------------------------------------------------- |
+   | Contents        | Read and write (leggere e spuntare le task nei `.md`) |
+   | Pull requests   | Read and write                                        |
+   | Issues          | Read-only                                             |
+   | Checks          | Read-only                                             |
+   | Commit statuses | Read-only                                             |
+   | Metadata        | Read-only (obbligatorio)                              |
+
+4. **Subscribe to events**: Push, Pull request, Pull request review, Issues, Check run, Check suite.
+5. **Where can this GitHub App be installed?** → **Any account** (così anche gli amici la installano sulle loro repo).
+6. **Create GitHub App**.
+
+### B2. Copia i valori
+
+Nella pagina dell'app appena creata:
+
+1. Copia il **Client ID**.
+2. Premi **Generate a new client secret** e copialo (si vede una sola volta).
+3. Lo **slug** è l'ultima parte dell'indirizzo della pagina pubblica dell'app (`https://github.com/apps/<slug>`), es. `kyon-cerbero`.
+4. Non serve generare la "private key".
+
+### B3. Mettili nella repo `kyon`
+
+**Settings → Secrets and variables → Actions**:
+
+- Scheda **Secrets** → **New repository secret**:
+
+  | Name                     | Secret                  |
+  | ------------------------ | ----------------------- |
+  | `KYON_GH_CLIENT_ID`      | il Client ID            |
+  | `KYON_GH_CLIENT_SECRET`  | il client secret        |
+  | `KYON_GH_WEBHOOK_SECRET` | il webhook secret di B1 |
+
+- Scheda **Variables** → **New repository variable**: `KYON_GH_APP_SLUG` = lo slug.
+
+(GitHub non permette secret che iniziano con `GITHUB_`, per questo si chiamano `KYON_GH_…`.)
+
+Al deploy successivo Kyon li riceve da solo. La chiave che cifra i token GitHub (`TOKEN_ENCRYPTION_KEY`) la genera il deploy: non devi fare nulla.
+
+### B4. Usala
+
+1. Installa l'app sulle repo che vuoi: `https://github.com/apps/<slug>/installations/new` (lo trovi anche in Kyon: **Settings → GitHub → Scegli le repo su GitHub**).
+2. In Kyon: **Settings → GitHub → Collega GitHub** → autorizza.
+3. Per ogni repo scegli la visibilità: **Non esposta** (default), **Solo io**, **Persone scelte**, **Tutto il gruppo**.
+4. **Progetti → Nuovo progetto** → scegli la repo.
+
+Ogni amico fa i passi 1–3 con il proprio account GitHub (l'app è la stessa).
+
+## C. Sviluppo in locale (facoltativo, macOS / Linux / Windows)
 
 Non serve per usare Kyon, solo se vuoi provare il codice sul tuo computer.
 
@@ -77,10 +149,9 @@ Non serve per usare Kyon, solo se vuoi provare il codice sul tuo computer.
 
 ---
 
-## C. Passi delle fasi successive
+## D. Passi delle fasi successive
 
 Questi passi verranno dettagliati qui quando arriva la fase relativa.
 
-- **Fase 3 — GitHub App**: creazione dell'app su GitHub (permessi, eventi webhook, URL di callback), chiave privata e segreti (`GITHUB_APP_ID`, `GITHUB_APP_CLIENT_ID`, `GITHUB_APP_CLIENT_SECRET`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_WEBHOOK_SECRET`), chiave di cifratura dei token.
 - **Fase 9 — Notifiche**: chiavi VAPID per le push, verifica dell'invio email sul piano Free.
 - **Fase 10 — Ripristino dati**: istruzioni per D1 Time Travel.
