@@ -82,7 +82,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             </ToastPrimitive.Close>
           </ToastPrimitive.Root>
         ))}
-        <ToastPrimitive.Viewport className="fixed inset-x-4 bottom-[calc(6rem+var(--k-safe-bottom))] z-50 mx-auto flex max-w-md flex-col gap-2 outline-none md:right-6 md:bottom-6 md:left-auto md:mx-0 md:w-96" />
+        <ToastPrimitive.Viewport
+          label="Notifiche ({hotkey})"
+          className="fixed inset-x-4 bottom-[calc(6rem+var(--k-safe-bottom))] z-50 mx-auto flex max-w-md flex-col gap-2 outline-none md:right-6 md:bottom-6 md:left-auto md:mx-0 md:w-96"
+        />
       </ToastPrimitive.Provider>
     </ToastContext.Provider>
   );

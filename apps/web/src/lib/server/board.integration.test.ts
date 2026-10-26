@@ -24,6 +24,7 @@ type Task = {
 };
 type Column = { id: string; name: string; isDone: boolean; isInProgress: boolean };
 type TasksResponse = {
+  orphaned: { id: string }[];
   columns: Column[];
   labels: { id: string; name: string; color: string }[];
   files: { path: string; tasks: Task[] }[];
@@ -230,6 +231,35 @@ describe('board metadata: assignee, priority, due date, labels, columns, history
     expect(
       (await call(`/api/projects/${projectId}/tasks/${uno.id}/history`, { jar: stranger })).status,
     ).toBe(404);
+  });
+
+  it('handles big files: 150 tasks, 20 ticked in one external push (D1 parameter limit)', async () => {
+    const lines = Array.from({ length: 150 }, (_, i) => `- [ ] Task numero ${i + 1}`);
+    const push = (content: string) =>
+      fake.app.fetch(
+        new Request(`http://fake-github.test/__fake/repos/${repoId}/files`, {
+          method: 'POST',
+          body: JSON.stringify({ path: 'BIG.md', content }),
+          headers: { 'content-type': 'application/json' },
+        }),
+      );
+    const sync = async () =>
+      (await body(
+        call(`/api/projects/${projectId}/sync`, { method: 'POST', jar: valerio }),
+      )) as TasksResponse;
+    const big = (r: TasksResponse) => r.files.find((f) => f.path === 'BIG.md')?.tasks ?? [];
+
+    await push(`# Task\n\n${lines.join('\n')}\n`);
+    expect(big(await sync())).toHaveLength(150);
+    await push(
+      `# Task\n\n${lines.map((l, i) => (i < 20 ? l.replace('[ ]', '[x]') : l)).join('\n')}\n`,
+    );
+    expect(big(await sync()).filter((x) => x.done)).toHaveLength(20);
+    // Emptying the file orphans all 150 at once.
+    await push('# Task\n\nNiente.\n');
+    const after = await sync();
+    expect(big(after)).toHaveLength(0);
+    expect(after.orphaned.length).toBeGreaterThanOrEqual(150);
   });
 
   it('issues realtime tickets only to members, bound to the project room', async () => {

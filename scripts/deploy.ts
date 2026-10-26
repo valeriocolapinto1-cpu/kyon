@@ -91,13 +91,20 @@ if (!secrets.has('TOKEN_ENCRYPTION_KEY')) {
   await putSecret('TOKEN_ENCRYPTION_KEY', random('base64'));
 }
 
-// INTERNAL_SECRET authenticates cron → web. Generated once and put on both Workers together.
+// INTERNAL_SECRET authenticates cron → web and web → realtime, and signs realtime tickets.
+// Generated once and put on the three Workers together.
 const cronSecrets = await existingSecrets(cronDir);
-if (!secrets.has('INTERNAL_SECRET') || !cronSecrets.has('INTERNAL_SECRET')) {
-  console.log('Generating INTERNAL_SECRET (web + cron)...');
+const realtimeSecrets = await existingSecrets(realtimeDir);
+if (
+  !secrets.has('INTERNAL_SECRET') ||
+  !cronSecrets.has('INTERNAL_SECRET') ||
+  !realtimeSecrets.has('INTERNAL_SECRET')
+) {
+  console.log('Generating INTERNAL_SECRET (web + cron + realtime)...');
   const value = random('base64url');
   await putSecret('INTERNAL_SECRET', value);
   await putSecret('INTERNAL_SECRET', value, cronDir);
+  await putSecret('INTERNAL_SECRET', value, realtimeDir);
 }
 
 const bootstrap = process.env.ADMIN_BOOTSTRAP_CODE;

@@ -14,5 +14,8 @@
     "@cloudflare/workers-types": "5.20261026.1",
     "typescript": "6.0.3",
     "wrangler": "4.152.0"
+  },
+  "exports": {
+    "./route": "./src/route.ts"
   }
 }

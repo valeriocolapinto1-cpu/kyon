@@ -1,15 +1,11 @@
-import { expect, expectNoA11yViolations, newMember, test } from './fixtures';
-import type { Page } from '@playwright/test';
-
-const FAKE_GITHUB = 'http://localhost:8799';
-
-async function connectGitHub(page: Page, login: string) {
-  await page.goto('/settings#github');
-  await page.getByRole('link', { name: 'Collega GitHub' }).click();
-  // Fake GitHub consent page.
-  await page.getByRole('link', { name: `Autorizza come ${login}` }).click();
-  await expect(page.getByText(`Collegato come ${login}`)).toBeVisible();
-}
+import {
+  FAKE_GITHUB,
+  connectGitHub,
+  expect,
+  expectNoA11yViolations,
+  newMember,
+  test,
+} from './fixtures';
 
 test('connect GitHub, expose a repo, create a project and keep hidden repos private', async ({
   browser,

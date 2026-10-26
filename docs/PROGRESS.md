@@ -4,7 +4,7 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 5 — Pagina progetto: Task** (da iniziare).
+**Fase 6 — Prompt, esecuzioni e tracciamento PR; scheda Status** (da iniziare).
 
 | Fase | Titolo                                          | Stato      |
 | ---- | ----------------------------------------------- | ---------- |
@@ -13,8 +13,8 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 | 2    | Auth, inviti, admin, Settings account           | ✅ fatta   |
 | 3    | GitHub, repo, visibilità, progetti, membri      | ✅ fatta   |
 | 4    | Motore task da `.md`                            | ✅ fatta   |
-| 5    | Pagina progetto: Task                           | ⏭ prossima |
-| 6    | Prompt, esecuzioni, tracciamento PR; Status     | —          |
+| 5    | Pagina progetto: Task                           | ✅ fatta   |
+| 6    | Prompt, esecuzioni, tracciamento PR; Status     | ⏭ prossima |
 | 7    | Realtime, chat e thread                         | —          |
 | 8    | Home, Progetti, Chat, Persone, ricerca, extra   | —          |
 | 9    | Notifiche                                       | —          |
@@ -39,6 +39,7 @@ Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 | 2    | 1574,0 KiB | 0,6 KiB       | 0,4 KiB   | + Better Auth, TanStack Query, Hono. Con 15 route Next separate era 2531 KiB (oltre soglia): ora un'unica route API |
 | 3    | 1597,4 KiB | 0,6 KiB       | 0,4 KiB   | + GitHub, repo, progetti (tutto nel router unico)                                                                   |
 | 4    | 1606,8 KiB | 0,6 KiB       | 0,7 KiB   | + motore task, sync, scritture; cron chiama il web via service binding                                              |
+| 5    | 1669,4 KiB | 1,8 KiB       | 0,7 KiB   | + metadati, colonne, etichette, cronologia, ticket realtime; entry del Worker per i WebSocket                       |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -70,6 +71,36 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 2    | `/login`              | 96          | 100           | 100            |
 
 ## Log delle fasi
+
+### Fase 5 — Pagina progetto: Task ✅ (2026-10-26)
+
+Fatto:
+
+- **Scheda Task** (`components/feature/tasks/*`): viste **Kanban**, **Lista** (un'area per file, raggruppata per sezione, sottotask annidati, tabelle del file mostrate come tabelle) e **Calendario** (mese / settimana / agenda, "Senza scadenza"). Vista e task aperta stanno nella query string (`&view=…&task=…`): link condivisibili, pagina statica.
+- **Card**: titolo (Markdown inline), priorità colore + simbolo + testo, scadenza solo se impostata (scaduta = icona + testo), etichette, avanzamento sottotask, assegnatario. Superficie piena senza blur (il vetro resta sulle colonne: pochi blur sovrapposti).
+- **Spostamento**: drag & drop con Pointer Events (mouse e touch; su touch parte con pressione lunga, la pagina non scorre durante il trascinamento, scorrimento automatico ai bordi, Esc annulla); menu **Azioni** con "Sposta in…" (sezione radio, niente sottomenu: su telefono i sottomenu non funzionano bene), Sposta su/giù; tastiera: frecce per muoversi, **Alt+frecce** per spostare, X, A, 1–4/0, M, /, ?. Annunci `aria-live` di ogni spostamento ("Spostata in In corso, posizione 1 di 1").
+- **"Fatto" ↔ repo**: entrare o uscire da "Fatto" spunta/toglie la spunta nel `.md`, con **attesa di 2,5 s** (`DONE_MOVE_DEBOUNCE_MS`): avanti e indietro = nessun commit; poi toast con **Annulla** (commit inverso). Le altre colonne sono solo metadati.
+- **UI ottimistica con rollback** (`useTaskActions`): cambio locale immediato, risposta del server che lo sostituisce, ripristino + toast d'errore se fallisce; indicatore "Salvo su GitHub… / Salvato / Errore, riprova" con riprova.
+- **Dettaglio task**: pannello laterale da 768 px in su, bottom sheet su telefono; spunta, rinomina (commit), dove si trova + link al file su GitHub alla riga, colonna, assegnatario (solo membri), priorità, scadenza, etichette (crea al volo), note di Kyon, note del file, sottotask, **cronologia** (chi e quando). Focus sul titolo all'apertura e di nuovo sulla card alla chiusura.
+- **Filtri** (assegnatario, etichette, priorità, stato, file) e ricerca senza accenti, in `packages/core` (`matchesFilters`) con test.
+- **Colonne personalizzabili** (proprietario): aggiungi (prima di "Fatto"), rinomina, riordina, elimina (le task tornano in "Da fare"); "Fatto" e "In corso" si rinominano ma non si eliminano. Massimo 8.
+- **Aggiunta task** (file + sezione) e **"Crea TASKS.md"** con conferma quando la repo non ha task. Prima apertura del progetto: sincronizzazione automatica.
+- **Aggiornamento live con i Durable Objects** (anticipato dalla Fase 7, non serve un trasporto temporaneo): `GET /api/realtime/ticket` firma un ticket HMAC di 60 s per la stanza dopo il controllo dei permessi; il browser apre `wss://…/ws/project/<id>` sulla stessa origine; un'entry del Worker (`apps/web/worker.ts`) passa gli upgrade al DO prima di Next; il DO verifica il ticket (Hibernation API). Dopo ogni scrittura o sincronizzazione il web pubblica `tasks_changed`; i client ricaricano (aspettando se hanno un salvataggio in corso) e annunciano solo ciò che riguarda l'utente. Riconnessione con backoff, ping, nuovo ticket a ogni connessione, risincronizzazione dopo una disconnessione.
+- API nuove: `PATCH /api/projects/:id/tasks/:taskId` (anche `assigneeId`, `priority`, `dueDate`, `notes`, `labelIds`, `move`), `GET …/tasks/:taskId/history`, `POST|PATCH|DELETE …/columns`, `POST|PATCH|DELETE …/labels`, `GET /api/realtime/ticket`. Migrazione `0004_task_history` (`activity_event.task_id` + indice).
+- Design system: `Menu` (Radix dropdown), `GlassSelect`, `GlassTextarea`, in `/dev/ui`.
+- Test: 512 unit/integrazione (9 nuovi sul board: metadati, spostamenti, "Fatto" ↔ repo, cronologia, etichette, colonne, permessi, ticket, 150 task); e2e **97/97** su mobile/tablet/desktop con axe in ogni vista: tastiera completa sul kanban, spunta con commit e Annulla, "Sposta in…", dettaglio, lista, calendario con Alt+frecce, drag & drop con un solo commit dopo l'attesa e **aggiornamento live in un secondo browser**. Lighthouse: soglie rispettate.
+
+Decisioni:
+
+- Pagina progetto a tutta larghezza (la lista dei progetti torna con "Tutti i progetti"): il kanban ha bisogno di spazio, il pannello di dettaglio fa da seconda colonna.
+- Il calendario usa la semantica di tabella, non `grid` (che promette la navigazione a frecce tra celle): i giorni sono pulsanti, le task si spostano con Alt+frecce (±1 giorno, ±7).
+- Sul telefono il mese mostra puntini nei giorni e l'elenco del giorno scelto sotto: le card nelle celle sarebbero bersagli sotto i 44 px.
+- **Limite D1 di 100 parametri per query** (scoperto dagli e2e con molti utenti): IN lunghi e insert multipli ora sono spezzati (`lib/server/d1.ts`), le etichette si leggono con una join, il "NOT IN" delle repo è sostituito da `updatedAt < now`. Senza, un push che spunta 15 task o un utente con più di 100 repo avrebbero dato errore.
+
+Debito tecnico / da controllare:
+
+- Commenti e prompt collegati nel dettaglio arrivano con le Fasi 6–7 (oggi una riga lo dice).
+- Il drag & drop su iPhone reale va provato a mano (pressione lunga, nessuno scroll durante il trascinamento).
 
 ### Fase 4 — Motore task da `.md` ✅ (2026-10-26)
 

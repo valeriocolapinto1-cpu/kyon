@@ -26,6 +26,7 @@ import { projectsKey, useProject, useProjects, type ProjectSummary } from '@/lib
 import { cn } from '@/lib/cn';
 import { it } from '@/lib/i18n/it';
 import { ProjectMenu } from './ProjectMenu';
+import { TasksTab } from './tasks/TasksTab';
 
 const p = it.projects2;
 type Tab = 'task' | 'prompt' | 'status';
@@ -221,8 +222,7 @@ function ProjectDetailView({
     );
   }
   const data = project.data;
-  const placeholders: Record<Tab, string> = {
-    task: p.comingSoonTask,
+  const placeholders: Record<Exclude<Tab, 'task'>, string> = {
     prompt: p.comingSoonPrompt,
     status: p.comingSoonStatus,
   };
@@ -284,7 +284,11 @@ function ProjectDetailView({
         tabs={TABS.map((value) => ({ value, label: p.tabs[value] }))}
       />
       <TabPanel idPrefix="project" value={tab}>
-        <EmptyState title={p.tabs[tab]} body={placeholders[tab]} />
+        {tab === 'task' ? (
+          <TasksTab project={data} />
+        ) : (
+          <EmptyState title={p.tabs[tab]} body={placeholders[tab as Exclude<Tab, 'task'>]} />
+        )}
       </TabPanel>
       <ProjectMenu project={data} open={menuOpen} onOpenChange={setMenuOpen} />
     </section>
@@ -320,28 +324,28 @@ export function ProjectsView() {
   return (
     <>
       {header}
-      {id && (
-        <Link
-          href="/progetti"
-          data-plain
-          className="mb-3 inline-flex min-h-touch items-center gap-1 font-semibold text-accent-text md:hidden"
-        >
-          <ArrowLeft className="size-5" aria-hidden="true" /> {p.back}
-        </Link>
-      )}
-      <SplitView
-        showDetail={Boolean(id)}
-        list={<ProjectList selectedId={id} onNew={() => setNewOpen(true)} />}
-        detail={
-          id ? (
-            <ProjectDetailView id={id} tab={tab} onTab={setTab} />
-          ) : (
+      {id ? (
+        // Inside a project the board needs the whole width: the list comes back with "Tutti i progetti".
+        <>
+          <Link
+            href="/progetti"
+            data-plain
+            className="mb-3 inline-flex min-h-touch items-center gap-1 font-semibold text-accent-text"
+          >
+            <ArrowLeft className="size-5" aria-hidden="true" /> {p.back}
+          </Link>
+          <ProjectDetailView id={id} tab={tab} onTab={setTab} />
+        </>
+      ) : (
+        <SplitView
+          list={<ProjectList selectedId={id} onNew={() => setNewOpen(true)} />}
+          detail={
             <GlassCard className="flex min-h-64 items-center justify-center text-center">
               <p className="text-body text-muted">{it.projects.selectHint}</p>
             </GlassCard>
-          )
-        }
-      />
+          }
+        />
+      )}
       <NewProjectSheet open={newOpen} onOpenChange={setNewOpen} />
     </>
   );

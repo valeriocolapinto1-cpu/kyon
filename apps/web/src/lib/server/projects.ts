@@ -8,6 +8,7 @@ import {
 } from '@kyon/core';
 import type { Db } from '@/db/client';
 import { githubRepo, kanbanColumn, project, projectMember, user } from '@/db/schema';
+import { chunk, inChunks, rowsPerInsert } from './d1';
 import { ApiError } from './errors';
 import { avatarUrl } from './users';
 import { loadRepo } from './github/repos';
@@ -154,7 +155,7 @@ export async function createProject(db: Db, actor: Actor, repoId: string, name: 
       createdAt: now,
       updatedAt: now,
     }),
-    db.insert(projectMember).values(members),
+    ...chunk(members, rowsPerInsert(4)).map((rows) => db.insert(projectMember).values(rows)),
     // Default kanban columns: Da fare · In corso · Fatto.
     db.insert(kanbanColumn).values(
       DEFAULT_COLUMNS.map((c, position) => ({
@@ -199,12 +200,9 @@ export async function getProjectDetail(db: Db, actor: Actor, projectId: string) 
           .filter((u) => !members.some((m) => m.id === u.id))
           .map((u) => u.id)
       : [];
-  const candidateUsers = candidates.length
-    ? await db
-        .select({ id: user.id, name: user.name })
-        .from(user)
-        .where(inArray(user.id, candidates))
-    : [];
+  const candidateUsers = await inChunks(candidates, (ids) =>
+    db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, ids)),
+  );
   const permissions = Object.fromEntries(
     (
       [

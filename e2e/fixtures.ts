@@ -76,5 +76,16 @@ export async function newMember(
   return { context, email, password, name, inviteUrl: url };
 }
 
+export const FAKE_GITHUB = 'http://localhost:8799';
+
+/** OAuth against the fake GitHub, from Settings. */
+export async function connectGitHub(page: Page, login: string) {
+  await page.goto('/settings#github');
+  await page.getByRole('link', { name: 'Collega GitHub' }).click();
+  // Fake GitHub consent page.
+  await page.getByRole('link', { name: `Autorizza come ${login}` }).click();
+  await expect(page.getByText(`Collegato come ${login}`)).toBeVisible();
+}
+
 export const test = base;
 export { expect };

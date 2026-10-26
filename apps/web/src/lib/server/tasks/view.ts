@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import type { Actor } from '@kyon/core';
 import type { Db } from '@/db/client';
 import { projectSync, taskFile, taskLabel, taskLabelLink, taskMeta, user } from '@/db/schema';
@@ -32,16 +32,13 @@ export async function listProjectTasks(db: Db, actor: Actor, projectId: string) 
     db.select().from(taskLabel).where(eq(taskLabel.projectId, projectId)),
     db.select().from(projectSync).where(eq(projectSync.projectId, projectId)).limit(1),
   ]);
+  // Joined on the project (not an IN list): D1 caps bound parameters at 100.
   const links = metas.length
     ? await db
-        .select()
+        .select({ taskId: taskLabelLink.taskId, labelId: taskLabelLink.labelId })
         .from(taskLabelLink)
-        .where(
-          inArray(
-            taskLabelLink.taskId,
-            metas.map((m) => m.meta.id),
-          ),
-        )
+        .innerJoin(taskMeta, eq(taskMeta.id, taskLabelLink.taskId))
+        .where(eq(taskMeta.projectId, projectId))
     : [];
   const labelById = new Map(labels.map((l) => [l.id, l]));
   const labelsByTask = new Map<string, { id: string; name: string; color: string }[]>();

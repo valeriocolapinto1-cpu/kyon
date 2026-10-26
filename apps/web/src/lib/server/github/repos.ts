@@ -1,4 +1,4 @@
-import { and, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, eq, inArray, lt } from 'drizzle-orm';
 import { can, type Actor, type Exposure, type RepoResource } from '@kyon/core';
 import type { Db } from '@/db/client';
 import {
@@ -9,6 +9,7 @@ import {
   projectMember,
   user,
 } from '@/db/schema';
+import { D1_MAX_PARAMS, chunk, inChunks, rowsPerInsert } from '../d1';
 import { ApiError } from '../errors';
 import { ghPaginate, type GitHubConfig } from './client';
 import { getAccessToken } from './connections';
@@ -86,11 +87,9 @@ export async function syncRepos(
   await db
     .update(githubRepo)
     .set({ available: false, updatedAt: now })
-    .where(
-      seen.length
-        ? and(eq(githubRepo.userId, userId), notInArray(githubRepo.githubRepoId, seen))
-        : eq(githubRepo.userId, userId),
-    );
+    // Every repo seen above was just stamped with `now`: the older ones are gone. (No NOT IN
+    // list: D1 binds at most 100 parameters and a user can have more repos than that.)
+    .where(and(eq(githubRepo.userId, userId), lt(githubRepo.updatedAt, now)));
   await db
     .update(githubConnection)
     .set({ lastSyncAt: now, lastError: null })
@@ -103,10 +102,9 @@ export type RepoRow = typeof githubRepo.$inferSelect;
 export async function sharesFor(db: Db, repoIds: string[]): Promise<Map<string, string[]>> {
   const map = new Map<string, string[]>();
   if (repoIds.length === 0) return map;
-  const rows = await db
-    .select()
-    .from(githubRepoShare)
-    .where(inArray(githubRepoShare.repoId, repoIds));
+  const rows = await inChunks(repoIds, (ids) =>
+    db.select().from(githubRepoShare).where(inArray(githubRepoShare.repoId, ids)),
+  );
   for (const row of rows) map.set(row.repoId, [...(map.get(row.repoId) ?? []), row.userId]);
   return map;
 }
@@ -189,7 +187,9 @@ export async function setExposure(
   if (!loaded || !can(actor, 'repo:configure', loaded.resource)) throw new ApiError('not_found');
   const unique = [...new Set(sharedWith.filter((id) => id !== actor.id))];
   if (unique.length) {
-    const existing = await db.select({ id: user.id }).from(user).where(inArray(user.id, unique));
+    const existing = await inChunks(unique, (ids) =>
+      db.select({ id: user.id }).from(user).where(inArray(user.id, ids)),
+    );
     if (existing.length !== unique.length)
       throw new ApiError('bad_request', 'Una delle persone scelte non esiste.');
   }
@@ -197,7 +197,9 @@ export async function setExposure(
     db.update(githubRepo).set({ exposure, updatedAt: new Date() }).where(eq(githubRepo.id, repoId)),
     db.delete(githubRepoShare).where(eq(githubRepoShare.repoId, repoId)),
     ...(exposure === 'selected' && unique.length
-      ? [db.insert(githubRepoShare).values(unique.map((userId) => ({ repoId, userId })))]
+      ? chunk(unique, rowsPerInsert(2)).map((ids) =>
+          db.insert(githubRepoShare).values(ids.map((userId) => ({ repoId, userId }))),
+        )
       : []),
   ]);
   const after = await loadRepo(db, repoId);
@@ -222,10 +224,11 @@ export async function setExposure(
 /** Webhook: repos removed from an installation are no longer reachable for anyone. */
 export async function markReposUnavailable(db: Db, githubRepoIds: number[]) {
   if (githubRepoIds.length === 0) return;
-  await db
-    .update(githubRepo)
-    .set({ available: false, updatedAt: new Date() })
-    .where(inArray(githubRepo.githubRepoId, githubRepoIds));
+  for (const ids of chunk(githubRepoIds, D1_MAX_PARAMS - 10))
+    await db
+      .update(githubRepo)
+      .set({ available: false, updatedAt: new Date() })
+      .where(inArray(githubRepo.githubRepoId, ids));
 }
 
 export async function markInstallationUnavailable(db: Db, installationId: number) {

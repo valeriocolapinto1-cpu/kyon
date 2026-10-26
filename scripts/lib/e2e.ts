@@ -13,6 +13,10 @@ export const webDir = path.join(repoRoot, 'apps', 'web');
  */
 export const E2E_CONFIG = path.join(repoRoot, '.wrangler', 'e2e', 'wrangler.json');
 export const FAKE_GITHUB_PORT = 8799;
+export const E2E_INTERNAL_SECRET = 'e2e-internal-secret-not-for-production';
+const realtimeDir = path.join(repoRoot, 'workers', 'realtime');
+/** The realtime Worker runs in the same `wrangler dev` session, so DO bindings resolve. */
+export const E2E_REALTIME_CONFIG = path.join(repoRoot, '.wrangler', 'e2e', 'realtime.json');
 
 interface Config {
   main?: string;
@@ -54,9 +58,16 @@ export function prepareE2e(): void {
     GITHUB_WEBHOOK_SECRET: 'e2e-webhook-secret',
     GITHUB_API_URL: fake,
     GITHUB_WEB_URL: fake,
+    INTERNAL_SECRET: E2E_INTERNAL_SECRET,
   };
   mkdirSync(path.dirname(E2E_CONFIG), { recursive: true });
   writeFileSync(E2E_CONFIG, JSON.stringify(config, null, 2));
+  const realtime = parseJsonc<Config>(
+    readFileSync(path.join(realtimeDir, 'wrangler.jsonc'), 'utf8'),
+  );
+  if (realtime.main) realtime.main = path.join(realtimeDir, realtime.main);
+  realtime.vars = { ...realtime.vars, INTERNAL_SECRET: E2E_INTERNAL_SECRET };
+  writeFileSync(E2E_REALTIME_CONFIG, JSON.stringify(realtime, null, 2));
 }
 
 export function e2eServerArgs(port = E2E_PORT): string[] {
@@ -66,6 +77,8 @@ export function e2eServerArgs(port = E2E_PORT): string[] {
     'dev',
     '--config',
     E2E_CONFIG,
+    '--config',
+    E2E_REALTIME_CONFIG,
     '--port',
     String(port),
     '--persist-to',

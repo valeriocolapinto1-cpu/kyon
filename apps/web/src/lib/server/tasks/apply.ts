@@ -6,6 +6,7 @@ import {
   type ParsedTask,
 } from '@kyon/core';
 import type { Db } from '@/db/client';
+import { D1_MAX_PARAMS, chunk, rowsPerInsert } from '../d1';
 import { activityEvent, kanbanColumn, taskFile, taskMeta } from '@/db/schema';
 
 export async function projectColumns(db: Db, projectId: string) {
@@ -158,15 +159,12 @@ export async function applyParsedFile(
     }
   }
 
-  if (result.orphaned.length) {
+  for (const ids of chunk(result.orphaned, D1_MAX_PARAMS - 10))
     statements.push(
-      db
-        .update(taskMeta)
-        .set({ orphanedAt: now, updatedAt: now })
-        .where(inArray(taskMeta.id, result.orphaned)),
+      db.update(taskMeta).set({ orphanedAt: now, updatedAt: now }).where(inArray(taskMeta.id, ids)),
     );
-  }
-  if (events.length) statements.push(db.insert(activityEvent).values(events));
+  for (const rows of chunk(events, rowsPerInsert(7)))
+    statements.push(db.insert(activityEvent).values(rows));
   if (statements.length)
     await db.batch(statements as [(typeof statements)[number], ...typeof statements]);
   return {

@@ -15,6 +15,9 @@ import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassInput } from '@/components/ui/GlassInput';
+import { GlassSelect } from '@/components/ui/GlassSelect';
+import { GlassTextarea } from '@/components/ui/GlassTextarea';
+import { Menu } from '@/components/ui/Menu';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import { Segmented } from '@/components/ui/Segmented';
 import { Sheet } from '@/components/ui/Sheet';
@@ -135,6 +138,41 @@ export function DevGallery() {
               />
               <GlassInput label="Password" type="password" error="Almeno 12 caratteri." />
             </div>
+          </Section>
+
+          <Section title="GlassSelect, GlassTextarea e Menu">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <GlassSelect
+                label="Priorità"
+                defaultValue="medium"
+                options={[
+                  { value: 'high', label: 'Alta' },
+                  { value: 'medium', label: 'Media' },
+                  { value: 'low', label: 'Bassa' },
+                ]}
+              />
+              <GlassTextarea label="Note" hint="Restano in Kyon." placeholder="Scrivi qui…" />
+            </div>
+            <Menu
+              label="Azioni di esempio"
+              entries={[
+                { label: 'Apri dettagli', onSelect: () => undefined },
+                { label: 'Segna come fatta', onSelect: () => undefined },
+                { type: 'separator' },
+                {
+                  type: 'radio',
+                  label: 'Sposta in…',
+                  value: 'todo',
+                  options: [
+                    { value: 'todo', label: 'Da fare' },
+                    { value: 'doing', label: 'In corso' },
+                    { value: 'done', label: 'Fatto' },
+                  ],
+                  onChange: () => undefined,
+                },
+              ]}
+              trigger={<GlassButton className="self-start">Apri il menu</GlassButton>}
+            />
           </Section>
 
           <Section title="Segmented">

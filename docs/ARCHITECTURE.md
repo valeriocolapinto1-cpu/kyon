@@ -86,9 +86,17 @@ parseTasks (core) → task_file (snapshot) → reconcile (core) → task_meta + 
 - **Scrittura**: leggi file → `relocate` della task → una riga cambiata (`edit.ts`) → PUT con `sha`; su 409 un solo nuovo tentativo. Dopo il commit il nuovo contenuto viene ri-parsato subito (niente attesa del webhook).
 - **Budget Free**: 1 subrequest per l'albero + 1 per file cambiato (max 30); parse ≈ 2 ms per 30 KB; riconciliazione ≤ 6 ms nel caso peggiore misurato.
 
-## 4. Realtime (Fase 7, impostato in Fase 0)
+## 4. Realtime (attivo dalla Fase 5 per le task)
 
-- Il Worker web autentica l'utente e inoltra l'upgrade WebSocket al DO tramite il binding `PROJECT_ROOM`/`GENERAL_ROOM` (`script_name: kyon-realtime`), passando un token breve firmato.
+```
+browser ──GET /api/realtime/ticket?project=…──▶ web (sessione + can) ─▶ ticket HMAC 60 s
+browser ──wss /ws/project/<id>?ticket=…──▶ apps/web/worker.ts ─▶ DO ProjectRoom (verifica ticket)
+web, dopo una scrittura/sync ──POST /broadcast (INTERNAL_SECRET)──▶ DO ─▶ tutti i socket
+```
+
+- Le route di Next non possono rispondere 101: `apps/web/worker.ts` (main del Worker web) intercetta `/ws/*` e lo passa al DO tramite il binding `PROJECT_ROOM`/`GENERAL_ROOM` (`script_name: kyon-realtime`), tutto il resto va a OpenNext. In `pnpm dev` (`next dev`) il browser si collega direttamente al Worker realtime (`REALTIME_URL=ws://localhost:8788`).
+- Il DO non conosce sessioni né permessi: verifica solo il ticket (`packages/core/src/realtime/ticket.ts`). Il router (`workers/realtime/src/route.ts`) imposta il nome della stanza in un header; `/broadcast` dall'esterno è bloccato dall'entry e protetto dal segreto.
+- I messaggi sono minimi (`tasks_changed` con chi, quali task, assegnatario): i client ricaricano via API, così la visibilità resta quella delle API.
 - I DO usano la **Hibernation API** (`ctx.acceptWebSocket`): una stanza inattiva viene tolta dalla memoria senza chiudere i socket e non consuma durata.
 - Soglie proposte per l'archivio chat (da confermare con misure in Fase 7): il DO tiene gli ultimi **500 messaggi o 7 giorni** per stanza; un `alarm()` sposta su D1 lotti da **100 messaggi** alla volta; la ricerca unisce FTS5 su D1 e i messaggi recenti del DO.
 

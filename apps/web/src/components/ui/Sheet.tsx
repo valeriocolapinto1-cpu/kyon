@@ -16,6 +16,8 @@ interface SheetProps {
   description?: string;
   children: ReactNode;
   footer?: ReactNode;
+  /** Where focus goes after closing (default: back to the trigger). */
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 const spring = { type: 'spring', stiffness: 420, damping: 40 } as const;
@@ -24,7 +26,15 @@ const spring = { type: 'spring', stiffness: 420, damping: 40 } as const;
  * Bottom sheet on phones (drag the handle down to close), centered dialog from tablet up.
  * Focus goes to the title on open and back to the trigger on close (Radix restores it).
  */
-export function Sheet({ open, onOpenChange, title, description, children, footer }: SheetProps) {
+export function Sheet({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+  footer,
+  onCloseAutoFocus,
+}: SheetProps) {
   const desktop = useMediaQuery('(min-width: 768px)');
   const reduced = useReducedMotion();
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -51,6 +61,7 @@ export function Sheet({ open, onOpenChange, title, description, children, footer
             <Dialog.Content
               asChild
               forceMount
+              onCloseAutoFocus={onCloseAutoFocus}
               onOpenAutoFocus={(event) => {
                 event.preventDefault();
                 titleRef.current?.focus();
