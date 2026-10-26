@@ -53,7 +53,7 @@ Il deploy genera da solo il segreto di firma delle sessioni (`BETTER_AUTH_SECRET
 
 Il primo account creato è l'admin del gruppo. Due modi:
 
-- **Dal telefono** (consigliato): se hai messo il secret `ADMIN_BOOTSTRAP_CODE` (A5), dopo il deploy apri `https://kyon-web.<sottodominio>.workers.dev/join/<il tuo codice>` e crea l'account. Il codice smette di funzionare appena esiste un account.
+- **Dal telefono** (consigliato): se hai messo il secret `ADMIN_BOOTSTRAP_CODE` (A5), dopo il deploy apri `https://kyon-web.<sottodominio>.workers.dev/join?code=<il tuo codice>` e crea l'account. Il codice smette di funzionare appena esiste un account.
 - **Da un computer** con la repo e Node: `CLOUDFLARE_API_TOKEN=… CLOUDFLARE_ACCOUNT_ID=… pnpm admin:create-invite --remote --url https://kyon-web.<sottodominio>.workers.dev` stampa un link di invito.
 
 Poi, da **Settings → Admin → Inviti**, crei un invito per ciascun amico e gli mandi il link (vale 7 giorni, una volta sola). Se qualcuno dimentica la password: **Settings → Admin → Persone → Link per nuova password**.
@@ -73,7 +73,7 @@ Non serve per usare Kyon, solo se vuoi provare il codice sul tuo computer.
    pnpm install
    pnpm dev
    ```
-3. Apri il link `/join/…` che `pnpm dev` stampa nel terminale per creare il primo account locale, poi <http://localhost:3000>. Database, file e realtime sono simulati in locale: nessun login Cloudflare.
+3. Apri il link `/join?code=…` che `pnpm dev` stampa nel terminale per creare il primo account locale, poi <http://localhost:3000>. Database, file e realtime sono simulati in locale: nessun login Cloudflare.
 
 ---
 

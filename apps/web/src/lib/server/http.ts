@@ -12,6 +12,8 @@ export interface RouteContext {
 
 export interface AuthedContext extends RouteContext {
   auth: CurrentSession;
+  /** The caller as seen by can(). */
+  actor: { id: string; role: 'admin' | 'user' };
 }
 
 type Params = Record<string, string | string[] | undefined>;
@@ -54,7 +56,7 @@ export function authedRoute<P extends Params = Params>(
     const auth = await readSession(ctx.env, ctx.request);
     if (!auth) throw new ApiError('unauthorized');
     if (options.admin && auth.user.role !== 'admin') throw new ApiError('forbidden');
-    return handler({ ...ctx, auth }, params);
+    return handler({ ...ctx, auth, actor: { id: auth.user.id, role: auth.user.role } }, params);
   });
 }
 

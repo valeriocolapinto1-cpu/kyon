@@ -105,3 +105,112 @@ export const invite = sqliteTable(
   },
   (t) => [uniqueIndex('invite_code_hash_idx').on(t.codeHash)],
 );
+
+// ---------- GitHub ----------
+
+/** One per Kyon user who connected GitHub (GitHub App user authorization). Tokens are AES-GCM encrypted. */
+export const githubConnection = sqliteTable('github_connection', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  githubUserId: integer('github_user_id').notNull(),
+  login: text('login').notNull(),
+  avatarUrl: text('avatar_url'),
+  accessToken: text('access_token').notNull(),
+  accessTokenExpiresAt: timestamp('access_token_expires_at'),
+  refreshToken: text('refresh_token'),
+  refreshTokenExpiresAt: timestamp('refresh_token_expires_at'),
+  lastSyncAt: timestamp('last_sync_at'),
+  lastError: text('last_error'),
+  createdAt: timestamp('created_at').notNull().default(now),
+  updatedAt: timestamp('updated_at').notNull().default(now),
+});
+
+/**
+ * A repo as seen by one Kyon user (through their GitHub authorization) and its exposure choice.
+ * The same GitHub repo can appear for several users; the one who exposes it controls visibility.
+ */
+export const githubRepo = sqliteTable(
+  'github_repo',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    githubRepoId: integer('github_repo_id').notNull(),
+    installationId: integer('installation_id'),
+    fullName: text('full_name').notNull(),
+    ownerLogin: text('owner_login').notNull(),
+    name: text('name').notNull(),
+    private: integer('private', { mode: 'boolean' }).notNull().default(true),
+    defaultBranch: text('default_branch').notNull().default('main'),
+    htmlUrl: text('html_url').notNull(),
+    /** hidden (default) | self | selected | group */
+    exposure: text('exposure').notNull().default('hidden'),
+    available: integer('available', { mode: 'boolean' }).notNull().default(true),
+    createdAt: timestamp('created_at').notNull().default(now),
+    updatedAt: timestamp('updated_at').notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('github_repo_user_repo_idx').on(t.userId, t.githubRepoId),
+    index('github_repo_repo_idx').on(t.githubRepoId),
+  ],
+);
+
+export const githubRepoShare = sqliteTable(
+  'github_repo_share',
+  {
+    repoId: text('repo_id')
+      .notNull()
+      .references(() => githubRepo.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+  },
+  (t) => [uniqueIndex('github_repo_share_idx').on(t.repoId, t.userId)],
+);
+
+// ---------- Projects ----------
+
+export const project = sqliteTable(
+  'project',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    /** The exposing row (whose owner's token is the fallback for GitHub calls). */
+    repoId: text('repo_id')
+      .notNull()
+      .references(() => githubRepo.id, { onDelete: 'restrict' }),
+    /** 1 project = 1 repo. */
+    githubRepoId: integer('github_repo_id').notNull(),
+    /** direct | branch_pr */
+    commitMode: text('commit_mode').notNull().default('direct'),
+    workBranch: text('work_branch'),
+    viewersCanComment: integer('viewers_can_comment', { mode: 'boolean' }).notNull().default(false),
+    /** JSON string[]: heading keywords that turn list items into tasks. */
+    planHeadings: text('plan_headings'),
+    /** JSON string[]: extra glob patterns to ignore. */
+    ignoreGlobs: text('ignore_globs'),
+    showArchive: integer('show_archive', { mode: 'boolean' }).notNull().default(false),
+    archivedAt: timestamp('archived_at'),
+    createdAt: timestamp('created_at').notNull().default(now),
+    updatedAt: timestamp('updated_at').notNull().default(now),
+  },
+  (t) => [uniqueIndex('project_github_repo_idx').on(t.githubRepoId)],
+);
+
+export const projectMember = sqliteTable(
+  'project_member',
+  {
+    projectId: text('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    /** owner | member | viewer */
+    role: text('role').notNull(),
+    createdAt: timestamp('created_at').notNull().default(now),
+  },
+  (t) => [uniqueIndex('project_member_idx').on(t.projectId, t.userId), index('project_member_user_idx').on(t.userId)],
+);

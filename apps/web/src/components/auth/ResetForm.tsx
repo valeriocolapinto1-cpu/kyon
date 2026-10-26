@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormError } from '@/components/ui/FormError';
@@ -96,4 +97,9 @@ export function ResetForm({ token }: { token: string }) {
       </form>
     </GlassCard>
   );
+}
+
+export function ResetPage() {
+  const token = useSearchParams().get('token') ?? '';
+  return <ResetForm token={token} />;
 }

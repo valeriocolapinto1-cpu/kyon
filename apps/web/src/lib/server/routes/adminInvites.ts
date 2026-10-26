@@ -18,7 +18,7 @@ export const POST = authedRoute(
     return json(
       {
         ...created,
-        url: `${origin}/join/${created.code}`,
+        url: `${origin}/join?code=${created.code}`,
         expiresAt: created.expiresAt.toISOString(),
       },
       { status: 201 },

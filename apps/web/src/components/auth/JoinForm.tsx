@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormError } from '@/components/ui/FormError';
@@ -112,4 +112,9 @@ export function JoinForm({ code }: { code: string }) {
       </form>
     </GlassCard>
   );
+}
+
+export function JoinPage() {
+  const code = useSearchParams().get('code') ?? '';
+  return <JoinForm code={code} />;
 }

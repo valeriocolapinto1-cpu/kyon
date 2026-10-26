@@ -4,3 +4,4 @@ export * from './theme';
 export * from './preferences';
 export * from './time';
 export * from './auth';
+export * from './permissions';

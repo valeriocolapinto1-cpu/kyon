@@ -24,9 +24,9 @@ test.describe('auth', () => {
     });
 
     test('refuses unknown invites and the used bootstrap code', async ({ page }) => {
-      await page.goto('/join/AAAA-BBBB-CCCC-DDDD');
+      await page.goto('/join?code=AAAA-BBBB-CCCC-DDDD');
       await expect(page.getByRole('heading', { name: 'Invito non valido' })).toBeVisible();
-      await page.goto('/join/e2e-bootstrap-code-kyon');
+      await page.goto('/join?code=e2e-bootstrap-code-kyon');
       await expect(page.getByRole('heading', { name: 'Invito non valido' })).toBeVisible();
     });
 
@@ -34,7 +34,7 @@ test.describe('auth', () => {
       await page.goto('/login');
       await page.getByRole('heading', { name: 'Bentornato' }).waitFor();
       await expectNoA11yViolations(page);
-      await page.goto('/join/AAAA-BBBB-CCCC-DDDD');
+      await page.goto('/join?code=AAAA-BBBB-CCCC-DDDD');
       await page.getByRole('heading', { name: 'Invito non valido' }).waitFor();
       await expectNoA11yViolations(page);
     });
@@ -50,7 +50,7 @@ test.describe('auth', () => {
     await page.getByLabel('Per chi è? (facoltativo)').fill(`Ospite ${info.project.name}`);
     await page.getByRole('button', { name: 'Nuovo invito' }).click();
     const link = await page.getByRole('textbox', { name: 'Copia link' }).inputValue();
-    expect(link).toMatch(/\/join\/[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/);
+    expect(link).toMatch(/\/join\?code=[0-9A-Z]{4}(-[0-9A-Z]{4}){3}$/);
 
     const guest = await browser.newContext({ baseURL });
     const guestPage = await guest.newPage();

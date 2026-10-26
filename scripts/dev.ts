@@ -63,7 +63,7 @@ const children = [
 ];
 
 console.log(
-  `\nKyon: http://localhost:3000\nPrimo account (solo se il database locale è vuoto): http://localhost:3000/join/${vars.ADMIN_BOOTSTRAP_CODE}\n`,
+  `\nKyon: http://localhost:3000\nPrimo account (solo se il database locale è vuoto): http://localhost:3000/join?code=${vars.ADMIN_BOOTSTRAP_CODE}\n`,
 );
 
 let stopping = false;

@@ -15,6 +15,13 @@
       "when": 1793012982060,
       "tag": "0001_auth",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793015786776,
+      "tag": "0002_github_projects",
+      "breakpoints": true
     }
   ]
 }

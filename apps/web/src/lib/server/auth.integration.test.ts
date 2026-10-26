@@ -117,7 +117,7 @@ describe('auth: invites, sign-in, roles, reset', () => {
     );
     expect(created.status).toBe(201);
     const { code, url } = await body(created);
-    expect(url).toBe(`${ORIGIN}/join/${code}`);
+    expect(url).toBe(`${ORIGIN}/join?code=${code}`);
 
     const christian = await join(
       code.toLowerCase().replace(/-/g, ' '),
@@ -199,7 +199,7 @@ describe('auth: invites, sign-in, roles, reset', () => {
         params({ id }),
       ),
     );
-    const token = String(link.url).split('/reset/')[1] ?? '';
+    const token = new URL(String(link.url)).searchParams.get('token') ?? '';
     const info = await body(resetGet(req(`/api/reset/${token}`), params({ token })));
     expect(info.email).toBe('christian@kyon.test');
 

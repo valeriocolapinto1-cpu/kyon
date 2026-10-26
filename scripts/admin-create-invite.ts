@@ -39,4 +39,4 @@ await run('pnpm', ['exec', 'wrangler', 'd1', 'execute', 'kyon-db', ...target, '-
   capture: true,
 });
 
-console.log(`\nInvito creato (vale 7 giorni, una sola volta):\n\n  ${baseUrl}/join/${code}\n`);
+console.log(`\nInvito creato (vale 7 giorni, una sola volta):\n\n  ${baseUrl}/join?code=${code}\n`);

@@ -6,6 +6,12 @@ import * as adminSessions from './routes/adminSessions';
 import * as adminUser from './routes/adminUser';
 import * as adminUsers from './routes/adminUsers';
 import * as auth from './routes/auth';
+import * as github from './routes/github';
+import * as githubWebhook from './routes/githubWebhook';
+import * as people from './routes/people';
+import * as projectRoutes from './routes/project';
+import * as projects from './routes/projects';
+import * as repos from './routes/repos';
 import * as avatarFile from './routes/avatarFile';
 import * as health from './routes/health';
 import * as join from './routes/join';
@@ -40,12 +46,29 @@ const routes: [string, Module][] = [
   ['/api/admin/users/:id', adminUser],
   ['/api/admin/users/:id/reset-link', adminResetLink],
   ['/api/admin/users/:id/sessions', adminSessions],
+  ['/api/people', people],
+  ['/api/github', github],
+  ['/api/github/connect', { GET: github.connect }],
+  ['/api/github/callback', { GET: github.callback }],
+  ['/api/github/setup', { GET: github.setup }],
+  ['/api/github/sync', { POST: github.sync }],
+  ['/api/github/webhook', githubWebhook],
+  ['/api/repos', repos],
+  ['/api/repos/:id', repos],
+  ['/api/projects', projects],
+  ['/api/projects/:id', projectRoutes],
+  ['/api/projects/:id/members', { POST: projectRoutes.addMemberRoute }],
+  ['/api/projects/:id/members/:userId', { PATCH: projectRoutes.memberRoleRoute, DELETE: projectRoutes.removeMemberRoute }],
+  ['/api/projects/:id/leave', { POST: projectRoutes.leaveRoute }],
+  ['/api/projects/:id/transfer', { POST: projectRoutes.transferRoute }],
+  ['/api/projects/:id/archive', { POST: projectRoutes.archiveRoute }],
 ];
 
 export const api = new Hono();
 
 for (const [path, module] of routes) {
-  for (const [method, handler] of Object.entries(module) as [string, Handler | undefined][]) {
+  for (const method of ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'] as const) {
+    const handler = module[method];
     if (typeof handler !== 'function') continue;
     api.on(method, path, (c) =>
       handler(c.req.raw, { params: Promise.resolve(c.req.param() as Record<string, string>) }),

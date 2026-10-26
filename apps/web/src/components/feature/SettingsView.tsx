@@ -3,6 +3,7 @@
 import { AccountSettings } from '@/components/feature/AccountSettings';
 import { AdminPanel } from '@/components/feature/AdminPanel';
 import { AppearanceSettings } from '@/components/feature/AppearanceSettings';
+import { GitHubSettings } from '@/components/feature/GitHubSettings';
 import { SessionsSettings } from '@/components/feature/SessionsSettings';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -20,6 +21,7 @@ export function SettingsView() {
     { href: '#settings-appearance', label: it.settings.appearance },
     { href: '#settings-a11y', label: it.settings.accessibility },
     { href: '#account-profile', label: it.account.profile },
+    { href: '#github', label: it.github.title },
     { href: '#sessions-title', label: it.account.sessions },
     ...(me.data?.role === 'admin' ? [{ href: '#admin-title', label: it.admin.title }] : []),
   ];
@@ -41,6 +43,7 @@ export function SettingsView() {
       {me.data ? (
         <>
           <AccountSettings me={me.data} />
+          <GitHubSettings me={me.data} />
           <SessionsSettings />
           {me.data.role === 'admin' && <AdminPanel me={me.data} />}
         </>

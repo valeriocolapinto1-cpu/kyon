@@ -67,7 +67,7 @@ export async function createResetLink(db: Db, userId: string, origin: string, no
     createdAt: now,
     updatedAt: now,
   });
-  return { url: `${origin}/reset/${token}`, expiresAt };
+  return { url: `${origin}/reset?token=${token}`, expiresAt };
 }
 
 /** The reset page needs the email to derive the new client key. */

@@ -3,7 +3,7 @@ import { ADMIN, E2E_BOOTSTRAP } from './fixtures';
 
 setup('bootstrap the admin account', async ({ page }) => {
   await page.addInitScript(() => window.localStorage.setItem('kyon.lite-detected', '0'));
-  await page.goto(`/join/${E2E_BOOTSTRAP}`);
+  await page.goto(`/join?code=${E2E_BOOTSTRAP}`);
   await expect(page.getByText('Sei il primo')).toBeVisible();
   await page.getByLabel('Nome').fill(ADMIN.name);
   await page.getByLabel('Email').fill(ADMIN.email);
