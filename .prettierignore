@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+.next
+.open-next
+.wrangler
+dist
+.size
+coverage
+apps/web/src/db/migrations/meta
+KYON-PROMPT.md

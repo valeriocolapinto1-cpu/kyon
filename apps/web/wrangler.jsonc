@@ -1,0 +1,30 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "kyon-web",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "observability": { "enabled": true },
+  "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "kyon-web" }],
+  // IDs are placeholders for local development; scripts/deploy.ts resolves the real ones.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kyon-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "src/db/migrations",
+    },
+  ],
+  "kv_namespaces": [{ "binding": "KV", "id": "00000000000000000000000000000000" }],
+  "r2_buckets": [{ "binding": "FILES", "bucket_name": "kyon-files" }],
+  "durable_objects": {
+    "bindings": [
+      { "name": "PROJECT_ROOM", "class_name": "ProjectRoom", "script_name": "kyon-realtime" },
+      { "name": "GENERAL_ROOM", "class_name": "GeneralRoom", "script_name": "kyon-realtime" },
+    ],
+  },
+}

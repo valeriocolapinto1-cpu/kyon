@@ -1,0 +1,16 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "kyon-cron",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  // Low frequency on purpose: webhooks carry the real-time updates, cron only reconciles.
+  "triggers": { "crons": ["*/15 * * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kyon-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
+}

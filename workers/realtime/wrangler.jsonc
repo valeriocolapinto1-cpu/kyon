@@ -1,0 +1,22 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "kyon-realtime",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "observability": { "enabled": true },
+  "durable_objects": {
+    "bindings": [
+      { "name": "PROJECT_ROOM", "class_name": "ProjectRoom" },
+      { "name": "GENERAL_ROOM", "class_name": "GeneralRoom" },
+    ],
+  },
+  // SQLite-backed Durable Objects are available on the Free plan.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["ProjectRoom", "GeneralRoom"] }],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "kyon-db",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+    },
+  ],
+}

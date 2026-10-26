@@ -18,23 +18,23 @@ Leggi questo file all'inizio di ogni sessione. Specifiche funzionali complete: `
 
 ## 2. Stack (decisioni prese: non rimetterle in discussione senza motivo)
 
-| Area | Scelta |
-|---|---|
-| Framework | Next.js (App Router) + React + TypeScript strict, su Cloudflare Workers via **OpenNext** (`@opennextjs/cloudflare`) |
-| Monorepo | **pnpm** workspaces: `apps/web`, `workers/realtime`, `workers/cron`, `packages/core` |
-| Database | **D1** (SQLite) con **Drizzle ORM**, migrazioni versionate |
-| Realtime | **Durable Objects** (backend SQLite), WebSocket Hibernation API, in un Worker separato (`workers/realtime`) |
-| File | **R2**: avatar e allegati, accesso solo tramite Worker con controllo permessi |
-| Cache/rate limit | **KV** |
-| Auth | **Better Auth**: email+password, registrazione solo su invito, GitHub collegabile come account aggiuntivo |
-| GitHub | **GitHub App** (autorizzazione utente con token a scadenza + webhook). Per l'utente è solo "Collega GitHub" |
-| UI | Tailwind CSS, componenti stile shadcn/ui (Radix), `motion` per animazioni a molla, **`lucide-react`** per le icone |
-| Font | **Font di sistema** (`-apple-system, system-ui, "Segoe UI", …`). Nessun font ospitato |
-| Email | **Cloudflare Email Service** dietro interfaccia `EmailProvider` (vedi §6) |
-| Push | Web Push con chiavi VAPID, implementato con WebCrypto (niente librerie Node-only) |
-| PWA | Manifest, service worker, cache offline in sola lettura |
-| Test | **Vitest**, **Playwright** + **axe-core**, **Lighthouse CI**. GitHub e email sempre mockati |
-| Qualità | ESLint, Prettier, `tsc --noEmit`: obbligatori prima di ogni commit |
+| Area             | Scelta                                                                                                              |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Framework        | Next.js (App Router) + React + TypeScript strict, su Cloudflare Workers via **OpenNext** (`@opennextjs/cloudflare`) |
+| Monorepo         | **pnpm** workspaces: `apps/web`, `workers/realtime`, `workers/cron`, `packages/core`                                |
+| Database         | **D1** (SQLite) con **Drizzle ORM**, migrazioni versionate                                                          |
+| Realtime         | **Durable Objects** (backend SQLite), WebSocket Hibernation API, in un Worker separato (`workers/realtime`)         |
+| File             | **R2**: avatar e allegati, accesso solo tramite Worker con controllo permessi                                       |
+| Cache/rate limit | **KV**                                                                                                              |
+| Auth             | **Better Auth**: email+password, registrazione solo su invito, GitHub collegabile come account aggiuntivo           |
+| GitHub           | **GitHub App** (autorizzazione utente con token a scadenza + webhook). Per l'utente è solo "Collega GitHub"         |
+| UI               | Tailwind CSS, componenti stile shadcn/ui (Radix), `motion` per animazioni a molla, **`lucide-react`** per le icone  |
+| Font             | **Font di sistema** (`-apple-system, system-ui, "Segoe UI", …`). Nessun font ospitato                               |
+| Email            | **Cloudflare Email Service** dietro interfaccia `EmailProvider` (vedi §6)                                           |
+| Push             | Web Push con chiavi VAPID, implementato con WebCrypto (niente librerie Node-only)                                   |
+| PWA              | Manifest, service worker, cache offline in sola lettura                                                             |
+| Test             | **Vitest**, **Playwright** + **axe-core**, **Lighthouse CI**. GitHub e email sempre mockati                         |
+| Qualità          | ESLint, Prettier, `tsc --noEmit`: obbligatori prima di ogni commit                                                  |
 
 Non aggiungere dipendenze pesanti senza misurare l'impatto sul bundle. Preferisci API Web standard e piccole librerie pure.
 
@@ -65,16 +65,21 @@ La logica di dominio pura (parser Markdown, riconciliazione task, permessi, temp
 
 ```
 pnpm install
-pnpm dev                  # OpenNext/wrangler in locale con D1, R2, KV e DO simulati (nessun login Cloudflare)
+pnpm dev                  # migra D1 locale, poi wrangler dev (realtime :8788, cron :8789) + next dev (:3000), stato locale condiviso in .wrangler/state
 pnpm typecheck && pnpm lint
-pnpm test                 # vitest
-pnpm e2e                  # playwright + axe
-pnpm lighthouse           # lhci con soglie
-pnpm db:generate          # migrazione da schema Drizzle
+pnpm format:check         # prettier (pnpm format per correggere)
+pnpm test                 # vitest (progetti: core, web, workers, scripts)
+pnpm test packages/core/src/limits.test.ts       # un singolo file (senza `--`); aggiungi -t "nome" per un singolo test
+pnpm e2e                  # playwright + axe            (dalla Fase 1)
+pnpm lighthouse           # lhci con soglie             (dalla Fase 1)
+pnpm db:generate <nome>   # migrazione da schema Drizzle (apps/web/src/db/schema.ts → src/db/migrations)
 pnpm db:migrate:local     # D1 locale
-pnpm size                 # misura gzip del bundle di ogni Worker, fallisce oltre soglia
-pnpm build && pnpm deploy # usato dalla CI
+pnpm build                # bundle OpenNext di apps/web (+ cache statica dei prerender)
+pnpm size                 # misura gzip del bundle di ogni Worker, fallisce oltre 2,4 MB (richiede pnpm build)
+pnpm build && pnpm run deploy  # usato dalla CI. Attenzione: `pnpm deploy` senza `run` è un comando interno di pnpm
 ```
+
+Cron in locale: `curl http://localhost:8789/cdn-cgi/handler/scheduled`. Anteprima del bundle di produzione: `pnpm --filter @kyon/web preview` dopo `pnpm build`.
 
 Script in Node/TypeScript, **non in bash**. Niente comandi specifici di una shell. Usa `cross-env` dove serve, percorsi con `path`, `.gitattributes` per fine riga LF. Se un comando non esiste ancora, crealo nella fase in cui serve e documentalo qui.
 
