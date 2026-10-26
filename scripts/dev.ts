@@ -12,7 +12,10 @@ const web = path.join(repoRoot, 'apps', 'web');
 const vars = ensureDevVars();
 const fakeGitHub = vars.GITHUB_API_URL?.startsWith('http://localhost:8799')
   ? serve({
-      fetch: createFakeGitHub(defaultFakeState('http://localhost:3000')).app.fetch,
+      fetch: createFakeGitHub({
+        ...defaultFakeState('http://localhost:3000'),
+        webOrigin: 'http://localhost:8799',
+      }).app.fetch,
       port: 8799,
     })
   : null;

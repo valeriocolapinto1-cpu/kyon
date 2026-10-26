@@ -4,6 +4,8 @@ import { githubConnection, project } from '@/db/schema';
 import { ApiError } from '../errors';
 import { githubConfig } from '../github/client';
 import { markInstallationUnavailable, markReposUnavailable, syncRepos } from '../github/repos';
+import type { GhPull } from '../github/pulls';
+import { handleChecksEvent, handlePullRequestEvent, handlePushMarkers } from '../prompts/runs';
 import { syncProject } from '../tasks/sync';
 import { json, route } from '../http';
 
@@ -15,12 +17,17 @@ interface InstallationPayload {
   sender?: { id: number };
   repositories_removed?: { id: number }[];
   repositories?: { id: number }[];
+  pull_request?: GhPull;
+  check_suite?: { head_sha: string };
+  check_run?: { head_sha: string };
+  commits?: { message: string }[];
 }
 
 /**
  * GitHub App webhook. Unsigned or badly signed payloads are rejected before parsing.
  * Installation changes keep the repo list right; `push` re-reads the changed .md files
- * (incremental: only blobs whose sha changed). pull_request / check_* arrive in Fase 6.
+ * (incremental: only blobs whose sha changed) and links runs whose commits carry a marker;
+ * `pull_request` and `check_*` follow the PRs of prompt runs (link, CI, merge → close task).
  */
 export const POST = route(async ({ request, env, db }) => {
   const secret = env.GITHUB_WEBHOOK_SECRET;
@@ -64,6 +71,31 @@ export const POST = route(async ({ request, env, db }) => {
         }
       }
     }
+  }
+  // Failures are logged, not returned: GitHub would redeliver forever and "Verifica stato PR"
+  // or the cron realign later.
+  const repoId = payload.repository?.id;
+  try {
+    if (event === 'pull_request' && repoId && payload.pull_request)
+      await handlePullRequestEvent(db, env, repoId, payload.pull_request);
+    const sha = payload.check_suite?.head_sha ?? payload.check_run?.head_sha;
+    if ((event === 'check_suite' || event === 'check_run') && repoId && sha)
+      await handleChecksEvent(db, env, repoId, sha);
+    if (
+      event === 'push' &&
+      repoId &&
+      payload.ref?.startsWith('refs/heads/') &&
+      payload.commits?.length
+    )
+      await handlePushMarkers(
+        db,
+        env,
+        repoId,
+        payload.ref.slice('refs/heads/'.length),
+        payload.commits.map((c) => c.message),
+      );
+  } catch (error) {
+    console.warn(`Webhook ${event} for runs failed`, error);
   }
   if (event === 'push' && payload.repository) {
     const [proj] = await db

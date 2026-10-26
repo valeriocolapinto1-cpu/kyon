@@ -347,3 +347,107 @@ export const activityEvent = sqliteTable(
     index('activity_task_idx').on(t.taskId, t.createdAt),
   ],
 );
+
+// ---------- Prompts, versions, templates, runs ----------
+
+/** A prompt for Claude Code attached to one task. The text lives in prompt_version. */
+export const prompt = sqliteTable(
+  'prompt',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    /** task_meta.id (survives text edits); null if the task left the repo: the prompt stays. */
+    taskId: text('task_id').references(() => taskMeta.id, { onDelete: 'set null' }),
+    title: text('title').notNull(),
+    /** draft | ready | used */
+    status: text('status').notNull().default('draft'),
+    currentVersionId: text('current_version_id'),
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').notNull().default(now),
+    updatedAt: timestamp('updated_at').notNull().default(now),
+  },
+  (t) => [index('prompt_project_idx').on(t.projectId), index('prompt_task_idx').on(t.taskId)],
+);
+
+/** Every saved text of a prompt (history, diff, restore; runs pin one). */
+export const promptVersion = sqliteTable(
+  'prompt_version',
+  {
+    id: text('id').primaryKey(),
+    promptId: text('prompt_id')
+      .notNull()
+      .references(() => prompt.id, { onDelete: 'cascade' }),
+    number: integer('number').notNull(),
+    body: text('body').notNull(),
+    authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').notNull().default(now),
+  },
+  (t) => [uniqueIndex('prompt_version_number_idx').on(t.promptId, t.number)],
+);
+
+/** User, project and group templates (the four built-in ones live in code). */
+export const promptTemplate = sqliteTable(
+  'prompt_template',
+  {
+    id: text('id').primaryKey(),
+    /** user | project | group */
+    scope: text('scope').notNull(),
+    ownerId: text('owner_id').references(() => user.id, { onDelete: 'cascade' }),
+    projectId: text('project_id').references(() => project.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    body: text('body').notNull(),
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').notNull().default(now),
+    updatedAt: timestamp('updated_at').notNull().default(now),
+  },
+  (t) => [
+    index('prompt_template_owner_idx').on(t.ownerId),
+    index('prompt_template_project_idx').on(t.projectId),
+  ],
+);
+
+/** One "Copia prompt per Claude": the pinned prompt version and the PR that came out of it. */
+export const promptRun = sqliteTable(
+  'prompt_run',
+  {
+    /** Short readable id, the one in `Kyon-Run: <id>`. */
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    taskId: text('task_id').references(() => taskMeta.id, { onDelete: 'set null' }),
+    /** Kept even if the task metadata goes away. */
+    taskStableId: text('task_stable_id').notNull(),
+    taskText: text('task_text').notNull(),
+    promptId: text('prompt_id').references(() => prompt.id, { onDelete: 'set null' }),
+    promptVersionId: text('prompt_version_id').references(() => promptVersion.id, {
+      onDelete: 'set null',
+    }),
+    /** The exact text that was copied. */
+    renderedText: text('rendered_text').notNull(),
+    launchedBy: text('launched_by').references(() => user.id, { onDelete: 'set null' }),
+    copiedAt: timestamp('copied_at').notNull(),
+    /** copied | pr_open | ci_running | ci_failed | ci_passed | merged | closed | abandoned */
+    state: text('state').notNull().default('copied'),
+    branch: text('branch').notNull(),
+    prNumber: integer('pr_number'),
+    prUrl: text('pr_url'),
+    prTitle: text('pr_title'),
+    prHeadSha: text('pr_head_sha'),
+    /** marker | suggested | manual */
+    linkSource: text('link_source'),
+    mergedAt: timestamp('merged_at'),
+    resultNotes: text('result_notes'),
+    /** The merge ticked the task: "Annulla chiusura" reopens it. */
+    taskClosedByRun: integer('task_closed_by_run', { mode: 'boolean' }).notNull().default(false),
+    updatedAt: timestamp('updated_at').notNull().default(now),
+  },
+  (t) => [
+    index('prompt_run_project_idx').on(t.projectId, t.copiedAt),
+    index('prompt_run_task_idx').on(t.taskId),
+    index('prompt_run_pr_idx').on(t.projectId, t.prNumber),
+    index('prompt_run_sha_idx').on(t.prHeadSha),
+  ],
+);

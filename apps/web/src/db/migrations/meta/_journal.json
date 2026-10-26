@@ -36,6 +36,13 @@
       "when": 1793026481401,
       "tag": "0004_task_history",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1793032158138,
+      "tag": "0005_prompts",
+      "breakpoints": true
     }
   ]
 }

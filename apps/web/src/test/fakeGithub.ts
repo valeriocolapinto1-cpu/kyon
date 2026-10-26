@@ -22,6 +22,18 @@ export interface FakePull {
   base: string;
   state: 'open' | 'closed';
   merged: boolean;
+  author?: string;
+  headSha?: string;
+  createdAt?: string;
+  mergedAt?: string | null;
+  /** Commit messages on the PR branch. */
+  commitMessages?: string[];
+}
+
+export interface FakeCheck {
+  name: string;
+  status: 'queued' | 'in_progress' | 'completed';
+  conclusion: string | null;
 }
 
 export interface FakeRepo {
@@ -35,6 +47,9 @@ export interface FakeRepo {
   branches?: Map<string, Map<string, string>>;
   commits?: FakeCommit[];
   pulls?: FakePull[];
+  /** head sha → check runs */
+  checks?: Map<string, FakeCheck[]>;
+  issues?: { number: number; title: string; author: string; createdAt: string }[];
 }
 
 export interface FakeUser {
@@ -55,6 +70,8 @@ export interface FakeState {
   counter: number;
   /** Where the "Install" page sends the user back (the app's Setup URL). */
   kyonOrigin: string;
+  /** Origin used in html_url links of webhook payloads. */
+  webOrigin: string;
   requests: { method: string; path: string }[];
   /** Simulates someone pushing between Kyon's read and write: the next PUTs on `path` fail with 409. */
   conflicts: { path: string; content: string; times: number }[];
@@ -98,6 +115,7 @@ export function defaultFakeState(kyonOrigin = 'http://localhost:8787'): FakeStat
     accessTokenTtlSeconds: 8 * 60 * 60,
     counter: 0,
     kyonOrigin,
+    webOrigin: 'http://fake-github.test',
     requests: [],
     conflicts: [],
   };
@@ -142,6 +160,36 @@ function repoJson(repo: FakeRepo, base: string) {
     private: repo.private,
     default_branch: repo.defaultBranch,
     html_url: `${base}/${repo.owner}/${repo.name}`,
+  };
+}
+
+function pullJson(repo: FakeRepo, p: FakePull, base: string) {
+  return {
+    number: p.number,
+    title: p.title,
+    body: p.body,
+    state: p.state,
+    merged: p.merged,
+    merged_at: p.mergedAt ?? null,
+    created_at: p.createdAt ?? new Date(0).toISOString(),
+    updated_at: p.mergedAt ?? p.createdAt ?? new Date(0).toISOString(),
+    user: { login: p.author ?? repo.owner },
+    head: { ref: p.head, sha: p.headSha ?? fakeSha(`${repo.id}/${p.head}`) },
+    base: { ref: p.base },
+    html_url: `${base}/${repo.owner}/${repo.name}/pull/${p.number}`,
+  };
+}
+
+/** What GitHub would POST to the app's webhook for this PR (tests sign and deliver it). */
+export function pullWebhook(repo: FakeRepo, p: FakePull, action: string, base: string) {
+  return {
+    event: 'pull_request',
+    payload: {
+      action,
+      number: p.number,
+      pull_request: pullJson(repo, p, base),
+      repository: { id: repo.id },
+    },
   };
 }
 
@@ -386,20 +434,78 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
     const found = authorizedRepo(c);
     if (!found) return c.json({ message: 'Not Found' }, 404);
     const head = c.req.query('head')?.split(':').pop();
+    const state = c.req.query('state') ?? 'open';
     const pulls = (found.repo.pulls ?? []).filter(
-      (p) => p.state === (c.req.query('state') ?? 'open') && (!head || p.head === head),
+      (p) => (state === 'all' || p.state === state) && (!head || p.head === head),
     );
+    const base = new URL(c.req.url).origin;
+    return c.json([...pulls].reverse().map((p) => pullJson(found.repo, p, base)));
+  });
+
+  app.get('/repos/:owner/:repo/pulls/:number', (c) => {
+    const found = authorizedRepo(c);
+    const pull = found?.repo.pulls?.find((p) => p.number === Number(c.req.param('number')));
+    if (!found || !pull) return c.json({ message: 'Not Found' }, 404);
+    return c.json(pullJson(found.repo, pull, new URL(c.req.url).origin));
+  });
+
+  app.get('/repos/:owner/:repo/pulls/:number/commits', (c) => {
+    const found = authorizedRepo(c);
+    const pull = found?.repo.pulls?.find((p) => p.number === Number(c.req.param('number')));
+    if (!found || !pull) return c.json({ message: 'Not Found' }, 404);
     return c.json(
-      pulls.map((p) => ({
-        number: p.number,
-        title: p.title,
-        body: p.body,
-        state: p.state,
-        head: { ref: p.head },
-        base: { ref: p.base },
-        html_url: `${new URL(c.req.url).origin}/${found.repo.owner}/${found.repo.name}/pull/${p.number}`,
+      (pull.commitMessages ?? []).map((message, i) => ({
+        sha: fakeSha(`${pull.number}/${i}/${message}`),
+        commit: { message },
       })),
     );
+  });
+
+  app.get('/repos/:owner/:repo/commits/:ref/check-runs', (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const runs = found.repo.checks?.get(c.req.param('ref')) ?? [];
+    return c.json({ total_count: runs.length, check_runs: runs });
+  });
+
+  app.get('/repos/:owner/:repo/commits', (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const base = new URL(c.req.url).origin;
+    const perPage = Number(c.req.query('per_page') ?? 30);
+    return c.json(
+      [...(found.repo.commits ?? [])]
+        .reverse()
+        .slice(0, perPage)
+        .map((commit, i) => ({
+          sha: commit.sha,
+          html_url: `${base}/${found.repo.owner}/${found.repo.name}/commit/${commit.sha}`,
+          commit: {
+            message: commit.message,
+            author: { name: commit.author, date: new Date(Date.now() - i * 60_000).toISOString() },
+          },
+          author: { login: commit.author },
+        })),
+    );
+  });
+
+  app.get('/repos/:owner/:repo/issues', (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const base = new URL(c.req.url).origin;
+    const issues = (found.repo.issues ?? []).map((i) => ({
+      number: i.number,
+      title: i.title,
+      state: 'open',
+      user: { login: i.author },
+      created_at: i.createdAt,
+      html_url: `${base}/${found.repo.owner}/${found.repo.name}/issues/${i.number}`,
+    }));
+    // Like GitHub, open PRs come back too, marked with `pull_request`.
+    const pulls = (found.repo.pulls ?? [])
+      .filter((p) => p.state === 'open')
+      .map((p) => ({ ...pullJson(found.repo, p, base), pull_request: {} }));
+    return c.json([...issues, ...pulls]);
   });
 
   app.post('/repos/:owner/:repo/pulls', async (c) => {
@@ -412,13 +518,15 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
       body?: string;
     };
     const pull: FakePull = {
-      number: (found.repo.pulls?.length ?? 0) + 1,
+      number: (found.repo.pulls?.length ?? 0) + (found.repo.issues?.length ?? 0) + 1,
       title: body.title,
       body: body.body ?? '',
       head: body.head,
       base: body.base,
       state: 'open',
       merged: false,
+      author: found.u.login,
+      createdAt: new Date().toISOString(),
     };
     found.repo.pulls = [...(found.repo.pulls ?? []), pull];
     return c.json(
@@ -456,6 +564,119 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
     };
     repo.commits = [...(repo.commits ?? []), commit];
     return c.json({ commit });
+  });
+
+  /** A PR opened outside Kyon (e.g. by Claude Code). Returns the webhook to deliver. */
+  app.post('/__fake/repos/:id/pulls', async (c) => {
+    const repo = state.repos.find((r) => r.id === Number(c.req.param('id')));
+    if (!repo) return c.json({ message: 'Not Found' }, 404);
+    const body = (await c.req.json()) as {
+      title: string;
+      body?: string;
+      head: string;
+      base?: string;
+      author?: string;
+      commits?: string[];
+      createdAt?: string;
+    };
+    const pull: FakePull = {
+      number: (repo.pulls?.length ?? 0) + (repo.issues?.length ?? 0) + 1,
+      title: body.title,
+      body: body.body ?? '',
+      head: body.head,
+      base: body.base ?? repo.defaultBranch,
+      state: 'open',
+      merged: false,
+      author: body.author ?? repo.owner,
+      createdAt: body.createdAt ?? new Date().toISOString(),
+      commitMessages: body.commits ?? [],
+    };
+    pull.headSha = fakeSha(`${repo.id}/${pull.head}/${pull.commitMessages?.length ?? 0}`);
+    repo.pulls = [...(repo.pulls ?? []), pull];
+    return c.json({
+      number: pull.number,
+      headSha: pull.headSha,
+      webhook: pullWebhook(repo, pull, 'opened', state.webOrigin),
+    });
+  });
+
+  /** Edits a PR (body, title, new commits) or closes / merges / reopens it. */
+  app.post('/__fake/repos/:id/pulls/:number', async (c) => {
+    const repo = state.repos.find((r) => r.id === Number(c.req.param('id')));
+    const pull = repo?.pulls?.find((p) => p.number === Number(c.req.param('number')));
+    if (!repo || !pull) return c.json({ message: 'Not Found' }, 404);
+    const body = (await c.req.json()) as {
+      title?: string;
+      body?: string;
+      commits?: string[];
+      action?: 'merge' | 'close' | 'reopen';
+    };
+    let action = 'edited';
+    if (body.title !== undefined) pull.title = body.title;
+    if (body.body !== undefined) pull.body = body.body;
+    if (body.commits) {
+      pull.commitMessages = [...(pull.commitMessages ?? []), ...body.commits];
+      pull.headSha = fakeSha(`${repo.id}/${pull.head}/${pull.commitMessages.length}`);
+      action = 'synchronize';
+    }
+    if (body.action === 'merge') {
+      Object.assign(pull, { state: 'closed', merged: true, mergedAt: new Date().toISOString() });
+      action = 'closed';
+    } else if (body.action === 'close') {
+      Object.assign(pull, { state: 'closed', merged: false });
+      action = 'closed';
+    } else if (body.action === 'reopen') {
+      Object.assign(pull, { state: 'open', merged: false });
+      action = 'reopened';
+    }
+    return c.json({
+      headSha: pull.headSha,
+      webhook: pullWebhook(repo, pull, action, state.webOrigin),
+    });
+  });
+
+  /** Sets the check runs of a PR's head commit. Returns a check_suite webhook. */
+  app.post('/__fake/repos/:id/checks', async (c) => {
+    const repo = state.repos.find((r) => r.id === Number(c.req.param('id')));
+    if (!repo) return c.json({ message: 'Not Found' }, 404);
+    const body = (await c.req.json()) as { pull?: number; sha?: string; runs: FakeCheck[] };
+    const pull = repo.pulls?.find((p) => p.number === body.pull);
+    const sha = body.sha ?? pull?.headSha;
+    if (!sha) return c.json({ message: 'no sha' }, 400);
+    repo.checks ??= new Map();
+    repo.checks.set(sha, body.runs);
+    const done = body.runs.every((r) => r.status === 'completed');
+    return c.json({
+      webhook: {
+        event: 'check_suite',
+        payload: {
+          action: done ? 'completed' : 'requested',
+          check_suite: {
+            head_sha: sha,
+            status: done ? 'completed' : 'in_progress',
+            conclusion: done
+              ? body.runs.some((r) => r.conclusion === 'failure')
+                ? 'failure'
+                : 'success'
+              : null,
+            pull_requests: pull ? [{ number: pull.number }] : [],
+          },
+          repository: { id: repo.id },
+        },
+      },
+    });
+  });
+
+  app.post('/__fake/repos/:id/issues', async (c) => {
+    const repo = state.repos.find((r) => r.id === Number(c.req.param('id')));
+    if (!repo) return c.json({ message: 'Not Found' }, 404);
+    const { title, author } = (await c.req.json()) as { title: string; author?: string };
+    const number = (repo.pulls?.length ?? 0) + (repo.issues?.length ?? 0) + 1;
+    repo.issues = [
+      ...(repo.issues ?? []),
+      { number, title, author: author ?? repo.owner, createdAt: new Date().toISOString() },
+    ];
+    return c.json({ number });
   });
 
   app.get('/__fake/repos/:id', (c) => {

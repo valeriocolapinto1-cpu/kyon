@@ -4,6 +4,7 @@ import type { Db } from '@/db/client';
 import { projectSync, taskFile, taskLabel, taskLabelLink, taskMeta, user } from '@/db/schema';
 import { authorizeProject } from '../projects';
 import { avatarUrl } from '../users';
+import { latestRunsByTask } from '../prompts/runs';
 import { projectColumns, type StoredTask } from './apply';
 
 export interface TaskView extends StoredTask {
@@ -16,12 +17,14 @@ export interface TaskView extends StoredTask {
   position: number;
   labels: { id: string; name: string; color: string }[];
   notesKyon: string | null;
+  /** Latest prompt run of the task (state shown on the card). */
+  run: { id: string; state: string; prNumber: number | null; prUrl: string | null } | null;
 }
 
 /** Everything the Task tab needs, in one request: files (with tables), tasks + metadata, columns. */
 export async function listProjectTasks(db: Db, actor: Actor, projectId: string) {
   await authorizeProject(db, actor, projectId, 'project:view');
-  const [files, metas, { columns }, labels, [sync]] = await Promise.all([
+  const [files, metas, { columns }, labels, [sync], runs] = await Promise.all([
     db.select().from(taskFile).where(eq(taskFile.projectId, projectId)).orderBy(taskFile.path),
     db
       .select({ meta: taskMeta, assigneeName: user.name, assigneeAvatar: user.avatarKey })
@@ -31,6 +34,7 @@ export async function listProjectTasks(db: Db, actor: Actor, projectId: string) 
     projectColumns(db, projectId),
     db.select().from(taskLabel).where(eq(taskLabel.projectId, projectId)),
     db.select().from(projectSync).where(eq(projectSync.projectId, projectId)).limit(1),
+    latestRunsByTask(db, projectId),
   ]);
   // Joined on the project (not an IN list): D1 caps bound parameters at 100.
   const links = metas.length
@@ -78,6 +82,7 @@ export async function listProjectTasks(db: Db, actor: Actor, projectId: string) 
         position: m.meta.position,
         labels: labelsByTask.get(m.meta.id) ?? [],
         notesKyon: m.meta.notes,
+        run: runs.get(m.meta.id) ?? null,
       });
     }
     return { path: f.path, kind: f.kind as 'tasks' | 'archive', tables: parsed.tables, tasks };

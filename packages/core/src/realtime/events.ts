@@ -7,9 +7,15 @@ export type RoomEvent =
       /** Tasks affected and their assignees, to announce only what concerns the viewer. */
       tasks?: { id: string; text: string; assigneeId: string | null; column?: string }[];
     }
+  | {
+      type: 'runs_changed';
+      actorId: string | null;
+      /** Set when a merge closed a task: its launcher gets a toast with "Annulla chiusura". */
+      closed?: { runId: string; taskText: string; launchedBy: string | null };
+    }
   | { type: 'project_changed'; actorId: string | null };
 
-export const ROOM_EVENT_TYPES = ['tasks_changed', 'project_changed'] as const;
+export const ROOM_EVENT_TYPES = ['tasks_changed', 'runs_changed', 'project_changed'] as const;
 
 export const projectRoom = (projectId: string) => `project:${projectId}`;
 export const GENERAL_ROOM = 'general';

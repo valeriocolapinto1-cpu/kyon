@@ -133,6 +133,7 @@ describe('can() — group', () => {
       'admin:users',
       'admin:export',
       'admin:health',
+      'admin:prompts',
     ] as const) {
       expect(can(admin, action, { kind: 'group' })).toBe(true);
       expect(can(alice, action, { kind: 'group' })).toBe(false);

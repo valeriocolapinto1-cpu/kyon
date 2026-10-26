@@ -43,9 +43,9 @@ await run(
   },
 );
 // Fake GitHub (OAuth, installations, repos…) so no test ever talks to the real one.
-const fake = createFakeGitHub(
-  defaultFakeState(`http://localhost:${process.env.KYON_PORT ?? E2E_PORT}`),
-);
+const fakeState = defaultFakeState(`http://localhost:${process.env.KYON_PORT ?? E2E_PORT}`);
+fakeState.webOrigin = `http://localhost:${FAKE_GITHUB_PORT}`;
+const fake = createFakeGitHub(fakeState);
 const fakeServer = serve({ fetch: fake.app.fetch, port: FAKE_GITHUB_PORT });
 const child = spawnLong(
   'e2e',

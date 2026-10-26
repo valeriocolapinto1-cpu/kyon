@@ -14,6 +14,7 @@ import * as projects from './routes/projects';
 import * as repos from './routes/repos';
 import * as tasks from './routes/tasks';
 import * as realtime from './routes/realtime';
+import * as prompts from './routes/prompts';
 import * as internal from './routes/internal';
 import * as avatarFile from './routes/avatarFile';
 import * as health from './routes/health';
@@ -76,6 +77,22 @@ const routes: [string, Module][] = [
   ['/api/projects/:id/labels', { POST: tasks.labels }],
   ['/api/projects/:id/labels/:labelId', { PATCH: tasks.patchLabel, DELETE: tasks.removeLabel }],
   ['/api/realtime/ticket', realtime],
+  ['/api/projects/:id/prompts', { GET: prompts.projectPrompts, POST: prompts.createProjectPrompt }],
+  ['/api/projects/:id/status', { GET: prompts.status }],
+  ['/api/projects/:id/claude-md', prompts.claudeMd],
+  ['/api/prompts/:promptId', { PATCH: prompts.patchPrompt, DELETE: prompts.removePrompt }],
+  ['/api/prompts/:promptId/versions', { GET: prompts.versions }],
+  ['/api/prompts/:promptId/restore', { POST: prompts.restore }],
+  ['/api/prompts/:promptId/run', { POST: prompts.run }],
+  ['/api/runs/:runId', { PATCH: prompts.patchRun }],
+  ['/api/runs/:runId/text', { GET: prompts.text }],
+  ['/api/runs/:runId/verify', { POST: prompts.verify }],
+  ['/api/runs/:runId/suggestion', { GET: prompts.suggestion }],
+  ['/api/runs/:runId/link', { POST: prompts.link }],
+  ['/api/runs/:runId/undo-close', { POST: prompts.undoClose }],
+  ['/api/templates', { GET: prompts.templates, POST: prompts.createTemplateRoute }],
+  ['/api/templates/:templateId', { PATCH: prompts.patchTemplate, DELETE: prompts.removeTemplate }],
+  ['/api/admin/prompt-footer', prompts.footer],
   ['/api/projects/:id/sync', { POST: tasks.sync }],
   ['/api/projects/:id/tasks-file', { POST: tasks.tasksFile }],
   ['/api/internal/cron', { POST: internal.cron }],

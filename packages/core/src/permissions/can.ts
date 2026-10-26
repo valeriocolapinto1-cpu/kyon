@@ -52,7 +52,13 @@ export type ProjectAction =
   | 'project:leave';
 
 export type GroupAction =
-  'admin:invites' | 'admin:users' | 'admin:export' | 'admin:health' | 'group:chat';
+  | 'admin:invites'
+  | 'admin:users'
+  | 'admin:export'
+  | 'admin:health'
+  /** Wording of the automatic prompt block and the group-wide prompt templates. */
+  | 'admin:prompts'
+  | 'group:chat';
 
 export type Action = RepoAction | ProjectAction | GroupAction;
 
@@ -140,6 +146,7 @@ function canOnGroup(actor: Actor, action: GroupAction): boolean {
     case 'admin:users':
     case 'admin:export':
     case 'admin:health':
+    case 'admin:prompts':
       return actor.role === 'admin';
   }
 }
