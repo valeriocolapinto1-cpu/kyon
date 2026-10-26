@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { diffLines } from './diff';
+import { parseMarkers } from './marker';
 import { ciState, runStateFrom, runTimeline, suggestPull, type PullCandidate } from './run';
 import {
   DEFAULT_FOOTER,
@@ -35,7 +36,7 @@ describe('templates', () => {
   it('builds the full prompt with the footer and the marker line', () => {
     const { text, unknown } = buildFullPrompt('Fai **{{task}}**.', DEFAULT_FOOTER, values);
     expect(text).toContain('Fai **Validare il modello**.');
-    expect(text).toContain('`Kyon-Run: k7f3a9qm`');
+    expect(parseMarkers(text)).toEqual(['k7f3a9qm']);
     expect(text).toContain('CLAUDE.md');
     expect(text).toContain('claude/k7f3a9qm-validare-il-modello');
     expect(text).toContain('  - [x] Raccogliere dati');
@@ -44,7 +45,10 @@ describe('templates', () => {
 
   it('adds the marker even when an admin footer forgets it', () => {
     const { text } = buildFullPrompt('Corpo', 'Solo un saluto', values);
-    expect(text).toContain('Kyon-Run: k7f3a9qm');
+    expect(parseMarkers(text)).toEqual(['k7f3a9qm']);
+    // A marker buried in prose doesn't count: the standalone line is added.
+    const inline = buildFullPrompt('Corpo', 'Metti Kyon-Run: {{run_id}} nella PR', values);
+    expect(parseMarkers(inline.text)).toEqual(['k7f3a9qm']);
   });
 });
 

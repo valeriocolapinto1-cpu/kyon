@@ -1,4 +1,4 @@
-import { markerLine } from './marker';
+import { markerLine, parseMarkers } from './marker';
 
 export const TEMPLATE_VARIABLES = [
   'project',
@@ -113,15 +113,19 @@ Prima di iniziare leggi il \`CLAUDE.md\` della repo (se c'è) e rispettalo.
 
 Lavora sul branch \`{{branch}}\` e apri una pull request verso il branch di lavoro del progetto.
 
-Quando apri la PR, scrivi nella sua descrizione una riga esatta: \`Kyon-Run: {{run_id}}\`. Aggiungi la stessa riga come trailer in ogni messaggio di commit. Non modificare questo identificativo.`;
+Quando apri la PR, scrivi nella sua descrizione questa riga esatta (da sola, senza modificarla):
+
+Kyon-Run: {{run_id}}
+
+Aggiungi la stessa riga come trailer in ogni messaggio di commit. Non modificare questo identificativo.`;
 
 /** Body (already chosen by the user) + footer, with the marker guaranteed. */
 export function buildFullPrompt(body: string, footer: string, values: TemplateValues) {
   const main = renderTemplate(body.trim(), values);
   const tail = renderTemplate((footer.trim() || DEFAULT_FOOTER).trim(), values);
   let text = `${main.text}\n\n${tail.text}`;
-  if (!text.includes(markerLine(values.run_id)))
-    text += `\n\nScrivi questa riga esatta nella descrizione della PR e come trailer di ogni commit: ${markerLine(values.run_id)}`;
+  if (!parseMarkers(text).includes(values.run_id))
+    text += `\n\nScrivi questa riga esatta nella descrizione della PR e come trailer di ogni commit:\n\n${markerLine(values.run_id)}`;
   return { text: `${text}\n`, unknown: [...new Set([...main.unknown, ...tail.unknown])] };
 }
 
