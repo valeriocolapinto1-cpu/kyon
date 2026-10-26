@@ -1,6 +1,20 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test as base, type Page } from '@playwright/test';
-import type { Preferences } from '@kyon/core';
+import {
+  expect,
+  request as playwrightRequest,
+  test as base,
+  type APIRequestContext,
+  type Browser,
+  type Page,
+} from '@playwright/test';
+import { deriveClientKey, type Preferences } from '@kyon/core';
+
+export const E2E_BOOTSTRAP = 'e2e-bootstrap-code-kyon';
+export const ADMIN = {
+  name: 'Valerio',
+  email: 'valerio@kyon.test',
+  password: 'password admin e2e',
+};
 
 export const PAGES = [
   { path: '/', title: 'Home' },
@@ -29,6 +43,37 @@ export async function expectNoA11yViolations(page: Page) {
   expect(
     serious.map((v) => `${v.id}: ${v.help} → ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`),
   ).toEqual([]);
+}
+
+let memberCounter = 0;
+
+/**
+ * Invites and signs up a brand-new member through the API (admin cookies come from the project's
+ * storage state), then returns a browser context logged in as that member.
+ */
+export async function newMember(
+  browser: Browser,
+  adminRequest: APIRequestContext,
+  baseURL: string,
+  tag: string,
+) {
+  memberCounter += 1;
+  const email = `${tag}-${Date.now()}-${memberCounter}@kyon.test`.toLowerCase();
+  const password = 'password membro e2e';
+  const name = `Membro ${memberCounter}`;
+  const invite = await adminRequest.post('/api/admin/invites', { data: { note: name } });
+  expect(invite.status()).toBe(201);
+  const { code, url } = (await invite.json()) as { code: string; url: string };
+  const api = await playwrightRequest.newContext({ baseURL });
+  const joined = await api.post('/api/join', {
+    data: { code, name, email, key: await deriveClientKey(email, password) },
+  });
+  expect(joined.status()).toBe(200);
+  const storageState = await api.storageState();
+  await api.dispose();
+  const context = await browser.newContext({ storageState, baseURL });
+  await context.addInitScript(() => window.localStorage.setItem('kyon.lite-detected', '0'));
+  return { context, email, password, name, inviteUrl: url };
 }
 
 export const test = base;

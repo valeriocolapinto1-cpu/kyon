@@ -3,9 +3,11 @@
  * All of them persist to the same local state, so no Cloudflare login or real resource is needed.
  */
 import path from 'node:path';
+import { ensureDevVars } from './lib/devvars';
 import { localStateDir, repoRoot, run, spawnLong } from './lib/run';
 
 const web = path.join(repoRoot, 'apps', 'web');
+const vars = ensureDevVars();
 
 await run(
   'pnpm',
@@ -59,6 +61,10 @@ const children = [
   ),
   spawnLong('web', 'pnpm', ['exec', 'next', 'dev'], web),
 ];
+
+console.log(
+  `\nKyon: http://localhost:3000\nPrimo account (solo se il database locale è vuoto): http://localhost:3000/join/${vars.ADMIN_BOOTSTRAP_CODE}\n`,
+);
 
 let stopping = false;
 function stopAll(code: number) {

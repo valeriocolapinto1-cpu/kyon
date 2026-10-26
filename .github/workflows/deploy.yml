@@ -24,6 +24,8 @@ jobs:
     env:
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      # Optional: lets the first account sign up at /join/<code> (see docs/SETUP.md).
+      ADMIN_BOOTSTRAP_CODE: ${{ secrets.ADMIN_BOOTSTRAP_CODE }}
     steps:
       - name: Check Cloudflare secrets
         id: secrets

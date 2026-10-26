@@ -2,8 +2,6 @@ import { getCloudflareContext } from '@opennextjs/cloudflare';
 import { sql } from 'drizzle-orm';
 import { createDb } from '@/db/client';
 
-export const dynamic = 'force-dynamic';
-
 /** Liveness probe that also proves the D1 binding works. Never exposes data. */
 export async function GET() {
   const { env } = await getCloudflareContext({ async: true });

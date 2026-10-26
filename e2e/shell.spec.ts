@@ -24,6 +24,7 @@ test.describe('shell', () => {
   test('skip link jumps to the content', async ({ page }) => {
     await setPreferences(page, {});
     await page.goto('/');
+    await page.getByRole('heading', { level: 1, name: 'Home' }).waitFor();
     await page.keyboard.press('Tab');
     const skip = page.getByRole('link', { name: 'Vai al contenuto' });
     await expect(skip).toBeFocused();

@@ -25,7 +25,7 @@ Leggi questo file all'inizio di ogni sessione. Specifiche funzionali complete: `
 | Database         | **D1** (SQLite) con **Drizzle ORM**, migrazioni versionate                                                          |
 | Realtime         | **Durable Objects** (backend SQLite), WebSocket Hibernation API, in un Worker separato (`workers/realtime`)         |
 | File             | **R2**: avatar e allegati, accesso solo tramite Worker con controllo permessi                                       |
-| Cache/rate limit | **KV**                                                                                                              |
+| Cache/rate limit | **KV** per cache; rate limit con il binding **Workers Rate Limiting** (KV Free ha solo 1.000 scritture/giorno)      |
 | Auth             | **Better Auth**: email+password, registrazione solo su invito, GitHub collegabile come account aggiuntivo           |
 | GitHub           | **GitHub App** (autorizzazione utente con token a scadenza + webhook). Per l'utente è solo "Collega GitHub"         |
 | UI               | Tailwind CSS, componenti stile shadcn/ui (Radix), `motion` per animazioni a molla, **`lucide-react`** per le icone  |
@@ -61,20 +61,23 @@ kyon/
 
 La logica di dominio pura (parser Markdown, riconciliazione task, permessi, template prompt, generazione/lettura del marcatore `Kyon-Run`) vive in `packages/core` con test unitari completi. Nessun import di Next o Cloudflare lì dentro.
 
+**API (regola importante per il bundle)**: tutta l'API JSON sta in `apps/web/src/lib/server/routes/*.ts` ed è montata dal router Hono `src/lib/server/router.ts` dentro **un'unica** route Next, `app/api/[[...route]]/route.ts`. Non creare altri `route.ts` sotto `app/api`: Turbopack duplica il codice condiviso (Better Auth, Drizzle…) in ogni route e il Worker supera la soglia (misurato: 2,5 MB con 15 route contro 1,6 MB con una). Le pagine sono shell statiche; i dati arrivano dalle API (con controllo sessione) tramite TanStack Query.
+
 ## 4. Comandi (devono funzionare su macOS, Linux e Windows)
 
 ```
 pnpm install
-pnpm dev                  # migra D1 locale, poi wrangler dev (realtime :8788, cron :8789) + next dev (:3000), stato locale condiviso in .wrangler/state
+pnpm dev                  # migra D1 locale, poi wrangler dev (realtime :8788, cron :8789) + next dev (:3000), stato locale condiviso in .wrangler/state; crea apps/web/.dev.vars e stampa il link /join del primo account
 pnpm typecheck && pnpm lint
 pnpm format:check         # prettier (pnpm format per correggere)
 pnpm test                 # vitest (progetti: core, web, workers, scripts)
 pnpm test packages/core/src/limits.test.ts       # un singolo file (senza `--`); aggiungi -t "nome" per un singolo test
-pnpm e2e                  # playwright + axe sul bundle di produzione (richiede pnpm build); mobile/tablet/desktop
+pnpm e2e                  # playwright + axe sul bundle di produzione (richiede pnpm build); mobile/tablet/desktop; D1 pulito a ogni giro, admin creato dal progetto `setup`
 pnpm e2e e2e/shell.spec.ts --project=desktop   # un file / un progetto; -g "nome" per un singolo test
 pnpm lighthouse           # lhci: accessibilità ≥ 95, prestazioni mobile ≥ 80 (richiede pnpm build)
 pnpm theme:gen            # rigenera apps/web/src/styles/themes.generated.css da packages/core/src/theme.ts
 pnpm icons:gen            # rigenera le icone PNG PWA/Apple dai logo SVG in apps/web/public/brand
+pnpm admin:create-invite  # crea un invito nel D1 locale e stampa il link (--remote --url <sito> per la produzione)
 pnpm db:generate <nome>   # migrazione da schema Drizzle (apps/web/src/db/schema.ts → src/db/migrations)
 pnpm db:migrate:local     # D1 locale
 pnpm build                # bundle OpenNext di apps/web (+ cache statica dei prerender)
@@ -109,7 +112,7 @@ Regole di conseguenza:
 
 1. Esegui `pnpm size` a ogni fase e registra i numeri in `docs/PROGRESS.md`. **Soglia di allarme: 2,4 MB gzip per Worker.**
 2. Server Components e pagine statiche dove possibile; dati dinamici via API leggere; niente SSR pesante nelle route calde.
-3. Hashing password: PBKDF2 con WebCrypto, iterazioni scelte **misurando** il CPU time. Se non entra in modo affidabile nei 10 ms, **segnalalo subito**; non abbassare le iterazioni sotto valori sicuri.
+3. Hashing password: PBKDF2 con WebCrypto, iterazioni scelte **misurando** il CPU time. Se non entra in modo affidabile nei 10 ms, **segnalalo subito**; non abbassare le iterazioni sotto valori sicuri. **Deciso in Fase 2** (misura: 600k iterazioni ≈ 88 ms sul Worker): PBKDF2-SHA256 600.000 iterazioni **nel browser** (salt legato all'email), il server riceve solo la chiave derivata e la ri-hasha con PBKDF2 10.000 iterazioni e salt casuale (≈ 1 ms). Vedi `packages/core/src/auth/password.ts`. Non riportare l'hashing pesante sul server.
 4. Niente polling: realtime via WebSocket (Hibernation API), aggiornamenti repo via webhook + cron a bassa frequenza.
 5. Email dietro `EmailProvider`. Se l'invio non è disponibile, l'app resta completa con notifiche in-app e push. Gli inviti sono link/codici, non email.
 6. **Piano B documentato**: se bundle o CPU non rientrano e l'utente non passa a Paid, la migrazione è `apps/web` → Vite + React SPA statica + API Hono. Tieni la logica fuori dai componenti Next (in `packages/core` e `src/lib`) per renderla portabile.
@@ -123,7 +126,7 @@ Regole di conseguenza:
 - Ruoli di progetto: `owner`, `member`, `viewer`. Ruolo globale: `admin`.
 - Visibilità repo per singola repo: `self`, `selected`, `group`. Una repo non visibile a un utente non compare in nessuna query, nemmeno come conteggio.
 - **Sessioni lunghe** (fino a logout esplicito): per compensare, elenco sessioni/dispositivi con revoca, revoca totale al cambio password, l'admin può revocare le sessioni di un utente, rotazione del token di sessione.
-- Rate limit su login, uso invito, API di scrittura (KV). Intestazioni di sicurezza e CSP. Cookie `HttpOnly`, `Secure`, `SameSite=Lax`.
+- Rate limit su login, uso invito, API di scrittura (binding Workers Rate Limiting `AUTH_LIMITER`/`WRITE_LIMITER`, nessuna scrittura su storage). Intestazioni di sicurezza e CSP. Cookie `HttpOnly`, `Secure`, `SameSite=Lax`. Le scritture accettano solo richieste dalla stessa origine.
 - Allegati: tipi consentiti (immagini, PDF/documenti, file testo/codice, zip), **max 10 MB**, nomi sanificati, download solo tramite Worker con verifica permessi, `Content-Disposition` e `X-Content-Type-Options: nosniff`.
 - **Anteprime link**: il server recupera metadati solo per link a GitHub e a Kyon (mai URL arbitrari: rischio SSRF).
 - Feed calendario `.ics`: URL con token segreto per utente, revocabile e rigenerabile.

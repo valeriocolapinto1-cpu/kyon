@@ -3,3 +3,4 @@ export * from './color';
 export * from './theme';
 export * from './preferences';
 export * from './time';
+export * from './auth';

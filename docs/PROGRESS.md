@@ -4,14 +4,14 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 2 — Auth, inviti, admin, Settings account** (da iniziare).
+**Fase 3 — GitHub, repo, visibilità, progetti, membri** (da iniziare).
 
 | Fase | Titolo                                          | Stato      |
 | ---- | ----------------------------------------------- | ---------- |
 | 0    | Scaffold e infrastruttura                       | ✅ fatta   |
 | 1    | Design system Liquid Glass, a11y di base, shell | ✅ fatta   |
-| 2    | Auth, inviti, admin, Settings account           | ⏭ prossima |
-| 3    | GitHub, repo, visibilità, progetti, membri      | —          |
+| 2    | Auth, inviti, admin, Settings account           | ✅ fatta   |
+| 3    | GitHub, repo, visibilità, progetti, membri      | ⏭ prossima |
 | 4    | Motore task da `.md`                            | —          |
 | 5    | Pagina progetto: Task                           | —          |
 | 6    | Prompt, esecuzioni, tracciamento PR; Status     | —          |
@@ -23,17 +23,19 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 ## In attesa dell'utente
 
 - [ ] **Cloudflare + secrets GitHub** (`docs/SETUP.md` §A): sottodominio `workers.dev`, attivazione R2, token API, `CLOUDFLARE_API_TOKEN` e `CLOUDFLARE_ACCOUNT_ID` nei secrets della repo. Finché mancano, il workflow Deploy viene saltato con un avviso (la CI resta verde).
-- [ ] Dopo il primo deploy: aprire `/api/health` e guardare **CPU Time** nelle metriche di `kyon-web` (prima misura reale della CPU).
+- [ ] (Facoltativo) Secret GitHub `ADMIN_BOOTSTRAP_CODE` per creare il primo account admin dal telefono (`docs/SETUP.md` §A6). In alternativa `pnpm admin:create-invite --remote`.
+- [ ] Dopo il primo deploy: aprire `/api/health` e guardare **CPU Time** nelle metriche di `kyon-web` (prima misura reale della CPU), in particolare su `/api/auth/sign-in/email`.
 - [ ] Un `.md` reale di Biohybrid (es. `PROSSIMI-PASSI.md`) per le fixture del parser (serve in Fase 4).
 
 ## Numeri del bundle (gzip, `pnpm size`)
 
 Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 
-| Fase | kyon-web   | kyon-realtime | kyon-cron | Note                                                                           |
-| ---- | ---------- | ------------- | --------- | ------------------------------------------------------------------------------ |
-| 0    | 969,1 KiB  | 0,6 KiB       | 0,4 KiB   | Next 16.4.3 + OpenNext 1.20.13, pagina + `/api/health` con D1                  |
-| 1    | 1307,4 KiB | 0,6 KiB       | 0,4 KiB   | + Tailwind, Radix (dialog, radio, toast, switch, slider), motion, cmdk, lucide |
+| Fase | kyon-web   | kyon-realtime | kyon-cron | Note                                                                                                                |
+| ---- | ---------- | ------------- | --------- | ------------------------------------------------------------------------------------------------------------------- |
+| 0    | 969,1 KiB  | 0,6 KiB       | 0,4 KiB   | Next 16.4.3 + OpenNext 1.20.13, pagina + `/api/health` con D1                                                       |
+| 1    | 1307,4 KiB | 0,6 KiB       | 0,4 KiB   | + Tailwind, Radix (dialog, radio, toast, switch, slider), motion, cmdk, lucide                                      |
+| 2    | 1574,0 KiB | 0,6 KiB       | 0,4 KiB   | + Better Auth, TanStack Query, Hono. Con 15 route Next separate era 2531 KiB (oltre soglia): ora un'unica route API |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -44,16 +46,55 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 0    | `/` (prerender) | ~45 ms              | ~8 ms             | per questo la cache statica è attiva |
 | 0    | `/api/health`   | ~11 ms              | ~11 ms            | include una query D1 locale          |
 
+**PBKDF2-SHA256 su workerd locale** (Fase 2): 10.000 iterazioni ≈ 1 ms, 50.000 ≈ 6 ms, 100.000 ≈ 12 ms, 600.000 ≈ 88 ms. Con Node sullo stesso host: 100.000 ≈ 16 ms. Conclusione: un PBKDF2 server-side con un costo sicuro non sta nei 10 ms del piano Free → hashing a due stadi (vedi Fase 2).
+
 ## Lighthouse (mobile, bundle di produzione su workerd locale)
 
-| Fase | Pagina      | Prestazioni | Accessibilità | Best practices |
-| ---- | ----------- | ----------- | ------------- | -------------- |
-| 1    | `/`         | 92          | 100           | 100            |
-| 1    | `/progetti` | 96          | 100           | 100            |
-| 1    | `/chat`     | 99          | 100           | 100            |
-| 1    | `/settings` | 96          | 100           | 100            |
+| Fase | Pagina                | Prestazioni | Accessibilità | Best practices |
+| ---- | --------------------- | ----------- | ------------- | -------------- |
+| 1    | `/`                   | 92          | 100           | 100            |
+| 1    | `/progetti`           | 96          | 100           | 100            |
+| 1    | `/chat`               | 99          | 100           | 100            |
+| 1    | `/settings`           | 96          | 100           | 100            |
+| 2    | `/` (loggato)         | 90          | 100           | 100            |
+| 2    | `/progetti` (loggato) | 94          | 100           | 100            |
+| 2    | `/chat` (loggato)     | 95          | 100           | 100            |
+| 2    | `/settings` (loggato) | 86          | 100           | 100            |
+| 2    | `/login`              | 96          | 100           | 100            |
 
 ## Log delle fasi
+
+### Fase 2 — Auth, inviti, admin, Settings account ✅ (2026-10-26)
+
+Fatto:
+
+- **Better Auth** (modalità `minimal`) su D1/Drizzle: tabelle `user` (+ ruolo, bio, stato, avatar, preferenze, layout Home), `session`, `account`, `verification`; tabella `invite`. Migrazione `0001_auth`.
+- **Password a due stadi** (`packages/core/src/auth/password.ts`): PBKDF2-SHA256 600.000 iterazioni nel browser con salt `kyon/v1/<email normalizzata>`; il server accetta solo chiavi derivate (64 hex) e le salva come PBKDF2-SHA256 10.000 iterazioni con salt casuale. Cambio email = nuova chiave (il salt dipende dall'email).
+- **Registrazione solo su invito**: codici `XXXX-XXXX-XXXX-XXXX` (80 bit, alfabeto Crockford, tollera minuscole/spazi/O-0/I-1), salvati come SHA-256, monouso (claim atomico), scadenza 7 giorni, revoca, tracciati (chi l'ha creato/usato). L'endpoint pubblico di sign-up di Better Auth è chiuso: si entra solo da `/api/join`.
+- **Bootstrap admin**: `ADMIN_BOOTSTRAP_CODE` (vale solo finché non esiste nessun account) oppure `pnpm admin:create-invite`. Il primo account è sempre admin.
+- **Sessioni fino al logout**: cookie 400 giorni rinnovato ogni giorno, **rotazione del token** dopo 7 giorni (endpoint `rotate-session`, chiamato all'avvio dell'app), elenco dispositivi con revoca singola e "disconnetti tutti gli altri", cambio password che disconnette gli altri dispositivi, reset da link admin che revoca tutte le sessioni, admin che disconnette un utente ovunque. Niente cache della sessione nel cookie: revoche e cambi di ruolo valgono subito.
+- **Rate limit** con il binding Workers Rate Limiting: login/reset/cambio password/inviti per IP (10/min), scritture per utente (120/min). Controllo di origine sulle richieste di scrittura.
+- **Admin**: inviti (crea → link mostrato una sola volta, elenco con stato, revoca), persone (ruolo admin/membro con protezione dell'ultimo admin, link per nuova password valido 24 ore e una volta, disconnessione ovunque).
+- **Settings**: indice di sezione; Grafica e Accessibilità (prima, statiche); Profilo (nome, stato, bio, foto ridimensionata a 512 px nel browser e salvata su R2); Email; Password; Dispositivi connessi; Admin. Le preferenze si sincronizzano con l'account quando le cambi.
+- Pagine `/login`, `/join/[codice]`, `/reset/[token]` (vetro, errori chiari in italiano, campi password con mostra/nascondi). Redirect a `/login?next=…` senza sessione (solo percorsi locali).
+- **API in un'unica route** (`app/api/[[...route]]` + router Hono): vedi decisioni.
+- Intestazioni di sicurezza su Worker e asset statici (`_headers`). Segreti: `BETTER_AUTH_SECRET` generato dal deploy e salvato solo su Cloudflare; in locale `.dev.vars` generato da `pnpm dev`.
+- Test: 50 nuovi unit test (chiavi derivate, vettore PBKDF2 RFC 7914, hash server, inviti, rotazione, user agent, password) + **12 test di integrazione** delle rotte su D1 reale simulato (bootstrap, inviti monouso, sign-up pubblico chiuso, ruoli, 401/403, login, rate limit, CSRF, ultimo admin, reset con revoca sessioni, cambio email, rotazione). E2E: login con redirect, password errata, inviti non validi, iscrizione con link (una volta sola), membro senza pannello admin, reset da link admin, logout e disconnessione degli altri dispositivi, axe su login e join. Lighthouse sulle pagine da loggato.
+
+Decisioni:
+
+- **Hashing a due stadi** invece di PBKDF2 solo lato server (misure sopra). Sicurezza: un attaccante con il database deve pagare 610.000 iterazioni per tentativo; il valore salvato non è riutilizzabile come credenziale. Limite noto: il salt client dipende dall'email (come Bitwarden), quindi non c'è protezione contro tabelle precalcolate per un'email specifica; il salt server casuale non cambia questo per il primo stadio.
+- **Rate limit col binding nativo**, non KV: KV Free ha 1.000 scritture al giorno. Il binding è per località Cloudflare (non globale) e va verificato sul piano Free al primo deploy.
+- **Nessuna cookie cache di Better Auth**: una lettura D1 in più per richiesta in cambio di revoche immediate.
+- **Pagine statiche + API**: il controllo della sessione avviene nelle API e nel client (`AuthGate`), le pagine restano servite dalla cache statica (CPU bassa). Le pagine non contengono dati.
+- **Un'unica route Next per l'API**: Turbopack copiava Better Auth e Drizzle in ogni `route.ts` (2531 KiB gzip con 15 route, oltre la soglia). Con il router Hono: 1574 KiB. Regola scritta in `CLAUDE.md` §3.
+- Impostazioni: prima le sezioni statiche, poi quelle con dati, per evitare spostamenti del layout (CLS da 0,56 a 0).
+- Sincronizzazione preferenze solo su modifica esplicita dell'utente (all'accesso vince la copia dell'account).
+
+Debito tecnico / da controllare:
+
+- Il formato dei token di reset riusa quello interno di Better Auth (`reset-password:<token>` in `verification`): coperto da un test di integrazione end-to-end, da ricontrollare a ogni aggiornamento di Better Auth.
+- Le richieste di `wrangler secret list/put` nel deploy non sono ancora state provate contro Cloudflare reale.
 
 ### Fase 1 — Design system Liquid Glass, accessibilità di base, shell ✅ (2026-10-26)
 

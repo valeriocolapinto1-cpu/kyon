@@ -15,6 +15,8 @@ export interface RunOptions {
   env?: NodeJS.ProcessEnv;
   /** Capture stdout instead of inheriting it. */
   capture?: boolean;
+  /** Written to the child's stdin (e.g. a secret value), then closed. */
+  stdin?: string;
 }
 
 export function run(command: string, args: string[], options: RunOptions = {}): Promise<string> {
@@ -22,10 +24,17 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
     const spawnOptions: SpawnOptions = {
       cwd: options.cwd ?? repoRoot,
       env: { ...process.env, ...options.env },
-      stdio: options.capture ? ['ignore', 'pipe', 'inherit'] : 'inherit',
+      stdio: [
+        options.stdin !== undefined ? 'pipe' : 'ignore',
+        options.capture ? 'pipe' : 'inherit',
+        'inherit',
+      ],
       shell: useShell,
     };
     const child = spawn(command, args, spawnOptions);
+    if (options.stdin !== undefined) {
+      child.stdin?.end(options.stdin);
+    }
     let stdout = '';
     child.stdout?.on('data', (chunk: Buffer) => {
       stdout += chunk.toString();

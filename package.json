@@ -22,7 +22,8 @@
     "theme:gen": "tsx scripts/gen-theme.ts",
     "icons:gen": "tsx scripts/gen-icons.ts",
     "e2e": "playwright test",
-    "lighthouse": "tsx scripts/lighthouse.ts"
+    "lighthouse": "tsx scripts/lighthouse.ts",
+    "admin:create-invite": "tsx scripts/admin-create-invite.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "4.14.0",

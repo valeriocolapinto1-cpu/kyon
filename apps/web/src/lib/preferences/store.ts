@@ -18,6 +18,9 @@ type Listener = () => void;
 
 const prefListeners = new Set<Listener>();
 let prefSnapshot: Preferences | null = null;
+/** Bumped only by explicit user changes (Settings), so sync never echoes server or test values. */
+let userRevision = 0;
+const revisionListeners = new Set<Listener>();
 
 function readStoredPreferences(): Preferences {
   const raw = readStorage(PREFERENCES_KEY);
@@ -52,12 +55,24 @@ export const preferencesStore = {
   getServer(): Preferences {
     return DEFAULT_PREFERENCES;
   },
+  /** A change made by the user (saved locally and later synced to the account). */
   set(patch: Partial<Preferences>) {
+    preferencesStore.apply(patch);
+    userRevision++;
+    for (const listener of revisionListeners) listener();
+  },
+  /** Applies values without counting as a user change (e.g. preferences loaded from the account). */
+  apply(patch: Partial<Preferences>) {
     const next = sanitizePreferences({ ...preferencesStore.get(), ...patch });
     prefSnapshot = next;
     writeStorage(PREFERENCES_KEY, JSON.stringify(next));
     for (const listener of prefListeners) listener();
   },
+  subscribeRevision(listener: Listener) {
+    revisionListeners.add(listener);
+    return () => revisionListeners.delete(listener);
+  },
+  revision: () => userRevision,
 };
 
 // ---------- Environment ----------

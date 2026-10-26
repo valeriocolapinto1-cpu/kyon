@@ -49,6 +49,20 @@ Il piano Free dà **10 ms di CPU per richiesta**. Scelte di conseguenza:
 - Nessun polling: aggiornamenti via webhook + WebSocket; il cron gira ogni 15 minuti e lavora su poche repo per invocazione.
 - Hashing password PBKDF2 (WebCrypto) da misurare in Fase 2: è il punto più a rischio rispetto ai 10 ms.
 
+## 3bis. Web: pagine, API e autenticazione
+
+```
+Browser ──GET /settings──▶ asset statico (shell prerenderizzata, nessun dato)
+        ──fetch /api/me──▶ app/api/[[...route]] ─▶ router Hono ─▶ lib/server/routes/me.ts ─▶ D1
+```
+
+- **Pagine**: shell statiche (`○` nella build) servite dalla cache statica. `AuthGate` legge `/api/me`: senza sessione porta a `/login?next=…`. Ogni blocco mostra il suo skeleton.
+- **API**: un'unica route Next (`app/api/[[...route]]/route.ts`) e un router Hono (`lib/server/router.ts`) che monta i moduli di `lib/server/routes/`. Ogni handler passa da `route()`/`authedRoute()` (`lib/server/http.ts`): env, Drizzle, errori JSON `{ error: { code, message } }` in italiano, controllo di origine sulle scritture, sessione e ruolo admin. Validazione con Zod.
+- **Better Auth** (`lib/server/auth.ts`), una istanza per isolate e origine: email + password, sessioni in D1 senza cookie cache, plugin `rotate-session`. Il sign-up pubblico è bloccato: gli account nascono da `/api/join` (invito o codice di bootstrap).
+- **Password**: il browser calcola PBKDF2-SHA256 (600k) e manda una chiave derivata; il server la ri-hasha (PBKDF2 10k, salt casuale). Logica in `packages/core/src/auth`.
+- **Rate limit**: binding `AUTH_LIMITER` (10/min per IP su login, reset, inviti) e `WRITE_LIMITER` (120/min per utente).
+- **Client**: TanStack Query (`lib/client/*`), `api()` che normalizza gli errori; preferenze in localStorage + account (`lib/preferences/*`).
+
 ## 4. Realtime (Fase 7, impostato in Fase 0)
 
 - Il Worker web autentica l'utente e inoltra l'upgrade WebSocket al DO tramite il binding `PROJECT_ROOM`/`GENERAL_ROOM` (`script_name: kyon-realtime`), passando un token breve firmato.
