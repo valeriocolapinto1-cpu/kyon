@@ -27,6 +27,8 @@ import { InlineText, plainText } from '@/components/ui/InlineText';
 import { LabelChip } from './TaskCard';
 import type { TaskActions } from './useTaskActions';
 import Link from 'next/link';
+import { Conversation } from '@/components/feature/chat/Conversation';
+import { useProjectLiveSource } from '@/lib/client/projectLive';
 import { RunStateBadge } from '@/components/feature/prompts/RunState';
 import { usePrompts } from '@/lib/client/prompts';
 
@@ -131,6 +133,7 @@ export function TaskDetail({
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const history = useTaskHistory(projectId, task.id);
+  const live = useProjectLiveSource();
   const [renaming, setRenaming] = useState(false);
   const [notes, setNotes] = useState(task.notesKyon ?? '');
   const [notesFor, setNotesFor] = useState(task.id);
@@ -476,7 +479,18 @@ export function TaskDetail({
 
       <TaskPrompts projectId={projectId} task={task} canWrite={canEdit} />
 
-      <p className="text-footnote text-muted">{d.commentsLater}</p>
+      <section aria-labelledby="detail-comments" className="flex flex-col gap-2">
+        <h3 id="detail-comments" className="text-subhead font-medium text-fg">
+          {it.chat.taskComments}
+        </h3>
+        <Conversation
+          key={task.id}
+          roomId={`task:${task.id}`}
+          title={`${it.chat.taskComments}: ${plainText(task.text)}`}
+          live={live}
+          compact
+        />
+      </section>
     </div>
   );
 }

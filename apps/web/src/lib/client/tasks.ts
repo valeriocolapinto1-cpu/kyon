@@ -24,6 +24,7 @@ export interface TaskItem {
   labels: { id: string; name: string; color: string }[];
   notesKyon: string | null;
   run: { id: string; state: RunState; prNumber: number | null; prUrl: string | null } | null;
+  comments: number;
 }
 
 export interface ColumnItem {

@@ -24,7 +24,7 @@ export interface MessageView {
   createdAt: string;
   mentions: string[];
   replyTo: { id: string; author: string; excerpt: string; deleted: boolean } | null;
-  reactions: { emoji: string; count: number; mine: boolean; names: string[] }[];
+  reactions: { emoji: string; count: number; mine: boolean; names: string[]; userIds: string[] }[];
   attachments: {
     id: string;
     name: string;
@@ -92,10 +92,17 @@ async function views(db: Db, actor: Actor, rows: MessageRow[]): Promise<MessageV
     const author = row.authorId ? authorById.get(row.authorId) : undefined;
     const grouped = new Map<string, MessageView['reactions'][number]>();
     for (const r of reactions.filter((x) => x.messageId === row.id)) {
-      const entry = grouped.get(r.emoji) ?? { emoji: r.emoji, count: 0, mine: false, names: [] };
+      const entry = grouped.get(r.emoji) ?? {
+        emoji: r.emoji,
+        count: 0,
+        mine: false,
+        names: [],
+        userIds: [],
+      };
       entry.count++;
       entry.mine ||= r.userId === actor.id;
       entry.names.push(r.name);
+      entry.userIds.push(r.userId);
       grouped.set(r.emoji, entry);
     }
     const reply = row.replyToId ? replies.find((x) => x.id === row.replyToId) : undefined;
@@ -222,7 +229,14 @@ export async function sendMessage(
   env: CloudflareEnv,
   actor: Actor,
   roomId: string,
-  input: { clientId: string; body: string; replyToId: string | null; attachmentIds: string[] },
+  input: {
+    clientId: string;
+    body: string;
+    replyToId: string | null;
+    attachmentIds: string[];
+    /** Alt texts typed while the files were uploading. */
+    alts?: Record<string, string>;
+  },
 ) {
   const access = await roomAccess(db, actor, roomId);
   if (!access.canWrite) throw new ApiError('forbidden');
@@ -296,6 +310,12 @@ export async function sendMessage(
     90,
   ))
     await db.update(attachment).set({ messageId: id }).where(inArray(attachment.id, slice));
+  for (const [fileId, alt] of Object.entries(input.alts ?? {}))
+    if (files.some((f) => f.id === fileId) && alt.trim())
+      await db
+        .update(attachment)
+        .set({ alt: alt.trim().slice(0, 300) })
+        .where(eq(attachment.id, fileId));
   const view = await viewOne(db, actor, id);
   await publishChat(env, access.room, {
     action: 'message',

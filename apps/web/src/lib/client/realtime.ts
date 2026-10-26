@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RoomEvent } from '@kyon/core';
 import { ApiClientError, api } from './api';
 
@@ -17,8 +17,13 @@ const MAX_BACKOFF_MS = 30_000;
 export function useRoom(
   query: string | null,
   handlers: { onEvent: (event: RoomEvent) => void; onResync: () => void },
-): RealtimeStatus {
+): { status: RealtimeStatus; send: (data: string) => void } {
   const [status, setStatus] = useState<RealtimeStatus>('connecting');
+  const current = useRef<WebSocket | null>(null);
+  const send = useCallback((data: string) => {
+    const ws = current.current;
+    if (ws?.readyState === WebSocket.OPEN) ws.send(data);
+  }, []);
   const handlersRef = useRef(handlers);
   useEffect(() => {
     handlersRef.current = handlers;
@@ -67,6 +72,7 @@ export function useRoom(
       if (stopped) return;
       const ws = new WebSocket(target);
       socket = ws;
+      current.current = ws;
       ws.onopen = () => {
         attempt = 0;
         setStatus('open');
@@ -86,6 +92,7 @@ export function useRoom(
       ws.onclose = () => {
         clearInterval(ping);
         if (socket === ws) socket = null;
+        if (current.current === ws) current.current = null;
         setStatus('closed');
         schedule();
       };
@@ -112,5 +119,5 @@ export function useRoom(
     };
   }, [query]);
 
-  return query ? status : 'closed';
+  return { status: query ? status : 'closed', send };
 }

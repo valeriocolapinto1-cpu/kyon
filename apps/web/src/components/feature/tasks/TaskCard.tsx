@@ -5,6 +5,7 @@ import {
   CalendarDays,
   CheckCircle2,
   ListChecks,
+  MessageCircle,
   MoreHorizontal,
 } from 'lucide-react';
 import type { KeyboardEvent, PointerEvent, Ref } from 'react';
@@ -138,6 +139,7 @@ export function TaskCard({
             task.labels.length > 0 ||
             subtasks.total > 0 ||
             task.run ||
+            task.comments > 0 ||
             task.assignee) && (
             <span className="flex flex-wrap items-center gap-1.5">
               {task.priority !== 'none' && <PriorityBadge priority={task.priority} />}
@@ -152,6 +154,13 @@ export function TaskCard({
                   <span aria-hidden="true">
                     {subtasks.done}/{subtasks.total}
                   </span>
+                </span>
+              )}
+              {task.comments > 0 && (
+                <span className="inline-flex items-center gap-1 text-caption font-semibold text-muted">
+                  <MessageCircle className="size-3.5" aria-hidden="true" />
+                  <span className="sr-only">{c.comments(task.comments)}</span>
+                  <span aria-hidden="true">{task.comments}</span>
                 </span>
               )}
               {task.run && task.run.state !== 'abandoned' && (

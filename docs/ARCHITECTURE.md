@@ -100,7 +100,7 @@ merge ─▶ setDone (commit) ─▶ Fatto + "Annulla chiusura"   ·   "Verifica
 - Budget Free per webhook: al massimo 1 lettura dei commit della PR (solo se qualche esecuzione aspetta) + 1 dei check + 1 commit sulla repo.
 - Status: dati GitHub in `caches.default` per 60 s per progetto (tutti i membri vedono gli stessi dati), storico sempre da D1.
 
-## 4. Realtime (attivo dalla Fase 5 per le task)
+## 4. Realtime (task dalla Fase 5, chat dalla Fase 7)
 
 ```
 browser ──GET /api/realtime/ticket?project=…──▶ web (sessione + can) ─▶ ticket HMAC 60 s
@@ -112,7 +112,7 @@ web, dopo una scrittura/sync ──POST /broadcast (INTERNAL_SECRET)──▶ DO
 - Il DO non conosce sessioni né permessi: verifica solo il ticket (`packages/core/src/realtime/ticket.ts`). Il router (`workers/realtime/src/route.ts`) imposta il nome della stanza in un header; `/broadcast` dall'esterno è bloccato dall'entry e protetto dal segreto.
 - I messaggi sono minimi (`tasks_changed` con chi, quali task, assegnatario): i client ricaricano via API, così la visibilità resta quella delle API.
 - I DO usano la **Hibernation API** (`ctx.acceptWebSocket`): una stanza inattiva viene tolta dalla memoria senza chiudere i socket e non consuma durata.
-- Soglie proposte per l'archivio chat (da confermare con misure in Fase 7): il DO tiene gli ultimi **500 messaggi o 7 giorni** per stanza; un `alarm()` sposta su D1 lotti da **100 messaggi** alla volta; la ricerca unisce FTS5 su D1 e i messaggi recenti del DO.
+- **Chat (Fase 7)**: i messaggi stanno in **D1** (`chat_message`, sequenza per stanza, `client_id` unico per l'idempotenza, FTS5 per la ricerca). Il DO della stanza realtime (progetto o generale) smista gli eventi `chat` dopo la scrittura, calcola la presenza dalle connessioni e inoltra `typing` senza salvarlo. Dopo una riconnessione il client chiede `GET …/messages?after=<seq>`. Le stanze di chat (`general`, `project:`, `thread:`, `task:`) viaggiano sul socket del progetto, così un telefono tiene aperto un solo WebSocket.
 
 ## 5. Sviluppo locale
 

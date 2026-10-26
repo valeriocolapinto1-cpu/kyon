@@ -51,6 +51,7 @@ const Send = z.object({
   body: z.string().max(MAX_MESSAGE_LENGTH),
   replyToId: z.string().max(64).nullable().default(null),
   attachmentIds: z.array(z.string().max(64)).max(10).default([]),
+  alts: z.record(z.string().max(64), z.string().max(300)).optional(),
 });
 
 /** POST /api/chat/rooms/:roomId/messages (idempotent on clientId) */

@@ -4,7 +4,7 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 7 — Realtime, chat e thread** (da iniziare).
+**Fase 8 — Home, Progetti, Chat, Persone, ricerca, extra** (da iniziare).
 
 | Fase | Titolo                                          | Stato      |
 | ---- | ----------------------------------------------- | ---------- |
@@ -15,8 +15,8 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 | 4    | Motore task da `.md`                            | ✅ fatta   |
 | 5    | Pagina progetto: Task                           | ✅ fatta   |
 | 6    | Prompt, esecuzioni, tracciamento PR; Status     | ✅ fatta   |
-| 7    | Realtime, chat e thread                         | ⏭ prossima |
-| 8    | Home, Progetti, Chat, Persone, ricerca, extra   | —          |
+| 7    | Realtime, chat e thread                         | ✅ fatta   |
+| 8    | Home, Progetti, Chat, Persone, ricerca, extra   | ⏭ prossima |
 | 9    | Notifiche                                       | —          |
 | 10   | PWA offline, hardening, rilascio                | —          |
 
@@ -41,6 +41,7 @@ Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 | 4    | 1606,8 KiB | 0,6 KiB       | 0,7 KiB   | + motore task, sync, scritture; cron chiama il web via service binding                                              |
 | 5    | 1669,4 KiB | 1,8 KiB       | 0,7 KiB   | + metadati, colonne, etichette, cronologia, ticket realtime; entry del Worker per i WebSocket                       |
 | 6    | 1697,7 KiB | 1,8 KiB       | 0,7 KiB   | + prompt, versioni, template, esecuzioni, webhook PR/CI, Status, CLAUDE.md                                          |
+| 7    | 1745,9 KiB | 2,2 KiB       | 0,7 KiB   | + chat (stanze, messaggi, reazioni, pin, ricerca FTS5, allegati R2, anteprime), presenza e "sta scrivendo"          |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -72,6 +73,38 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 2    | `/login`              | 96          | 100           | 100            |
 
 ## Log delle fasi
+
+### Fase 7 — Realtime, chat e thread ✅ (2026-10-26)
+
+Fatto:
+
+- **Stanze**: chat generale (`general`), chat di progetto (`project:<id>`), thread di progetto (`thread:<uuid>`, con titolo modificabile) e commenti della task (`task:<id>`). Permessi solo da `can()`: `group:chat` per la generale, `project:view` per leggere, `project:chat` per scrivere, `project:comment` per i commenti; chi non è membro riceve 404 (la stanza "non esiste").
+- **Messaggi** (migrazione `0006_chat`): sequenza atomica per stanza (`UPDATE chat_room SET last_seq = last_seq + 1 RETURNING`, poi insert), **idempotenza** con `(room_id, client_id)` unico: un nuovo tentativo dopo un errore di rete non duplica mai. Risposte con citazione e salto al messaggio, **menzioni** con autocompletamento (combobox + listbox ARIA), Markdown con blocchi di codice e "Copia", modifica/elimina dei propri messaggi (eliminazione morbida: "Messaggio eliminato"), **reazioni** rapide, **pin** (owner/admin), non letti per stanza, silenzia stanza.
+- **Ricerca** (migrazione `0007_chat_search`): FTS5 `chat_message_fts` (unicode61, senza accenti) tenuta da trigger; i risultati passano dagli stessi controlli di accesso (solo stanze che vedi).
+- **Allegati**: corpo grezzo con `content-length`, max 10 MB, tipi consentiti da `packages/core/src/chat/files.ts` (SVG/HTML rifiutati, codice servito come `text/plain`), nomi sanificati, su R2 sotto `chat/<stanza>/<id>`, download solo dal Worker con verifica permessi, `nosniff`, `Content-Disposition` e CSP `sandbox`. **Immagini ridimensionate nel browser** (lato lungo 2048 px, WebP/JPEG) con **testo alternativo** facoltativo.
+- **Anteprime link** solo per GitHub (repo che vedi, via `can('repo:view')`, in `caches.default`) e per link Kyon (`/progetti?id=…&task=…`, solo se sei membro). Nessun URL arbitrario (niente SSRF).
+- **Realtime**: lo stesso socket del progetto (o della generale) porta `chat` (message/edit/delete/reaction/pin/room), `presence` (chi è online, calcolata dal DO a ogni connessione/chiusura) e `typing` (inoltrato dal DO agli altri, al massimo ogni 3 s). Dopo una riconnessione il client recupera i messaggi persi con `?after=<seq>`.
+- **UI**: pagina Chat con elenco stanze (non letti, ultimo messaggio) e conversazione; su telefono la conversazione riempie lo schermo fino alla tab bar o alla tastiera (`useFillHeight` con `visualViewport`); "Nuovo thread" da ogni progetto; ricerca e messaggi fissati in fogli. Nel **dettaglio task** la sezione Commenti (conversazione compatta, live); sulla **card** il numero di commenti.
+- Test: 558 unit/integrazione (11 di integrazione sulla chat: permessi, idempotenza, catch-up, menzioni, modifica/elimina, reazioni, pin, ricerca, allegati, anteprime); e2e **104/104**: chat live tra due persone su telefono e desktop (presenza, "sta scrivendo", risposta con menzione, reazione, modifica, pin, ricerca, eliminazione, immagine con testo alternativo, axe) e commenti della task con conteggio sulla card.
+
+Decisioni:
+
+- **D1 è l'archivio dei messaggi, non il SQLite dei Durable Object.** Il DO fa solo smistamento, presenza e "sta scrivendo". Motivi: un solo posto dove applicare `can()` e la visibilità, ricerca FTS5 senza unire due fonti, nessun `alarm()` di travaso da tenere nei 10 ms, e i volumi di un gruppo di 4 persone stanno larghi nei limiti di D1. Le soglie "500 messaggi / 7 giorni nel DO" proposte in Fase 5 non servono più.
+- Su telefono Invio va a capo e si invia con il pulsante (come Messaggi di iOS); con tastiera fisica e puntatore fine Invio invia, Maiusc+Invio va a capo.
+- Il testo alternativo si scrive anche mentre l'immagine si carica: viaggia con il messaggio (`alts`), non con il caricamento.
+
+Correzioni trovate dai test:
+
+- La griglia della pagina Chat su telefono non aveva una colonna `minmax(0, 1fr)`: un testo lungo la allargava oltre lo schermo e Safari rimpiccioliva la pagina.
+- L'altezza della conversazione dipendeva dallo scroll della pagina: ora si misura dall'inizio del documento (niente ridimensionamenti a catena).
+- Il nome accessibile delle reazioni non conteneva il testo visibile (WCAG 2.5.3): ora "🎉 1 da …".
+- Gli eventi `typing`/`presence` facevano ricaricare le task: ora la scheda Task ascolta solo gli eventi che la riguardano.
+
+Debito tecnico / da controllare:
+
+- Allegati caricati e mai inviati restano su R2: pulizia nel cron (allegati senza messaggio più vecchi di 24 h) da aggiungere in Fase 10.
+- Notifiche per menzioni e risposte in Fase 9 (le menzioni sono già salvate per messaggio).
+- Da provare su iPhone reale: tastiera e `visualViewport` nella conversazione, incolla di immagini.
 
 ### Fase 6 — Prompt, esecuzioni e tracciamento PR; scheda Status ✅ (2026-10-26)
 

@@ -60,7 +60,8 @@ export async function newMember(
   memberCounter += 1;
   const email = `${tag}-${Date.now()}-${memberCounter}@kyon.test`.toLowerCase();
   const password = 'password membro e2e';
-  const name = `Membro ${memberCounter}`;
+  // Unique across parallel workers: the group chat lists everyone, names must not collide.
+  const name = `Membro ${memberCounter}${Math.random().toString(36).slice(2, 5)}`;
   const invite = await adminRequest.post('/api/admin/invites', { data: { note: name } });
   expect(invite.status()).toBe(201);
   const { code, url } = (await invite.json()) as { code: string; url: string };

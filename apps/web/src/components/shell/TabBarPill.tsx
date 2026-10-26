@@ -15,7 +15,10 @@ export function TabBarPill() {
       aria-label={it.nav.label}
       className="fixed inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-[max(0.75rem,var(--k-safe-bottom))] md:hidden phone-landscape:hidden"
     >
-      <ul className="k-chrome flex w-full max-w-md items-stretch justify-between rounded-pill p-1.5">
+      <ul
+        data-tabbar
+        className="k-chrome flex w-full max-w-md items-stretch justify-between rounded-pill p-1.5"
+      >
         {NAV_ITEMS.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (

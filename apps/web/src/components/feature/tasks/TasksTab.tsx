@@ -130,7 +130,15 @@ export function TasksTab({ project }: { project: ProjectDetail }) {
   }, [actions.busy, refresh]);
   const onEvent = useCallback(
     (event: LiveEvent) => {
-      if (event.type === 'project_changed') return;
+      const relevant =
+        event.type === 'tasks_changed' ||
+        event.type === 'runs_changed' ||
+        event.type === 'resync' ||
+        // New or deleted comments change the count on the cards.
+        (event.type === 'chat' &&
+          event.roomId.startsWith('task:') &&
+          (event.action === 'message' || event.action === 'delete'));
+      if (!relevant) return;
       // A refetch now would undo a change still being saved: wait for it.
       if (busy.current) stale.current = true;
       else refresh();

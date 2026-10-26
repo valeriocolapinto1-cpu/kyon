@@ -1,3 +1,7 @@
+'use client';
+
+import { Check, Copy } from 'lucide-react';
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { InlineText } from './InlineText';
 
@@ -86,13 +90,46 @@ function parse(source: string): Block[] {
  * The Markdown that prompts and chat messages use, rendered as React elements (never as HTML:
  * nothing typed by a user can inject markup). Links open only for http(s).
  */
+function CodeBlock({ text, copyLabel }: { text: string; copyLabel?: string }) {
+  const [copied, setCopied] = useState(false);
+  return (
+    <div className="relative">
+      <pre className="overflow-x-auto rounded-control bg-neutral-soft p-3 pr-12 font-mono text-footnote">
+        <code>{text}</code>
+      </pre>
+      {copyLabel && (
+        <button
+          type="button"
+          aria-label={copyLabel}
+          onClick={() =>
+            void navigator.clipboard.writeText(text).then(() => {
+              setCopied(true);
+              setTimeout(() => setCopied(false), 1500);
+            })
+          }
+          className="k-pressable absolute top-0 right-0 inline-flex size-touch items-center justify-center rounded-control text-muted hover:text-fg"
+        >
+          {copied ? (
+            <Check className="size-4 text-success" aria-hidden="true" />
+          ) : (
+            <Copy className="size-4" aria-hidden="true" />
+          )}
+        </button>
+      )}
+    </div>
+  );
+}
+
 export function Markdown({
   source,
   highlight,
+  copyLabel,
 }: {
   source: string;
-  /** Optional decorator for text runs (e.g. to mark unknown variables). */
+  /** Optional decorator for text runs (e.g. to mark unknown variables or mentions). */
   highlight?: (text: string) => ReactNode;
+  /** When set, code blocks get a copy button with this label. */
+  copyLabel?: string;
 }) {
   const inline = (text: string) => (highlight ? highlight(text) : <InlineText text={text} links />);
   return (
@@ -111,14 +148,7 @@ export function Markdown({
             );
           }
           case 'code':
-            return (
-              <pre
-                key={i}
-                className="overflow-x-auto rounded-control bg-neutral-soft p-3 font-mono text-footnote"
-              >
-                <code>{block.text}</code>
-              </pre>
-            );
+            return <CodeBlock key={i} text={block.text} copyLabel={copyLabel} />;
           case 'list': {
             const Tag = block.ordered ? 'ol' : 'ul';
             return (
