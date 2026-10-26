@@ -12,6 +12,8 @@ import * as people from './routes/people';
 import * as projectRoutes from './routes/project';
 import * as projects from './routes/projects';
 import * as repos from './routes/repos';
+import * as tasks from './routes/tasks';
+import * as internal from './routes/internal';
 import * as avatarFile from './routes/avatarFile';
 import * as health from './routes/health';
 import * as join from './routes/join';
@@ -65,6 +67,11 @@ const routes: [string, Module][] = [
   ['/api/projects/:id/leave', { POST: projectRoutes.leaveRoute }],
   ['/api/projects/:id/transfer', { POST: projectRoutes.transferRoute }],
   ['/api/projects/:id/archive', { POST: projectRoutes.archiveRoute }],
+  ['/api/projects/:id/tasks', tasks],
+  ['/api/projects/:id/tasks/:taskId', { PATCH: tasks.patchTask }],
+  ['/api/projects/:id/sync', { POST: tasks.sync }],
+  ['/api/projects/:id/tasks-file', { POST: tasks.tasksFile }],
+  ['/api/internal/cron', { POST: internal.cron }],
 ];
 
 export const api = new Hono();

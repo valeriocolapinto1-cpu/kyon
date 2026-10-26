@@ -26,3 +26,21 @@ describe('recordHeartbeat', () => {
     expect(ts).toBe(now.getTime());
   });
 });
+
+describe('triggerReconcile', () => {
+  it('calls the web Worker with the shared secret', async () => {
+    const { triggerReconcile } = await import('./index');
+    const calls: Request[] = [];
+    const WEB = {
+      fetch: async (input: RequestInfo, init?: RequestInit) => (
+        calls.push(new Request(input, init)),
+        new Response('{}', { status: 200 })
+      ),
+    } as unknown as Fetcher;
+    expect(await triggerReconcile({ DB: {} as D1Database, WEB, INTERNAL_SECRET: 's3cret' })).toBe(
+      'web 200',
+    );
+    expect(calls[0]?.headers.get('x-kyon-internal')).toBe('s3cret');
+    expect(await triggerReconcile({ DB: {} as D1Database, WEB })).toMatch(/skipped/);
+  });
+});

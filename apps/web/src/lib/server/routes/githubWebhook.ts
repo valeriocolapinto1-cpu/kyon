@@ -1,13 +1,16 @@
 import { verifyGitHubSignature } from '@kyon/core';
 import { eq } from 'drizzle-orm';
-import { githubConnection } from '@/db/schema';
+import { githubConnection, project } from '@/db/schema';
 import { ApiError } from '../errors';
 import { githubConfig } from '../github/client';
 import { markInstallationUnavailable, markReposUnavailable, syncRepos } from '../github/repos';
+import { syncProject } from '../tasks/sync';
 import { json, route } from '../http';
 
 interface InstallationPayload {
   action?: string;
+  ref?: string;
+  repository?: { id: number };
   installation?: { id: number };
   sender?: { id: number };
   repositories_removed?: { id: number }[];
@@ -16,7 +19,8 @@ interface InstallationPayload {
 
 /**
  * GitHub App webhook. Unsigned or badly signed payloads are rejected before parsing.
- * Phase 3 handles installation changes; push / pull_request / check_* arrive in later phases.
+ * Installation changes keep the repo list right; `push` re-reads the changed .md files
+ * (incremental: only blobs whose sha changed). pull_request / check_* arrive in Fase 6.
  */
 export const POST = route(async ({ request, env, db }) => {
   const secret = env.GITHUB_WEBHOOK_SECRET;
@@ -58,6 +62,21 @@ export const POST = route(async ({ request, env, db }) => {
         } catch (error) {
           console.warn('Webhook repo sync failed', error);
         }
+      }
+    }
+  }
+  if (event === 'push' && payload.repository) {
+    const [proj] = await db
+      .select()
+      .from(project)
+      .where(eq(project.githubRepoId, payload.repository.id))
+      .limit(1);
+    if (proj && !proj.archivedAt) {
+      try {
+        await syncProject(db, env, proj.id);
+      } catch (error) {
+        // The cron will retry; GitHub shouldn't redeliver forever.
+        console.warn('Webhook push sync failed', error);
       }
     }
   }

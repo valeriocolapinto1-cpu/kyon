@@ -52,6 +52,7 @@ export function testEnv(db: D1Database, overrides: Partial<CloudflareEnv> = {}):
     GITHUB_APP_CLIENT_SECRET: 'fake-client-secret',
     GITHUB_APP_SLUG: 'kyon-test',
     GITHUB_WEBHOOK_SECRET: 'fake-webhook-secret',
+    INTERNAL_SECRET: 'fake-internal-secret',
     GITHUB_API_URL: 'http://fake-github.test',
     GITHUB_WEB_URL: 'http://fake-github.test',
     FILES: undefined as unknown as R2Bucket,

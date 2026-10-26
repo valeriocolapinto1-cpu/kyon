@@ -6,6 +6,24 @@ import { Hono } from 'hono';
  * Used by integration tests (through a fetch stub) and by e2e (as a local HTTP server).
  */
 
+export interface FakeCommit {
+  sha: string;
+  message: string;
+  branch: string;
+  path: string;
+  author: string;
+}
+
+export interface FakePull {
+  number: number;
+  title: string;
+  body: string;
+  head: string;
+  base: string;
+  state: 'open' | 'closed';
+  merged: boolean;
+}
+
 export interface FakeRepo {
   id: number;
   owner: string;
@@ -13,6 +31,10 @@ export interface FakeRepo {
   private: boolean;
   defaultBranch: string;
   installationId: number;
+  /** branch → path → content */
+  branches?: Map<string, Map<string, string>>;
+  commits?: FakeCommit[];
+  pulls?: FakePull[];
 }
 
 export interface FakeUser {
@@ -34,6 +56,8 @@ export interface FakeState {
   /** Where the "Install" page sends the user back (the app's Setup URL). */
   kyonOrigin: string;
   requests: { method: string; path: string }[];
+  /** Simulates someone pushing between Kyon's read and write: the next PUTs on `path` fail with 409. */
+  conflicts: { path: string; content: string; times: number }[];
 }
 
 export function defaultFakeState(kyonOrigin = 'http://localhost:8787'): FakeState {
@@ -75,7 +99,38 @@ export function defaultFakeState(kyonOrigin = 'http://localhost:8787'): FakeStat
     counter: 0,
     kyonOrigin,
     requests: [],
+    conflicts: [],
   };
+}
+
+/** Git-like content id (deterministic, not real SHA-1). */
+export function fakeSha(content: string): string {
+  let h1 = 0x811c9dc5;
+  let h2 = 0x2b992ddf;
+  for (let i = 0; i < content.length; i++) {
+    h1 = Math.imul(h1 ^ content.charCodeAt(i), 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ content.charCodeAt(i), 0x5bd1e995) >>> 0;
+  }
+  return (
+    (h1.toString(16).padStart(8, '0') + h2.toString(16).padStart(8, '0')).repeat(2) + '00000000'
+  );
+}
+
+function encodeBase64(text: string): string {
+  const bytes = new TextEncoder().encode(text);
+  let binary = '';
+  for (const b of bytes) binary += String.fromCharCode(b);
+  return btoa(binary);
+}
+
+function decodeBase64(value: string): string {
+  const binary = atob(value.replace(/\s/g, ''));
+  return new TextDecoder().decode(Uint8Array.from(binary, (c) => c.charCodeAt(0)));
+}
+
+function files(repo: FakeRepo, branch: string): Map<string, string> | undefined {
+  repo.branches ??= new Map([[repo.defaultBranch, new Map()]]);
+  return repo.branches.get(branch);
 }
 
 function repoJson(repo: FakeRepo, base: string) {
@@ -221,7 +276,196 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
     return c.json({ total_count: repos.length, repositories: repos.map((r) => repoJson(r, base)) });
   });
 
+  // ---- Repository contents (trees, files, branches, pulls) ----
+
+  const findRepo = (owner: string, name: string) =>
+    state.repos.find((r) => r.owner === owner && r.name === name);
+  const authorizedRepo = (c: {
+    req: { param: (k: string) => string; header: (k: string) => string | undefined };
+  }) => {
+    const u = currentUser(c.req.header('authorization'));
+    const repo = findRepo(c.req.param('owner'), c.req.param('repo'));
+    if (!u || !repo || !u.repoIds.includes(repo.id)) return null;
+    return { u, repo };
+  };
+
+  app.get('/repos/:owner/:repo/git/trees/:ref', (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const map = files(found.repo, c.req.param('ref'));
+    if (!map) return c.json({ message: 'Not Found' }, 404);
+    const tree = [...map.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([path, content]) => ({ path, type: 'blob', sha: fakeSha(content) }));
+    const sha = fakeSha(JSON.stringify(tree));
+    const etag = `"${sha}"`;
+    if (c.req.header('if-none-match') === etag) return c.body(null, 304, { etag });
+    return c.json({ sha, tree, truncated: false }, 200, { etag });
+  });
+
+  app.get('/repos/:owner/:repo/contents/:path{.+}', (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const ref = c.req.query('ref') ?? found.repo.defaultBranch;
+    const content = files(found.repo, ref)?.get(c.req.param('path'));
+    if (content === undefined) return c.json({ message: 'Not Found' }, 404);
+    return c.json({
+      type: 'file',
+      path: c.req.param('path'),
+      sha: fakeSha(content),
+      encoding: 'base64',
+      content: encodeBase64(content),
+    });
+  });
+
+  app.put('/repos/:owner/:repo/contents/:path{.+}', async (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const body = (await c.req.json()) as {
+      message: string;
+      content: string;
+      sha?: string;
+      branch?: string;
+    };
+    const branch = body.branch ?? found.repo.defaultBranch;
+    const map = files(found.repo, branch);
+    if (!map) return c.json({ message: 'Branch not found' }, 404);
+    const path = c.req.param('path');
+    const conflict = state.conflicts.find((x) => x.path === path && x.times > 0);
+    if (conflict) {
+      conflict.times -= 1;
+      map.set(path, conflict.content);
+      return c.json({ message: `${path} does not match ${body.sha}` }, 409);
+    }
+    const current = map.get(path);
+    if (current !== undefined && body.sha !== fakeSha(current)) {
+      return c.json({ message: `${path} does not match ${body.sha ?? 'missing sha'}` }, 409);
+    }
+    if (current === undefined && body.sha)
+      return c.json({ message: 'sha given for a new file' }, 422);
+    const content = decodeBase64(body.content);
+    map.set(path, content);
+    const commit = {
+      sha: fakeSha(`${Date.now()}${state.counter++}${content}`),
+      message: body.message,
+      branch,
+      path,
+      author: found.u.login,
+    };
+    found.repo.commits = [...(found.repo.commits ?? []), commit];
+    return c.json(
+      {
+        content: { path, sha: fakeSha(content) },
+        commit: { sha: commit.sha, message: body.message },
+      },
+      current === undefined ? 201 : 200,
+    );
+  });
+
+  app.get('/repos/:owner/:repo/git/ref/heads/:branch{.+}', (c) => {
+    const found = authorizedRepo(c);
+    if (!found || !files(found.repo, c.req.param('branch')))
+      return c.json({ message: 'Not Found' }, 404);
+    return c.json({
+      ref: `refs/heads/${c.req.param('branch')}`,
+      object: { sha: fakeSha(c.req.param('branch')) },
+    });
+  });
+
+  app.post('/repos/:owner/:repo/git/refs', async (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const { ref } = (await c.req.json()) as { ref: string; sha: string };
+    const name = ref.replace(/^refs\/heads\//, '');
+    if (files(found.repo, name)) return c.json({ message: 'Reference already exists' }, 422);
+    found.repo.branches?.set(name, new Map(files(found.repo, found.repo.defaultBranch)));
+    return c.json({ ref, object: { sha: fakeSha(name) } }, 201);
+  });
+
+  app.get('/repos/:owner/:repo/pulls', (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const head = c.req.query('head')?.split(':').pop();
+    const pulls = (found.repo.pulls ?? []).filter(
+      (p) => p.state === (c.req.query('state') ?? 'open') && (!head || p.head === head),
+    );
+    return c.json(
+      pulls.map((p) => ({
+        number: p.number,
+        title: p.title,
+        body: p.body,
+        state: p.state,
+        head: { ref: p.head },
+        base: { ref: p.base },
+        html_url: `${new URL(c.req.url).origin}/${found.repo.owner}/${found.repo.name}/pull/${p.number}`,
+      })),
+    );
+  });
+
+  app.post('/repos/:owner/:repo/pulls', async (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    const body = (await c.req.json()) as {
+      title: string;
+      head: string;
+      base: string;
+      body?: string;
+    };
+    const pull: FakePull = {
+      number: (found.repo.pulls?.length ?? 0) + 1,
+      title: body.title,
+      body: body.body ?? '',
+      head: body.head,
+      base: body.base,
+      state: 'open',
+      merged: false,
+    };
+    found.repo.pulls = [...(found.repo.pulls ?? []), pull];
+    return c.json(
+      {
+        number: pull.number,
+        html_url: `${new URL(c.req.url).origin}/${found.repo.owner}/${found.repo.name}/pull/${pull.number}`,
+      },
+      201,
+    );
+  });
+
   // ---- Test controls ----
+
+  /** Simulates a push made outside Kyon (e.g. someone edits a .md on GitHub). */
+  app.post('/__fake/repos/:id/files', async (c) => {
+    const repo = state.repos.find((r) => r.id === Number(c.req.param('id')));
+    if (!repo) return c.json({ message: 'Not Found' }, 404);
+    const body = (await c.req.json()) as {
+      path: string;
+      content: string | null;
+      branch?: string;
+      message?: string;
+    };
+    const branch = body.branch ?? repo.defaultBranch;
+    const map = files(repo, branch);
+    if (!map) return c.json({ message: 'Branch not found' }, 404);
+    if (body.content === null) map.delete(body.path);
+    else map.set(body.path, body.content);
+    const commit = {
+      sha: fakeSha(`${Date.now()}${state.counter++}`),
+      message: body.message ?? 'external edit',
+      branch,
+      path: body.path,
+      author: 'external',
+    };
+    repo.commits = [...(repo.commits ?? []), commit];
+    return c.json({ commit });
+  });
+
+  app.get('/__fake/repos/:id', (c) => {
+    const repo = state.repos.find((r) => r.id === Number(c.req.param('id')));
+    if (!repo) return c.json({ message: 'Not Found' }, 404);
+    const branches = Object.fromEntries(
+      [...(repo.branches ?? new Map()).entries()].map(([b, m]) => [b, Object.fromEntries(m)]),
+    );
+    return c.json({ branches, commits: repo.commits ?? [], pulls: repo.pulls ?? [] });
+  });
 
   app.post('/__fake/reset', (c) => {
     Object.assign(state, defaultFakeState(state.kyonOrigin));
@@ -240,7 +484,7 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
   app.post('/__fake/users', async (c) => {
     const body = (await c.req.json()) as {
       login: string;
-      repos: { name: string; private?: boolean }[];
+      repos: { name: string; private?: boolean; files?: Record<string, string> }[];
     };
     state.counter += 1;
     const userId = 2000 + state.counter;
@@ -254,6 +498,7 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
         private: repo.private ?? true,
         defaultBranch: 'main',
         installationId,
+        branches: new Map([['main', new Map(Object.entries(repo.files ?? {}))]]),
       });
       return id;
     });

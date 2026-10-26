@@ -24,6 +24,8 @@ declare global {
     /** Overrides for tests/e2e (fake GitHub server). Unset in production. */
     GITHUB_API_URL?: string;
     GITHUB_WEB_URL?: string;
+    /** Shared with the cron Worker: authenticates POST /api/internal/cron. */
+    INTERNAL_SECRET?: string;
     /** Workers rate limiting bindings. */
     AUTH_LIMITER: RateLimit;
     WRITE_LIMITER: RateLimit;

@@ -7,10 +7,11 @@ import {
   type ProjectRole,
 } from '@kyon/core';
 import type { Db } from '@/db/client';
-import { githubRepo, project, projectMember, user } from '@/db/schema';
+import { githubRepo, kanbanColumn, project, projectMember, user } from '@/db/schema';
 import { ApiError } from './errors';
 import { avatarUrl } from './users';
 import { loadRepo } from './github/repos';
+import { DEFAULT_COLUMNS } from './tasks/apply';
 
 export type ProjectRow = typeof project.$inferSelect;
 
@@ -154,6 +155,15 @@ export async function createProject(db: Db, actor: Actor, repoId: string, name: 
       updatedAt: now,
     }),
     db.insert(projectMember).values(members),
+    // Default kanban columns: Da fare · In corso · Fatto.
+    db.insert(kanbanColumn).values(
+      DEFAULT_COLUMNS.map((c, position) => ({
+        id: crypto.randomUUID(),
+        projectId: id,
+        position,
+        ...c,
+      })),
+    ),
   ]);
   return id;
 }

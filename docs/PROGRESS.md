@@ -4,7 +4,7 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 4 — Motore task da `.md`** (da iniziare).
+**Fase 5 — Pagina progetto: Task** (da iniziare).
 
 | Fase | Titolo                                          | Stato      |
 | ---- | ----------------------------------------------- | ---------- |
@@ -12,8 +12,8 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 | 1    | Design system Liquid Glass, a11y di base, shell | ✅ fatta   |
 | 2    | Auth, inviti, admin, Settings account           | ✅ fatta   |
 | 3    | GitHub, repo, visibilità, progetti, membri      | ✅ fatta   |
-| 4    | Motore task da `.md`                            | ⏭ prossima |
-| 5    | Pagina progetto: Task                           | —          |
+| 4    | Motore task da `.md`                            | ✅ fatta   |
+| 5    | Pagina progetto: Task                           | ⏭ prossima |
 | 6    | Prompt, esecuzioni, tracciamento PR; Status     | —          |
 | 7    | Realtime, chat e thread                         | —          |
 | 8    | Home, Progetti, Chat, Persone, ricerca, extra   | —          |
@@ -38,6 +38,7 @@ Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 | 1    | 1307,4 KiB | 0,6 KiB       | 0,4 KiB   | + Tailwind, Radix (dialog, radio, toast, switch, slider), motion, cmdk, lucide                                      |
 | 2    | 1574,0 KiB | 0,6 KiB       | 0,4 KiB   | + Better Auth, TanStack Query, Hono. Con 15 route Next separate era 2531 KiB (oltre soglia): ora un'unica route API |
 | 3    | 1597,4 KiB | 0,6 KiB       | 0,4 KiB   | + GitHub, repo, progetti (tutto nel router unico)                                                                   |
+| 4    | 1606,8 KiB | 0,6 KiB       | 0,7 KiB   | + motore task, sync, scritture; cron chiama il web via service binding                                              |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -49,6 +50,8 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 0    | `/api/health`   | ~11 ms              | ~11 ms            | include una query D1 locale          |
 
 **Pagina statica vs dinamica** (Fase 3, tempo totale locale): shell statica ~10 ms, pagina renderizzata dal Worker (`/join/[code]`) ~30 ms, galleria `/dev/ui` ~33 ms, API con D1 ~11–13 ms. Per questo tutte le pagine restano statiche e gli identificativi viaggiano in query string.
+
+**Motore task** (Fase 4, Node sullo stesso host): parse del file Biohybrid (1,5 KB, 7 task) 0,13 ms; file da 30 KB con 140 task 2,2 ms; riconciliazione nel caso peggiore (tutti gli id cambiati, 140 task) 5,8 ms dopo l'ottimizzazione (era 54 ms).
 
 **PBKDF2-SHA256 su workerd locale** (Fase 2): 10.000 iterazioni ≈ 1 ms, 50.000 ≈ 6 ms, 100.000 ≈ 12 ms, 600.000 ≈ 88 ms. Con Node sullo stesso host: 100.000 ≈ 16 ms. Conclusione: un PBKDF2 server-side con un costo sicuro non sta nei 10 ms del piano Free → hashing a due stadi (vedi Fase 2).
 
@@ -67,6 +70,36 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 2    | `/login`              | 96          | 100           | 100            |
 
 ## Log delle fasi
+
+### Fase 4 — Motore task da `.md` ✅ (2026-10-26)
+
+Fatto:
+
+- **Parser** (`packages/core/src/tasks/parse.ts`), riga per riga, senza librerie: checkbox GFM ovunque (`-`, `*`, `+`, numerate, `[x]`/`[X]`), elenchi sotto titoli "di piano" (parole chiave configurabili, confronto per parola intera e senza accenti; i sotto-titoli ereditano), sottotask e note annidate, front matter / commento `kyon: ignore`, blocchi di codice (anche annidati, ``` e ~~~), tabelle conservate come tabelle (per l'anteprima) e mai trasformate in task, paragrafi con etichette in grassetto ignorati, CRLF e tab.
+- **Stato fatto**: `[x]`; oppure segno ✅/🟢 (anche dentro il grassetto o in fondo alla riga) = fatto, 🟡/⚪/… = da fare.
+- **Identità**: `stable_id` = hash di percorso + titoli + testo normalizzato (senza segni, enfasi, link) + indice di occorrenza: resta uguale quando spunti o metti in grassetto.
+- **Riconciliazione**: id esatto, poi stesso file e sezione con testo simile (Dice sui bigrammi ≥ 0,75), poi nuova; le task sparite diventano orfane (archivio 30 giorni, poi eliminate dal cron) e possono "tornare".
+- **Scritture minime** (`edit.ts`): spunta/togli (checkbox; emoji ✅/⚪; voce semplice → `[x]`), rinomina (conserva indentazione, marcatore, casella, segno), aggiungi in fondo all'elenco della sezione, modello `TASKS.md`. Ogni scrittura cambia o inserisce **una sola riga** e controlla che la riga sia ancora quella letta.
+- **Server** (`lib/server/tasks/*`): lettura dall'albero Git con **ETag** (304 = niente download), solo i file con `sha` cambiato, al massimo 30 per richiesta (gli altri in `pending`, entro i 50 subrequest del Free); snapshot per file in `task_file`; metadati in `task_meta` (assegnatario, priorità, scadenza, colonna, posizione, note, etichette); colonne predefinite **Da fare · In corso · Fatto** create col progetto; un task fatto finisce in "Fatto", riaperto torna in "Da fare"; ogni cambio di stato va in `activity_event` (fonte Kyon o GitHub).
+- **Scrittura sulla repo** via Contents API con `sha`: su 409 rilegge, ritrova la task e riapplica **una volta**, poi errore chiaro. Messaggi `chore(tasks): complete "<task>" via Kyon` / `reopen` / `rename` / `add`. Token di chi agisce se vede la repo, altrimenti di chi l'ha esposta con trailer `Co-authored-by`. Modalità `branch_pr`: branch `kyon/tasks` creato al bisogno e PR aperta (una sola).
+- **Webhook `push`** → risincronizza il progetto della repo. **Cron**: il Worker cron chiama `POST /api/internal/cron` del web tramite service binding con un segreto condiviso (`INTERNAL_SECRET`, generato dal deploy su entrambi i Worker); riconcilia 2 progetti per giro (prima quelli con file in attesa) e pulisce gli orfani.
+- API: `GET/POST /api/projects/:id/tasks`, `PATCH /api/projects/:id/tasks/:taskId` (`done`, `text`), `POST /api/projects/:id/sync`, `POST /api/projects/:id/tasks-file`.
+- GitHub finto esteso: alberi con ETag, contenuti, PUT con controllo `sha` (409), branch, PR, push esterni, conflitti simulati.
+- Test: 30 test del parser/scritture/riconciliazione con la **fixture sintetica Biohybrid** (titoli `## 1 · …`, tabelle ✅🟢🟡⚪, paragrafi **Cosa./Perché./È finita quando.**, "Ordine di priorità", archivio): ne escono 7 task e una tabella. **13 test di integrazione**: lettura (archivio, `node_modules`, file senza task esclusi), ETag, spunta con commit di una riga e colonna "Fatto", emoji, conflitto riapplicato, doppio conflitto → 409, push esterno via webhook (testo modificato = stessa task, task rimossa = orfana), co-autore, aggiungi/rinomina, permessi, `branch_pr` con PR, `TASKS.md` solo se vuoto, cron solo con segreto.
+
+Decisioni:
+
+- Parser scritto a mano (niente librerie Markdown): serve la posizione esatta delle righe per scritture minime e pesa zero nel bundle.
+- Un titolo di livello 1 "di piano" (es. `# Prossimi passi` che intitola tutto il file) vale solo per gli elenchi subito sotto, non per ogni sezione: altrimenti tutti gli elenchi di un `PROSSIMI-PASSI.md` diventerebbero task.
+- Una voce di elenco che comincia con un'etichetta in grassetto (`- **Nota.** …`) è una nota, non una task.
+- Togliere la spunta a una task emoji scrive ⚪ (l'annullamento con "Annulla" ripristina la riga originale con un commit inverso, Fase 5).
+- In modalità `branch_pr` Kyon legge le task dal branch `kyon/tasks` (se esiste), così ciò che vedi è ciò che hai scritto.
+- Il cron non contiene logica GitHub: la chiede al Worker web (un solo posto dove vive il codice).
+
+Debito tecnico / da controllare:
+
+- La UI della scheda Task (kanban, lista, calendario, spunta con "Annulla") arriva in Fase 5; per ora il motore è usabile dalle API.
+- Alberi Git "troncati" (repo enormi) sono segnalati in `project_sync.last_error` ma non gestiti oltre.
 
 ### Fase 3 — GitHub, repo, visibilità, progetti, membri ✅ (2026-10-26)
 

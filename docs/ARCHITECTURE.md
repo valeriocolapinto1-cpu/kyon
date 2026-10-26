@@ -71,6 +71,21 @@ Browser ──GET /settings──▶ asset statico (shell prerenderizzata, nessu
 - **Webhook**: `POST /api/github/webhook`, firma verificata prima di tutto. Fase 3: eventi di installazione; push/PR/check nelle fasi 4 e 6.
 - **Test**: il GitHub finto (`apps/web/src/test/fakeGithub.ts`) è un'app Hono; nei test di integrazione sostituisce `fetch`, negli e2e e in `pnpm dev` gira su `localhost:8799` (`GITHUB_API_URL` / `GITHUB_WEB_URL`).
 
+## 3quater. Motore task
+
+```
+push su GitHub ──webhook──▶ syncProject ─┐
+cron (15 min) ──service binding──▶ /api/internal/cron ─┤
+"Sincronizza ora" ──▶ /api/projects/:id/sync ─┘
+        │  albero Git con ETag → solo i .md con sha cambiato (max 30, resto in pending)
+        ▼
+parseTasks (core) → task_file (snapshot) → reconcile (core) → task_meta + activity_event
+```
+
+- **Lettura**: la repo è la fonte di verità; `task_file` conserva il parse per file (per l'API senza GitHub), `task_meta` i metadati di Kyon collegati per `stable_id`.
+- **Scrittura**: leggi file → `relocate` della task → una riga cambiata (`edit.ts`) → PUT con `sha`; su 409 un solo nuovo tentativo. Dopo il commit il nuovo contenuto viene ri-parsato subito (niente attesa del webhook).
+- **Budget Free**: 1 subrequest per l'albero + 1 per file cambiato (max 30); parse ≈ 2 ms per 30 KB; riconciliazione ≤ 6 ms nel caso peggiore misurato.
+
 ## 4. Realtime (Fase 7, impostato in Fase 0)
 
 - Il Worker web autentica l'utente e inoltra l'upgrade WebSocket al DO tramite il binding `PROJECT_ROOM`/`GENERAL_ROOM` (`script_name: kyon-realtime`), passando un token breve firmato.

@@ -6,6 +6,7 @@
   "observability": { "enabled": true },
   // Low frequency on purpose: webhooks carry the real-time updates, cron only reconciles.
   "triggers": { "crons": ["*/15 * * * *"] },
+  "services": [{ "binding": "WEB", "service": "kyon-web" }],
   "d1_databases": [
     {
       "binding": "DB",

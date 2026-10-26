@@ -57,12 +57,12 @@ for (const dir of [realtimeDir, cronDir, webDir]) {
   await run('pnpm', ['exec', 'wrangler', 'deploy', '--config', DEPLOY_CONFIG], { cwd: dir });
 }
 
-async function existingSecrets(): Promise<Set<string>> {
+async function existingSecrets(dir = webDir): Promise<Set<string>> {
   const raw = await run(
     'pnpm',
     ['exec', 'wrangler', 'secret', 'list', '--config', DEPLOY_CONFIG, '--format', 'json'],
     {
-      cwd: webDir,
+      cwd: dir,
       capture: true,
     },
   );
@@ -70,24 +70,50 @@ async function existingSecrets(): Promise<Set<string>> {
   return new Set(list.map((secret) => secret.name));
 }
 
-async function putSecret(name: string, value: string) {
+async function putSecret(name: string, value: string, dir = webDir) {
   await run('pnpm', ['exec', 'wrangler', 'secret', 'put', name, '--config', DEPLOY_CONFIG], {
-    cwd: webDir,
+    cwd: dir,
     stdin: value,
   });
 }
 
+const random = (encoding: 'base64' | 'base64url') =>
+  Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString(encoding);
 const secrets = await existingSecrets();
+
 if (!secrets.has('BETTER_AUTH_SECRET')) {
   console.log('Generating BETTER_AUTH_SECRET (stored only in Cloudflare)...');
-  await putSecret(
-    'BETTER_AUTH_SECRET',
-    Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url'),
-  );
+  await putSecret('BETTER_AUTH_SECRET', random('base64url'));
 }
+if (!secrets.has('TOKEN_ENCRYPTION_KEY')) {
+  // Never rotate this one blindly: it decrypts the stored GitHub tokens.
+  console.log('Generating TOKEN_ENCRYPTION_KEY (stored only in Cloudflare)...');
+  await putSecret('TOKEN_ENCRYPTION_KEY', random('base64'));
+}
+
+// INTERNAL_SECRET authenticates cron → web. Generated once and put on both Workers together.
+const cronSecrets = await existingSecrets(cronDir);
+if (!secrets.has('INTERNAL_SECRET') || !cronSecrets.has('INTERNAL_SECRET')) {
+  console.log('Generating INTERNAL_SECRET (web + cron)...');
+  const value = random('base64url');
+  await putSecret('INTERNAL_SECRET', value);
+  await putSecret('INTERNAL_SECRET', value, cronDir);
+}
+
 const bootstrap = process.env.ADMIN_BOOTSTRAP_CODE;
 if (bootstrap && !secrets.has('ADMIN_BOOTSTRAP_CODE')) {
   if (bootstrap.length < 12) throw new Error('ADMIN_BOOTSTRAP_CODE must be at least 12 characters');
   console.log('Setting ADMIN_BOOTSTRAP_CODE...');
   await putSecret('ADMIN_BOOTSTRAP_CODE', bootstrap);
+}
+
+// GitHub App: Actions forbids secret names starting with GITHUB_, hence KYON_GH_*.
+// Re-put on every deploy so rotating a value in GitHub Actions is enough.
+const github: Record<string, string | undefined> = {
+  GITHUB_APP_CLIENT_ID: process.env.KYON_GH_CLIENT_ID,
+  GITHUB_APP_CLIENT_SECRET: process.env.KYON_GH_CLIENT_SECRET,
+  GITHUB_WEBHOOK_SECRET: process.env.KYON_GH_WEBHOOK_SECRET,
+};
+for (const [name, value] of Object.entries(github)) {
+  if (value) await putSecret(name, value);
 }

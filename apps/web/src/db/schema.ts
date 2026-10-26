@@ -217,3 +217,128 @@ export const projectMember = sqliteTable(
     index('project_member_user_idx').on(t.userId),
   ],
 );
+
+// ---------- Tasks (the repo is the source of truth; these are metadata and caches) ----------
+
+export const kanbanColumn = sqliteTable(
+  'kanban_column',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    position: integer('position').notNull(),
+    /** The "Fatto" column: moving a task in or out ticks/unticks it in the repo. */
+    isDone: integer('is_done', { mode: 'boolean' }).notNull().default(false),
+    /** The column tasks move to when a prompt is copied ("In corso"). */
+    isInProgress: integer('is_in_progress', { mode: 'boolean' }).notNull().default(false),
+  },
+  (t) => [index('kanban_column_project_idx').on(t.projectId)],
+);
+
+export const taskMeta = sqliteTable(
+  'task_meta',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    stableId: text('stable_id').notNull(),
+    path: text('path').notNull(),
+    /** JSON string[] */
+    headingPath: text('heading_path').notNull(),
+    /** Last known text (for similarity matching and the orphan archive). */
+    text: text('text').notNull(),
+    done: integer('done', { mode: 'boolean' }).notNull().default(false),
+    assigneeId: text('assignee_id').references(() => user.id, { onDelete: 'set null' }),
+    /** urgent | high | medium | low | none */
+    priority: text('priority').notNull().default('none'),
+    /** YYYY-MM-DD (a day, not an instant). */
+    dueDate: text('due_date'),
+    columnId: text('column_id').references(() => kanbanColumn.id, { onDelete: 'set null' }),
+    position: integer('position').notNull().default(0),
+    notes: text('notes'),
+    orphanedAt: timestamp('orphaned_at'),
+    createdAt: timestamp('created_at').notNull().default(now),
+    updatedAt: timestamp('updated_at').notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('task_meta_stable_idx').on(t.projectId, t.stableId),
+    index('task_meta_assignee_idx').on(t.assigneeId),
+    index('task_meta_due_idx').on(t.dueDate),
+  ],
+);
+
+export const taskLabel = sqliteTable(
+  'task_label',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    color: text('color').notNull().default('blue'),
+  },
+  (t) => [uniqueIndex('task_label_name_idx').on(t.projectId, t.name)],
+);
+
+export const taskLabelLink = sqliteTable(
+  'task_label_link',
+  {
+    taskId: text('task_id')
+      .notNull()
+      .references(() => taskMeta.id, { onDelete: 'cascade' }),
+    labelId: text('label_id')
+      .notNull()
+      .references(() => taskLabel.id, { onDelete: 'cascade' }),
+  },
+  (t) => [uniqueIndex('task_label_link_idx').on(t.taskId, t.labelId)],
+);
+
+/** Parsed snapshot of one .md file at a given blob sha (incremental re-parse). */
+export const taskFile = sqliteTable(
+  'task_file',
+  {
+    projectId: text('project_id')
+      .notNull()
+      .references(() => project.id, { onDelete: 'cascade' }),
+    path: text('path').notNull(),
+    blobSha: text('blob_sha').notNull(),
+    /** tasks | archive */
+    kind: text('kind').notNull().default('tasks'),
+    /** JSON: { tasks: ParsedTask[], tables: TableBlock[] } */
+    parsed: text('parsed').notNull(),
+    updatedAt: timestamp('updated_at').notNull().default(now),
+  },
+  (t) => [uniqueIndex('task_file_idx').on(t.projectId, t.path)],
+);
+
+/** Sync bookkeeping per project: tree ETag, files still to fetch, last error. */
+export const projectSync = sqliteTable('project_sync', {
+  projectId: text('project_id')
+    .primaryKey()
+    .references(() => project.id, { onDelete: 'cascade' }),
+  branch: text('branch'),
+  treeSha: text('tree_sha'),
+  treeEtag: text('tree_etag'),
+  /** JSON string[]: .md paths changed but not fetched yet (subrequest budget). */
+  pending: text('pending'),
+  lastSyncAt: timestamp('last_sync_at'),
+  lastError: text('last_error'),
+});
+
+export const activityEvent = sqliteTable(
+  'activity_event',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id').references(() => project.id, { onDelete: 'cascade' }),
+    /** null when the change came from GitHub (a push) or the system. */
+    actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
+    type: text('type').notNull(),
+    /** JSON payload, shape depends on type. */
+    payload: text('payload').notNull(),
+    createdAt: timestamp('created_at').notNull().default(now),
+  },
+  (t) => [index('activity_project_idx').on(t.projectId, t.createdAt)],
+);
