@@ -6,7 +6,7 @@ import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import type { TaskItem, TasksData } from '@/lib/client/tasks';
 import { cn } from '@/lib/cn';
 import { it } from '@/lib/i18n/it';
-import { InlineText, plainText } from './InlineText';
+import { InlineText, plainText } from '@/components/ui/InlineText';
 import { DueChip, LabelChip } from './TaskCard';
 
 const t = it.tasks;

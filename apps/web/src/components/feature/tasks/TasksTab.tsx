@@ -20,7 +20,6 @@ import {
   matchesFilters,
   today as todayIn,
   type Priority,
-  type RoomEvent,
   type TaskFilters,
 } from '@kyon/core';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -34,7 +33,7 @@ import { useToast } from '@/components/ui/Toast';
 import { ApiClientError, api } from '@/lib/client/api';
 import { useMe } from '@/lib/client/me';
 import type { ProjectDetail } from '@/lib/client/projects';
-import { useRoom } from '@/lib/client/realtime';
+import { useProjectLive, type LiveEvent } from '@/lib/client/projectLive';
 import {
   allTasks,
   columnTasks,
@@ -47,7 +46,7 @@ import { useMediaQuery } from '@/lib/hooks/useMediaQuery';
 import { it } from '@/lib/i18n/it';
 import { usePreferences, useReducedMotion } from '@/lib/preferences/context';
 import { CalendarView } from './CalendarView';
-import { plainText } from './InlineText';
+import { plainText } from '@/components/ui/InlineText';
 import { KanbanBoard } from './KanbanBoard';
 import { TaskDetail } from './TaskDetail';
 import { TaskList } from './TaskList';
@@ -130,11 +129,12 @@ export function TasksTab({ project }: { project: ProjectDetail }) {
     }
   }, [actions.busy, refresh]);
   const onEvent = useCallback(
-    (event: RoomEvent) => {
-      if (event.type !== 'tasks_changed') return;
+    (event: LiveEvent) => {
+      if (event.type === 'project_changed') return;
       // A refetch now would undo a change still being saved: wait for it.
       if (busy.current) stale.current = true;
       else refresh();
+      if (event.type !== 'tasks_changed') return;
       if (!me || event.actorId === me.id || !preferences.announceLive) return;
       const known = queryClient.getQueryData<TasksData>(tasksKey(projectId));
       const who = project.members.find((m) => m.id === event.actorId)?.name ?? t.someone;
@@ -149,7 +149,7 @@ export function TasksTab({ project }: { project: ProjectDetail }) {
     },
     [announce, me, preferences.announceLive, project.members, projectId, queryClient, refresh],
   );
-  const realtime = useRoom(`project=${projectId}`, { onEvent, onResync: refresh });
+  const realtime = useProjectLive(onEvent);
 
   // ---------- First sync ----------
   const autoSynced = useRef(false);

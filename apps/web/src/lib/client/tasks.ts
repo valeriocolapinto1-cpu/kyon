@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { moveId, type Priority } from '@kyon/core';
+import { moveId, type Priority, type RunState } from '@kyon/core';
 import { api } from './api';
 
 export interface TaskItem {
@@ -22,6 +22,7 @@ export interface TaskItem {
   position: number;
   labels: { id: string; name: string; color: string }[];
   notesKyon: string | null;
+  run: { id: string; state: RunState; prNumber: number | null; prUrl: string | null } | null;
 }
 
 export interface ColumnItem {

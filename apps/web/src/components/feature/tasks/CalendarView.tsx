@@ -9,7 +9,7 @@ import type { TaskItem } from '@/lib/client/tasks';
 import { cn } from '@/lib/cn';
 import { formatDayLong, formatDayShort, formatMonth } from '@/lib/format/day';
 import { it } from '@/lib/i18n/it';
-import { InlineText } from './InlineText';
+import { InlineText } from '@/components/ui/InlineText';
 import { usePointerDrag } from './usePointerDrag';
 
 const t = it.tasks;

@@ -23,9 +23,61 @@ import { cn } from '@/lib/cn';
 import { formatDayLong } from '@/lib/format/day';
 import { relativeTime } from '@/lib/format/relative';
 import { it } from '@/lib/i18n/it';
-import { InlineText, plainText } from './InlineText';
+import { InlineText, plainText } from '@/components/ui/InlineText';
 import { LabelChip } from './TaskCard';
 import type { TaskActions } from './useTaskActions';
+import Link from 'next/link';
+import { RunStateBadge } from '@/components/feature/prompts/RunState';
+import { usePrompts } from '@/lib/client/prompts';
+
+/** Prompts and runs of this task, with a shortcut to the Prompt tab. */
+function TaskPrompts({
+  projectId,
+  task,
+  canWrite,
+}: {
+  projectId: string;
+  task: TaskItem;
+  canWrite: boolean;
+}) {
+  const prompts = usePrompts(projectId);
+  const mine = (prompts.data?.prompts ?? []).filter((x) => x.taskId === task.id);
+  const runs = (prompts.data?.runs ?? []).filter((r) => r.taskId === task.id);
+  const href = (extra: string) => `/progetti?id=${projectId}&tab=prompt${extra}`;
+  return (
+    <section aria-labelledby="detail-prompts" className="flex flex-col gap-2">
+      <h3 id="detail-prompts" className="text-subhead font-medium text-fg">
+        {d.prompts}
+      </h3>
+      {mine.length === 0 && <p className="text-footnote text-muted">{d.noPrompts}</p>}
+      <ul className="flex flex-col gap-1">
+        {mine.map((item) => {
+          const run = runs.find((r) => r.promptId === item.id);
+          return (
+            <li key={item.id}>
+              <Link
+                href={href(`&prompt=${item.id}`)}
+                className="flex min-h-touch flex-wrap items-center gap-2 rounded-control px-2 hover:bg-neutral-soft"
+              >
+                <span className="text-body text-accent-text">{item.title}</span>
+                <span className="text-caption text-muted">{it.prompts.status[item.status]}</span>
+                {run && <RunStateBadge state={run.state} prNumber={run.prNumber} />}
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+      {canWrite && (
+        <Link
+          href={href(`&new=1&task=${task.id}`)}
+          className="inline-flex min-h-touch items-center self-start font-semibold text-accent-text"
+        >
+          {d.writePrompt}
+        </Link>
+      )}
+    </section>
+  );
+}
 
 const t = it.tasks;
 const d = t.detail;
@@ -421,6 +473,8 @@ export function TaskDetail({
           )}
         </ol>
       </section>
+
+      <TaskPrompts projectId={projectId} task={task} canWrite={canEdit} />
 
       <p className="text-footnote text-muted">{d.commentsLater}</p>
     </div>

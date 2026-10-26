@@ -26,7 +26,11 @@ import { projectsKey, useProject, useProjects, type ProjectSummary } from '@/lib
 import { cn } from '@/lib/cn';
 import { it } from '@/lib/i18n/it';
 import { ProjectMenu } from './ProjectMenu';
+import { RunClosedToasts } from './prompts/RunClosedToasts';
+import { ProjectLiveProvider } from '@/lib/client/projectLive';
 import { TasksTab } from './tasks/TasksTab';
+import { PromptsTab } from './prompts/PromptsTab';
+import { StatusTab } from './prompts/StatusTab';
 
 const p = it.projects2;
 type Tab = 'task' | 'prompt' | 'status';
@@ -222,10 +226,6 @@ function ProjectDetailView({
     );
   }
   const data = project.data;
-  const placeholders: Record<Exclude<Tab, 'task'>, string> = {
-    prompt: p.comingSoonPrompt,
-    status: p.comingSoonStatus,
-  };
   return (
     <section aria-labelledby="project-title" className="flex flex-col gap-4">
       <GlassCard className="flex flex-col gap-3">
@@ -276,20 +276,25 @@ function ProjectDetailView({
           </p>
         )}
       </GlassCard>
-      <Tabs<Tab>
-        label={p.tabsLabel}
-        value={tab}
-        onChange={onTab}
-        idPrefix="project"
-        tabs={TABS.map((value) => ({ value, label: p.tabs[value] }))}
-      />
-      <TabPanel idPrefix="project" value={tab}>
-        {tab === 'task' ? (
-          <TasksTab project={data} />
-        ) : (
-          <EmptyState title={p.tabs[tab]} body={placeholders[tab as Exclude<Tab, 'task'>]} />
-        )}
-      </TabPanel>
+      <ProjectLiveProvider projectId={data.id}>
+        <RunClosedToasts project={data} />
+        <Tabs<Tab>
+          label={p.tabsLabel}
+          value={tab}
+          onChange={onTab}
+          idPrefix="project"
+          tabs={TABS.map((value) => ({ value, label: p.tabs[value] }))}
+        />
+        <TabPanel idPrefix="project" value={tab}>
+          {tab === 'task' ? (
+            <TasksTab project={data} />
+          ) : tab === 'prompt' ? (
+            <PromptsTab project={data} />
+          ) : (
+            <StatusTab project={data} />
+          )}
+        </TabPanel>
+      </ProjectLiveProvider>
       <ProjectMenu project={data} open={menuOpen} onOpenChange={setMenuOpen} />
     </section>
   );

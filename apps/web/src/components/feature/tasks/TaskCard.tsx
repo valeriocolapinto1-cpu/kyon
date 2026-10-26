@@ -12,11 +12,12 @@ import { ACCENTS, type AccentId } from '@kyon/core';
 import { Avatar } from '@/components/ui/Avatar';
 import { Menu, type MenuEntry } from '@/components/ui/Menu';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
+import { RunStateBadge } from '@/components/feature/prompts/RunState';
 import type { TaskItem } from '@/lib/client/tasks';
 import { cn } from '@/lib/cn';
 import { formatDayShort } from '@/lib/format/day';
 import { it } from '@/lib/i18n/it';
-import { InlineText, plainText } from './InlineText';
+import { InlineText, plainText } from '@/components/ui/InlineText';
 
 const c = it.tasks.card;
 
@@ -136,6 +137,7 @@ export function TaskCard({
             task.dueDate ||
             task.labels.length > 0 ||
             subtasks.total > 0 ||
+            task.run ||
             task.assignee) && (
             <span className="flex flex-wrap items-center gap-1.5">
               {task.priority !== 'none' && <PriorityBadge priority={task.priority} />}
@@ -151,6 +153,9 @@ export function TaskCard({
                     {subtasks.done}/{subtasks.total}
                   </span>
                 </span>
+              )}
+              {task.run && task.run.state !== 'abandoned' && (
+                <RunStateBadge state={task.run.state} prNumber={task.run.prNumber} compact />
               )}
               {task.assignee && (
                 <span className="ml-auto">
