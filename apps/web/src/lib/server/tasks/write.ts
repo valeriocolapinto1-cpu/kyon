@@ -132,17 +132,18 @@ function locate(meta: typeof taskMeta.$inferSelect, parsed: ParsedFile) {
   return task;
 }
 
-async function logEvent(
+export async function logEvent(
   db: Db,
   projectId: string,
   actorId: string,
   type: string,
-  payload: Record<string, unknown>,
+  payload: Record<string, unknown> & { taskId?: string },
 ) {
   await db.insert(activityEvent).values({
     id: crypto.randomUUID(),
     projectId,
     actorId,
+    taskId: payload.taskId ?? null,
     type,
     payload: JSON.stringify(payload),
     createdAt: new Date(),

@@ -26,8 +26,8 @@ export function normalizeEmail(email: string): string {
 }
 
 async function pbkdf2(
-  secret: Uint8Array<ArrayBuffer>,
-  salt: Uint8Array<ArrayBuffer>,
+  secret: BufferSource,
+  salt: BufferSource,
   iterations: number,
 ): Promise<Uint8Array> {
   const key = await crypto.subtle.importKey('raw', secret, 'PBKDF2', false, ['deriveBits']);

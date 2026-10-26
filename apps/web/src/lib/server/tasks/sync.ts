@@ -3,6 +3,7 @@ import { classifyPath, parseTasks } from '@kyon/core';
 import type { Db } from '@/db/client';
 import { project, projectSync, taskFile } from '@/db/schema';
 import { ApiError } from '../errors';
+import { publishTasks } from '../realtime';
 import { GitHubError } from '../github/client';
 import { getFile, getTree } from '../github/files';
 import { parseIgnoreGlobs, parsePlanKeywords, readBranch, repoAccess } from './access';
@@ -119,6 +120,7 @@ export async function syncProject(
       .insert(projectSync)
       .values({ projectId, ...values })
       .onConflictDoUpdate({ target: projectSync.projectId, set: values });
+    if (toFetch.length || removed.length) await publishTasks(env, projectId, actorId);
     return {
       unchanged: false,
       fetched: toFetch.length,

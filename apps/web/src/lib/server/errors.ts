@@ -9,6 +9,7 @@ export type ApiErrorCode =
   | 'invalid_invite'
   | 'too_large'
   | 'unsupported_type'
+  | 'unavailable'
   | 'internal';
 
 const STATUS: Record<ApiErrorCode, number> = {
@@ -21,6 +22,7 @@ const STATUS: Record<ApiErrorCode, number> = {
   invalid_invite: 400,
   too_large: 413,
   unsupported_type: 415,
+  unavailable: 503,
   internal: 500,
 };
 
@@ -34,6 +36,7 @@ const MESSAGES: Record<ApiErrorCode, string> = {
   invalid_invite: 'Questo invito non è valido o è scaduto.',
   too_large: 'Il file supera il limite consentito.',
   unsupported_type: 'Questo tipo di file non è supportato.',
+  unavailable: 'Servizio non disponibile in questo momento.',
   internal: 'Qualcosa è andato storto. Riprova tra un attimo.',
 };
 

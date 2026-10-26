@@ -119,6 +119,7 @@ export async function applyParsedFile(
         id: crypto.randomUUID(),
         projectId,
         actorId,
+        taskId: id,
         type: task.done ? 'task_completed' : 'task_reopened',
         payload: JSON.stringify({
           taskId: id,

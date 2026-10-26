@@ -3,3 +3,4 @@ export * from './glob';
 export * from './parse';
 export * from './edit';
 export * from './reconcile';
+export * from './board';

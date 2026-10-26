@@ -13,6 +13,7 @@ import * as projectRoutes from './routes/project';
 import * as projects from './routes/projects';
 import * as repos from './routes/repos';
 import * as tasks from './routes/tasks';
+import * as realtime from './routes/realtime';
 import * as internal from './routes/internal';
 import * as avatarFile from './routes/avatarFile';
 import * as health from './routes/health';
@@ -69,6 +70,12 @@ const routes: [string, Module][] = [
   ['/api/projects/:id/archive', { POST: projectRoutes.archiveRoute }],
   ['/api/projects/:id/tasks', tasks],
   ['/api/projects/:id/tasks/:taskId', { PATCH: tasks.patchTask }],
+  ['/api/projects/:id/tasks/:taskId/history', { GET: tasks.history }],
+  ['/api/projects/:id/columns', { POST: tasks.columns }],
+  ['/api/projects/:id/columns/:columnId', { PATCH: tasks.patchColumn, DELETE: tasks.removeColumn }],
+  ['/api/projects/:id/labels', { POST: tasks.labels }],
+  ['/api/projects/:id/labels/:labelId', { PATCH: tasks.patchLabel, DELETE: tasks.removeLabel }],
+  ['/api/realtime/ticket', realtime],
   ['/api/projects/:id/sync', { POST: tasks.sync }],
   ['/api/projects/:id/tasks-file', { POST: tasks.tasksFile }],
   ['/api/internal/cron', { POST: internal.cron }],

@@ -24,8 +24,10 @@ declare global {
     /** Overrides for tests/e2e (fake GitHub server). Unset in production. */
     GITHUB_API_URL?: string;
     GITHUB_WEB_URL?: string;
-    /** Shared with the cron Worker: authenticates POST /api/internal/cron. */
+    /** Shared with the cron and realtime Workers: cron calls, room broadcasts, realtime tickets. */
     INTERNAL_SECRET?: string;
+    /** Development only: base URL of the realtime Worker (e.g. ws://localhost:8788). */
+    REALTIME_URL?: string;
     /** Workers rate limiting bindings. */
     AUTH_LIMITER: RateLimit;
     WRITE_LIMITER: RateLimit;

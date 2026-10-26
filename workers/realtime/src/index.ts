@@ -1,4 +1,5 @@
 import type { RealtimeEnv } from './room';
+import { routeToRoom } from './route';
 
 export { ProjectRoom, GeneralRoom } from './room';
 
@@ -8,10 +9,6 @@ export default {
     if (url.pathname === '/health') {
       return Response.json({ ok: true });
     }
-    if (url.pathname === '/general') {
-      const stub = env.GENERAL_ROOM.get(env.GENERAL_ROOM.idFromName('general'));
-      return stub.fetch(request);
-    }
-    return new Response('Not found', { status: 404 });
+    return routeToRoom(request, env) ?? new Response('Not found', { status: 404 });
   },
 } satisfies ExportedHandler<RealtimeEnv>;

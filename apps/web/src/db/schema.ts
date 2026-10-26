@@ -335,10 +335,15 @@ export const activityEvent = sqliteTable(
     projectId: text('project_id').references(() => project.id, { onDelete: 'cascade' }),
     /** null when the change came from GitHub (a push) or the system. */
     actorId: text('actor_id').references(() => user.id, { onDelete: 'set null' }),
+    /** The task it is about, if any (task history in the detail panel). */
+    taskId: text('task_id'),
     type: text('type').notNull(),
     /** JSON payload, shape depends on type. */
     payload: text('payload').notNull(),
     createdAt: timestamp('created_at').notNull().default(now),
   },
-  (t) => [index('activity_project_idx').on(t.projectId, t.createdAt)],
+  (t) => [
+    index('activity_project_idx').on(t.projectId, t.createdAt),
+    index('activity_task_idx').on(t.taskId, t.createdAt),
+  ],
 );
