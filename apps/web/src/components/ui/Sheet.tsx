@@ -38,6 +38,20 @@ export function Sheet({
   const desktop = useMediaQuery('(min-width: 768px)');
   const reduced = useReducedMotion();
   const titleRef = useRef<HTMLHeadingElement>(null);
+  // Where focus was when the sheet opened. A sheet opened from the URL has no trigger: then
+  // focus goes back to the main content instead of getting lost on <body>.
+  const origin = useRef<HTMLElement | null>(null);
+  const restoreFocus = (event: Event) => {
+    if (onCloseAutoFocus) onCloseAutoFocus(event);
+    else {
+      const target = origin.current;
+      if (!target || target === document.body || !target.isConnected) {
+        event.preventDefault();
+        document.getElementById('contenuto')?.focus();
+      }
+    }
+    origin.current = null;
+  };
   const dragControls = useDragControls();
 
   const onDragEnd = (_: unknown, info: PanInfo) => {
@@ -61,8 +75,11 @@ export function Sheet({
             <Dialog.Content
               asChild
               forceMount
-              onCloseAutoFocus={onCloseAutoFocus}
+              onCloseAutoFocus={restoreFocus}
               onOpenAutoFocus={(event) => {
+                // Called before focus moves in: activeElement is still the origin.
+                origin.current =
+                  document.activeElement instanceof HTMLElement ? document.activeElement : null;
                 event.preventDefault();
                 titleRef.current?.focus();
               }}

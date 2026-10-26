@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { useEffect, useRef } from 'react';
 import { moveId, type Priority, type RunState } from '@kyon/core';
 import { api } from './api';
 
@@ -179,4 +180,24 @@ export async function sendPatch(
 export function useInvalidateTasks(projectId: string) {
   const queryClient = useQueryClient();
   return () => queryClient.invalidateQueries({ queryKey: tasksKey(projectId) });
+}
+
+/**
+ * A project that was never read from GitHub reads itself once, whichever tab opens first
+ * (the Task tab shows its own progress for it).
+ */
+export function useFirstSync(
+  project: { id: string; repo: { available: boolean } | null },
+  data: TasksData | undefined,
+) {
+  const queryClient = useQueryClient();
+  const started = useRef(false);
+  useEffect(() => {
+    if (!data || data.sync.everSynced || started.current || !project.repo?.available) return;
+    started.current = true;
+    api<TasksData>(`/api/projects/${project.id}/sync`, { method: 'POST' }).then(
+      (next) => queryClient.setQueryData(tasksKey(project.id), next),
+      (error: unknown) => console.warn('first sync failed', error),
+    );
+  }, [data, project.id, project.repo?.available, queryClient]);
 }

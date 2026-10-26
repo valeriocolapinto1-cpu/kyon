@@ -4,7 +4,7 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 6 — Prompt, esecuzioni e tracciamento PR; scheda Status** (da iniziare).
+**Fase 7 — Realtime, chat e thread** (da iniziare).
 
 | Fase | Titolo                                          | Stato      |
 | ---- | ----------------------------------------------- | ---------- |
@@ -14,8 +14,8 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 | 3    | GitHub, repo, visibilità, progetti, membri      | ✅ fatta   |
 | 4    | Motore task da `.md`                            | ✅ fatta   |
 | 5    | Pagina progetto: Task                           | ✅ fatta   |
-| 6    | Prompt, esecuzioni, tracciamento PR; Status     | ⏭ prossima |
-| 7    | Realtime, chat e thread                         | —          |
+| 6    | Prompt, esecuzioni, tracciamento PR; Status     | ✅ fatta   |
+| 7    | Realtime, chat e thread                         | ⏭ prossima |
 | 8    | Home, Progetti, Chat, Persone, ricerca, extra   | —          |
 | 9    | Notifiche                                       | —          |
 | 10   | PWA offline, hardening, rilascio                | —          |
@@ -40,6 +40,7 @@ Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 | 3    | 1597,4 KiB | 0,6 KiB       | 0,4 KiB   | + GitHub, repo, progetti (tutto nel router unico)                                                                   |
 | 4    | 1606,8 KiB | 0,6 KiB       | 0,7 KiB   | + motore task, sync, scritture; cron chiama il web via service binding                                              |
 | 5    | 1669,4 KiB | 1,8 KiB       | 0,7 KiB   | + metadati, colonne, etichette, cronologia, ticket realtime; entry del Worker per i WebSocket                       |
+| 6    | 1697,7 KiB | 1,8 KiB       | 0,7 KiB   | + prompt, versioni, template, esecuzioni, webhook PR/CI, Status, CLAUDE.md                                          |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -71,6 +72,43 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 2    | `/login`              | 96          | 100           | 100            |
 
 ## Log delle fasi
+
+### Fase 6 — Prompt, esecuzioni e tracciamento PR; scheda Status ✅ (2026-10-26)
+
+Fatto:
+
+- **Logica pura in `packages/core/src/prompts`** con test: ID di esecuzione (8 caratteri leggibili, senza 0/o/1/l/i, estrazione senza bias), **marcatore `Kyon-Run: <id>`** con regex rigorosa (riga intera; tollerati maiuscole, spazi, elenco/citazione, backtick, grassetto; rifiutati ID dentro una frase, lunghezze sbagliate, caratteri fuori alfabeto; più commit), variabili `{{project}} {{repo}} {{task}} {{file}} {{section}} {{branch}} {{assignee}} {{subtasks}} {{run_id}}` (sconosciute lasciate e segnalate, note vuote = "(nessuno)"), **4 template predefiniti**, blocco automatico finale con la riga del marcatore **sempre presente e su una riga da sola**, stato esecuzione da PR + check (`copied → pr_open → ci_running/ci_failed/ci_passed → merged`, `closed`, `abandoned`), timeline, **suggerimento di ripiego** (dopo la copia, branch, titolo/descrizione, autore), diff a righe, generatore di `CLAUDE.md`.
+- **Dati** (migrazione `0005_prompts`): `prompt`, `prompt_version`, `prompt_template`, `prompt_run` (con il testo copiato esatto e la versione fissata). Il blocco automatico dell'admin sta in `app_meta`.
+- **Scheda Prompt**: elenco per task, editor Markdown (monospazio, Cmd/Ctrl+S), inserimento variabili, anteprima con variabili sconosciute evidenziate, stato bozza/pronto/usato, **versioni** (chi, quando, differenze, ripristino come nuova versione), template (Kyon, gruppo, progetto, personali; "Salva come template"), **"Copia prompt per Claude"**: crea l'esecuzione, fissa la versione, sposta la task in **In corso**, copia negli appunti (anche su Safari, con `ClipboardItem` e una promessa; altrimenti foglio per copiare a mano), **avviso morbido** se qualcun altro ci sta già lavorando.
+- **Esecuzioni**: timeline (Copiato → PR aperta → CI → Mergiata), PR collegata con esito CI e fonte del collegamento, note sul risultato, "Copia di nuovo", **"Verifica stato PR"**, **collegamento manuale**, **suggerimento con conferma**, abbandona, **"Annulla chiusura"**.
+- **Webhook**: `pull_request` (marcatore nella descrizione, altrimenti nei trailer dei commit della PR, letti solo se qualche esecuzione aspetta ancora), `check_suite`/`check_run` (CI dal commit di testa), `push` (commit con marcatore → branch dell'esecuzione, PR già aperta collegata subito). **Merge di una PR collegata con certezza** (marcatore, suggerimento confermato o manuale) → task spuntata nella repo (un commit, a nome di chi ha lanciato l'esecuzione se è ancora membro, altrimenti del proprietario), colonna Fatto, eventi in cronologia, toast **"PR mergiata — Annulla chiusura"** a chi l'ha lanciata. PR chiusa senza merge → la task resta in corso con avviso. Riconsegne del webhook innocue.
+- **Card del kanban** con lo stato dell'ultima esecuzione (icona + testo nascosto, mai solo colore). **Dettaglio task**: prompt ed esecuzioni della task e "Scrivi un prompt per Claude".
+- **Scheda Status**: CI del branch, PR aperte con CI, commit recenti, issue aperte (dati GitHub in cache all'edge per 60 s: `caches.default`, nessuna quota), task completate di recente e storico da Kyon; "Sincronizza ora" salta la cache.
+- **"Genera CLAUDE.md"**: anteprima, copia, scarica, **scrivi nella repo solo dopo conferma** e mai sopra un `CLAUDE.md` esistente.
+- **Admin → "Blocco automatico dei prompt"** (permesso `admin:prompts` nella tabella di verità di `can()`).
+- Realtime: un solo WebSocket per progetto (`ProjectLiveProvider`) condiviso dalle schede; nuovo evento `runs_changed`.
+- GitHub finto: PR con autore, commit e SHA di testa, merge/chiusura/riapertura, check run, issue, elenco commit; i comandi di test restituiscono il webhook da consegnare (firmato dal test).
+- Test: 538 unit/integrazione (10 sul ciclo completo: versioni e ripristino, copia con versione fissata e spostamento, avviso morbido, collegamento dal trailer, CI in corso/fallita/superata, merge → spunta → riconsegna innocua → annulla, suggerimento e conferma, PR chiusa, verifica dopo webhook perso, template, blocco admin, Status, CLAUDE.md, permessi); e2e **101/101** con axe su Prompt e Status: **ciclo completo prompt → copia (appunti) → PR col marcatore → CI → merge → task chiusa → annulla** su mobile, tablet e desktop, più collegamento manuale e verifica.
+
+Decisioni:
+
+- ID di 8 caratteri invece di 6 (esempio della specifica): circa 8,5·10¹¹ combinazioni, non indovinabili, ancora facili da leggere.
+- Il marcatore nel prompt sta su una riga da sola: così Claude lo copia identico (dentro una frase rischiava di essere riformulato).
+- Un prompt sopravvive alla sparizione della sua task dalla repo (`task_id` a `null`, "La task non c'è più"): è lavoro da non perdere.
+- Il suggerimento di ripiego compare dopo 2 minuti dalla copia (prima la PR non può esistere) e solo nella scheda Prompt; la conferma è sempre di una persona.
+- La chiusura automatica usa il token di chi ha lanciato l'esecuzione (se vede la repo), altrimenti di chi l'ha esposta, con trailer `Co-authored-by` come per le altre scritture.
+
+Correzioni trovate dai test:
+
+- Due aggiornamenti dell'URL costruiti dagli stessi parametri si sovrascrivevano ("Crea prompt" perdeva il prompt selezionato).
+- Aprire un progetto direttamente sulla scheda Prompt non faceva la prima sincronizzazione (`useFirstSync` condiviso).
+- I fogli aperti dall'URL perdevano il focus alla chiusura: ora `Sheet` lo riporta al contenuto principale se l'origine non c'è più.
+
+Debito tecnico / da controllare:
+
+- Notifiche (PR collegata, CI fallita, merge) arrivano in Fase 9; gli eventi sono già in `activity_event`.
+- Home "esecuzioni in corso" in Fase 8.
+- Su iPhone reale va provata la copia negli appunti (Safari) dopo la richiesta al server.
 
 ### Fase 5 — Pagina progetto: Task ✅ (2026-10-26)
 

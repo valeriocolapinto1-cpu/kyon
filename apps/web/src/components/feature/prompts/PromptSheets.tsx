@@ -31,6 +31,7 @@ export function NewPromptSheet({
   tasks,
   initialTaskId,
   onCreated,
+  onCloseAutoFocus,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -38,12 +39,21 @@ export function NewPromptSheet({
   tasks: TaskItem[];
   initialTaskId: string | null;
   onCreated: (id: string) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const templates = useTemplates(projectId);
   const choices = [...tasks].sort((a, b) => Number(a.done) - Number(b.done));
-  const [taskId, setTaskId] = useState(initialTaskId ?? choices[0]?.id ?? '');
+  const [picked, setPicked] = useState(initialTaskId ?? '');
+  // Opened again for another task (from a task detail): follow it, without remounting.
+  const [lastInitial, setLastInitial] = useState(initialTaskId);
+  if (lastInitial !== initialTaskId) {
+    setLastInitial(initialTaskId);
+    setPicked(initialTaskId ?? '');
+  }
+  // Tasks may still be loading when the sheet opens: fall back to the first one when they come.
+  const taskId = tasks.some((t) => t.id === picked) ? picked : (choices[0]?.id ?? '');
   const [templateId, setTemplateId] = useState('builtin:implement');
   const [error, setError] = useState<unknown>(null);
   const [saving, setSaving] = useState(false);
@@ -63,8 +73,8 @@ export function NewPromptSheet({
       });
       await queryClient.invalidateQueries({ queryKey: promptsKey(projectId) });
       toast({ tone: 'success', title: p.created });
+      // The parent closes the sheet and updates the URL once (two updates would race).
       onCreated(id);
-      onOpenChange(false);
     } catch (caught) {
       setError(caught);
     } finally {
@@ -73,12 +83,17 @@ export function NewPromptSheet({
   };
 
   return (
-    <Sheet open={open} onOpenChange={onOpenChange} title={p.newPrompt}>
+    <Sheet
+      open={open}
+      onOpenChange={onOpenChange}
+      title={p.newPrompt}
+      onCloseAutoFocus={onCloseAutoFocus}
+    >
       <form onSubmit={submit} className="flex flex-col gap-4">
         <GlassSelect
           label={p.fields.task}
           value={taskId}
-          onChange={(event) => setTaskId(event.target.value)}
+          onChange={(event) => setPicked(event.target.value)}
           options={choices.map((t) => ({
             value: t.id,
             label: `${t.done ? '✓ ' : ''}${plainText(t.text)}`,

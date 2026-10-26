@@ -2,14 +2,14 @@
 
 import { ArrowLeft, FileCode2, Plus, Sparkles } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { InlineText } from '@/components/ui/InlineText';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import type { ProjectDetail } from '@/lib/client/projects';
 import { usePrompts } from '@/lib/client/prompts';
-import { allTasks, useTasks } from '@/lib/client/tasks';
+import { allTasks, useFirstSync, useTasks } from '@/lib/client/tasks';
 import { cn } from '@/lib/cn';
 import { it } from '@/lib/i18n/it';
 import { PromptEditor } from './PromptEditor';
@@ -25,9 +25,11 @@ export function PromptsTab({ project }: { project: ProjectDetail }) {
   const pathname = usePathname();
   const prompts = usePrompts(project.id);
   const tasksQuery = useTasks(project.id);
+  useFirstSync(project, tasksQuery.data);
   const tasks = useMemo(() => allTasks(tasksQuery.data), [tasksQuery.data]);
   const [sheet, setSheet] = useState<null | 'new' | 'claude'>(params.get('new') ? 'new' : null);
   const selectedId = params.get('prompt');
+  const created = useRef(false);
   const canWrite = Boolean(project.permissions['project:write_prompt']);
 
   const set = useCallback(
@@ -141,7 +143,11 @@ export function PromptsTab({ project }: { project: ProjectDetail }) {
                 >
                   <ArrowLeft className="size-5" aria-hidden="true" />
                 </GlassButton>
-                <h3 id="prompt-editor-title" className="text-title3 font-semibold text-fg">
+                <h3
+                  id="prompt-editor-title"
+                  tabIndex={-1}
+                  className="text-title3 font-semibold text-fg outline-none"
+                >
                   {selected.title}
                 </h3>
               </div>
@@ -164,7 +170,6 @@ export function PromptsTab({ project }: { project: ProjectDetail }) {
 
       {canWrite && (
         <NewPromptSheet
-          key={sheet === 'new' ? `open-${params.get('task') ?? ''}` : 'closed'}
           open={sheet === 'new'}
           onOpenChange={(open) => {
             setSheet(open ? 'new' : null);
@@ -173,7 +178,18 @@ export function PromptsTab({ project }: { project: ProjectDetail }) {
           projectId={project.id}
           tasks={tasks}
           initialTaskId={params.get('task')}
-          onCreated={(id) => set({ prompt: id, new: null, task: null })}
+          onCreated={(id) => {
+            created.current = true;
+            setSheet(null);
+            set({ prompt: id, new: null, task: null });
+          }}
+          onCloseAutoFocus={(event) => {
+            if (!created.current) return;
+            // Just created: the keyboard lands on the new prompt's editor.
+            created.current = false;
+            event.preventDefault();
+            requestAnimationFrame(() => document.getElementById('prompt-editor-title')?.focus());
+          }}
         />
       )}
       <ClaudeMdSheet

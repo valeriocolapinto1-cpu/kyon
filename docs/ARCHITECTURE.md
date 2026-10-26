@@ -86,6 +86,20 @@ parseTasks (core) → task_file (snapshot) → reconcile (core) → task_meta + 
 - **Scrittura**: leggi file → `relocate` della task → una riga cambiata (`edit.ts`) → PUT con `sha`; su 409 un solo nuovo tentativo. Dopo il commit il nuovo contenuto viene ri-parsato subito (niente attesa del webhook).
 - **Budget Free**: 1 subrequest per l'albero + 1 per file cambiato (max 30); parse ≈ 2 ms per 30 KB; riconciliazione ≤ 6 ms nel caso peggiore misurato.
 
+## 3quinquies. Prompt, esecuzioni e PR
+
+```
+"Copia prompt per Claude" ─▶ POST /api/prompts/:id/run ─▶ prompt_run (versione fissata, testo esatto, Kyon-Run: <id>)
+                                                        └▶ task in "In corso"
+Claude Code apre la PR ─▶ webhook pull_request ─▶ marcatore (descrizione → trailer dei commit) ─▶ collegata
+check_suite / check_run ─▶ CI del commit di testa ─▶ ci_running / ci_failed / ci_passed
+merge ─▶ setDone (commit) ─▶ Fatto + "Annulla chiusura"   ·   "Verifica stato PR" rilegge tutto da GitHub
+```
+
+- Riconoscimento certo = marcatore, oppure suggerimento confermato da una persona, oppure collegamento manuale: solo allora il merge chiude la task.
+- Budget Free per webhook: al massimo 1 lettura dei commit della PR (solo se qualche esecuzione aspetta) + 1 dei check + 1 commit sulla repo.
+- Status: dati GitHub in `caches.default` per 60 s per progetto (tutti i membri vedono gli stessi dati), storico sempre da D1.
+
 ## 4. Realtime (attivo dalla Fase 5 per le task)
 
 ```
