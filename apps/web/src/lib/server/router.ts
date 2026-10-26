@@ -15,6 +15,7 @@ import * as repos from './routes/repos';
 import * as tasks from './routes/tasks';
 import * as realtime from './routes/realtime';
 import * as prompts from './routes/prompts';
+import * as chat from './routes/chat';
 import * as internal from './routes/internal';
 import * as avatarFile from './routes/avatarFile';
 import * as health from './routes/health';
@@ -93,6 +94,20 @@ const routes: [string, Module][] = [
   ['/api/templates', { GET: prompts.templates, POST: prompts.createTemplateRoute }],
   ['/api/templates/:templateId', { PATCH: prompts.patchTemplate, DELETE: prompts.removeTemplate }],
   ['/api/admin/prompt-footer', prompts.footer],
+  ['/api/chat/rooms', { GET: chat.rooms }],
+  ['/api/chat/rooms/:roomId', { PATCH: chat.room }],
+  ['/api/chat/rooms/:roomId/messages', { GET: chat.messages, POST: chat.send }],
+  ['/api/chat/rooms/:roomId/pins', { GET: chat.pins }],
+  ['/api/chat/rooms/:roomId/read', { POST: chat.read }],
+  ['/api/chat/rooms/:roomId/mute', chat.mute],
+  ['/api/chat/rooms/:roomId/attachments', { PUT: chat.upload }],
+  ['/api/chat/messages/:messageId', chat.message],
+  ['/api/chat/messages/:messageId/reactions', { POST: chat.reaction }],
+  ['/api/chat/messages/:messageId/pin', chat.pin],
+  ['/api/chat/search', { GET: chat.search }],
+  ['/api/chat/preview', { GET: chat.preview }],
+  ['/api/projects/:id/threads', { POST: chat.threads }],
+  ['/api/files/chat/:id', { GET: chat.file }],
   ['/api/projects/:id/sync', { POST: tasks.sync }],
   ['/api/projects/:id/tasks-file', { POST: tasks.tasksFile }],
   ['/api/internal/cron', { POST: internal.cron }],

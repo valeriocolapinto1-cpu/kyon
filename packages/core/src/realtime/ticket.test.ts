@@ -27,3 +27,26 @@ describe('realtime tickets', () => {
       expect(await verifyTicket(secret, bad, 'project:p1', 1_000)).toBeNull();
   });
 });
+
+import { parseClientMessage } from './events';
+
+describe('client socket messages', () => {
+  it('accepts only well-formed typing notices', () => {
+    expect(parseClientMessage('{"type":"typing","roomId":"project:abc-1"}')).toEqual({
+      type: 'typing',
+      roomId: 'project:abc-1',
+    });
+    expect(parseClientMessage('{"type":"typing","roomId":"general"}')).toEqual({
+      type: 'typing',
+      roomId: 'general',
+    });
+    for (const bad of [
+      '',
+      'ping',
+      '{"type":"message"}',
+      '{"type":"typing","roomId":"<x>"}',
+      `{"type":"typing","roomId":"${'a'.repeat(300)}"}`,
+    ])
+      expect(parseClientMessage(bad)).toBeNull();
+  });
+});

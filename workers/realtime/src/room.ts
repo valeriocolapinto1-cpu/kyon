@@ -1,5 +1,5 @@
 import { DurableObject } from 'cloudflare:workers';
-import { INTERNAL_HEADER, ROOM_HEADER, verifyTicket } from '@kyon/core';
+import { INTERNAL_HEADER, ROOM_HEADER, parseClientMessage, verifyTicket } from '@kyon/core';
 
 export interface RealtimeEnv {
   DB: D1Database;
@@ -20,7 +20,8 @@ interface Attachment {
  * - `GET /connect?ticket=…` (WebSocket upgrade): the ticket is signed by the web Worker after
  *   the session and permission checks; here only the signature, room and expiry are verified.
  * - `POST /broadcast` (from the web Worker, with the internal secret): sends the body to every
- *   socket. Chat storage arrives in Fase 7.
+ *   socket (chat messages are stored in D1 by the web Worker, rooms only fan out).
+ * - Presence (who is connected) and "sta scrivendo" live only here, never stored.
  */
 abstract class Room extends DurableObject<RealtimeEnv> {
   override async fetch(request: Request): Promise<Response> {
@@ -33,13 +34,8 @@ abstract class Room extends DurableObject<RealtimeEnv> {
       const body = await request.text();
       let sent = 0;
       for (const ws of this.ctx.getWebSockets()) {
-        try {
-          ws.send(body);
-          sent++;
-        } catch (error) {
-          // A socket closing right now: it will be cleaned up by webSocketClose.
-          console.warn('broadcast to closing socket', error);
-        }
+        this.trySend(ws, body);
+        sent++;
       }
       return Response.json({ sent });
     }
@@ -51,16 +47,48 @@ abstract class Room extends DurableObject<RealtimeEnv> {
     const pair = new WebSocketPair();
     this.ctx.acceptWebSocket(pair[1], [ticket.userId]);
     pair[1].serializeAttachment({ userId: ticket.userId } satisfies Attachment);
+    this.broadcastPresence();
     return new Response(null, { status: 101, webSocket: pair[0] });
   }
 
   override async webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): Promise<void> {
-    // Clients only ping for now (keeps mobile networks from dropping idle sockets).
-    if (message === 'ping') ws.send('pong');
+    // Keeps mobile networks from dropping idle sockets.
+    if (message === 'ping') return ws.send('pong');
+    if (typeof message !== 'string') return;
+    const parsed = parseClientMessage(message);
+    if (!parsed) return;
+    // "sta scrivendo": relayed to the others, never stored. The user id comes from the ticket.
+    const { userId } = ws.deserializeAttachment() as Attachment;
+    const event = JSON.stringify({ type: 'typing', roomId: parsed.roomId, userId });
+    for (const other of this.ctx.getWebSockets()) if (other !== ws) this.trySend(other, event);
   }
 
   override async webSocketClose(ws: WebSocket, code: number, reason: string): Promise<void> {
     ws.close(code, reason);
+    this.broadcastPresence(ws);
+  }
+
+  override async webSocketError(ws: WebSocket): Promise<void> {
+    this.broadcastPresence(ws);
+  }
+
+  private trySend(ws: WebSocket, data: string) {
+    try {
+      ws.send(data);
+    } catch (error) {
+      // A socket closing right now: it will be cleaned up by webSocketClose.
+      console.warn('send to closing socket', error);
+    }
+  }
+
+  /** Who is connected (each user once), to everyone. `leaving` is excluded while it closes. */
+  private broadcastPresence(leaving?: WebSocket) {
+    const sockets = this.ctx.getWebSockets().filter((ws) => ws !== leaving);
+    const userIds = [
+      ...new Set(sockets.map((ws) => (ws.deserializeAttachment() as Attachment | null)?.userId)),
+    ].filter((id): id is string => Boolean(id));
+    const event = JSON.stringify({ type: 'presence', userIds });
+    for (const ws of sockets) this.trySend(ws, event);
   }
 }
 

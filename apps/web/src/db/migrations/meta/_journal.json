@@ -43,6 +43,20 @@
       "when": 1793032158138,
       "tag": "0005_prompts",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793047112014,
+      "tag": "0006_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793047113061,
+      "tag": "0007_chat_search",
+      "breakpoints": true
     }
   ]
 }

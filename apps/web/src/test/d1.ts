@@ -8,7 +8,11 @@ const migrationsDir = path.resolve(here, '..', 'db', 'migrations');
 const wranglerConfig = path.resolve(here, '..', '..', 'wrangler.jsonc');
 
 /** A fresh in-memory D1 (real SQLite semantics via workerd) with every migration applied. */
-export async function createTestD1(): Promise<{ db: D1Database; dispose: () => Promise<void> }> {
+export async function createTestD1(): Promise<{
+  db: D1Database;
+  files: R2Bucket;
+  dispose: () => Promise<void>;
+}> {
   // Same bindings as the real Worker, in memory (persist: false).
   const proxy = await getPlatformProxy<CloudflareEnv>({
     configPath: wranglerConfig,
@@ -25,7 +29,7 @@ export async function createTestD1(): Promise<{ db: D1Database; dispose: () => P
       if (trimmed) await db.prepare(trimmed).run();
     }
   }
-  return { db, dispose: () => proxy.dispose() };
+  return { db, files: proxy.env.FILES, dispose: () => proxy.dispose() };
 }
 
 /** In-memory rate limiter with the same interface as the Workers binding. */

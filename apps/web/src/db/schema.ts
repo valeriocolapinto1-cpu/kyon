@@ -451,3 +451,121 @@ export const promptRun = sqliteTable(
     index('prompt_run_sha_idx').on(t.prHeadSha),
   ],
 );
+
+// ---------- Chat ----------
+
+/**
+ * A conversation: the group chat (`general`), a project's chat (`project:<id>`), a project
+ * discussion with a title (`thread:<uuid>`) or a task's comments (`task:<task_meta id>`).
+ */
+export const chatRoom = sqliteTable(
+  'chat_room',
+  {
+    id: text('id').primaryKey(),
+    /** general | project | thread | task */
+    kind: text('kind').notNull(),
+    projectId: text('project_id').references(() => project.id, { onDelete: 'cascade' }),
+    taskId: text('task_id').references(() => taskMeta.id, { onDelete: 'set null' }),
+    title: text('title'),
+    createdBy: text('created_by').references(() => user.id, { onDelete: 'set null' }),
+    /** Highest message seq: the order of a room is decided here, atomically. */
+    lastSeq: integer('last_seq').notNull().default(0),
+    lastMessageAt: timestamp('last_message_at'),
+    createdAt: timestamp('created_at').notNull().default(now),
+  },
+  (t) => [index('chat_room_project_idx').on(t.projectId, t.lastMessageAt)],
+);
+
+export const chatMessage = sqliteTable(
+  'chat_message',
+  {
+    id: text('id').primaryKey(),
+    roomId: text('room_id')
+      .notNull()
+      .references(() => chatRoom.id, { onDelete: 'cascade' }),
+    seq: integer('seq').notNull(),
+    /** Sender's id for this message: a retry with the same id is not stored twice. */
+    clientId: text('client_id').notNull(),
+    authorId: text('author_id').references(() => user.id, { onDelete: 'set null' }),
+    body: text('body').notNull(),
+    replyToId: text('reply_to_id'),
+    /** JSON string[] of mentioned user ids. */
+    mentions: text('mentions').notNull().default('[]'),
+    editedAt: timestamp('edited_at'),
+    deletedAt: timestamp('deleted_at'),
+    createdAt: timestamp('created_at').notNull().default(now),
+  },
+  (t) => [
+    uniqueIndex('chat_message_seq_idx').on(t.roomId, t.seq),
+    uniqueIndex('chat_message_client_idx').on(t.roomId, t.clientId),
+  ],
+);
+
+export const chatReaction = sqliteTable(
+  'chat_reaction',
+  {
+    messageId: text('message_id')
+      .notNull()
+      .references(() => chatMessage.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    emoji: text('emoji').notNull(),
+    createdAt: timestamp('created_at').notNull().default(now),
+  },
+  (t) => [uniqueIndex('chat_reaction_idx').on(t.messageId, t.userId, t.emoji)],
+);
+
+export const chatPin = sqliteTable(
+  'chat_pin',
+  {
+    roomId: text('room_id')
+      .notNull()
+      .references(() => chatRoom.id, { onDelete: 'cascade' }),
+    messageId: text('message_id')
+      .notNull()
+      .references(() => chatMessage.id, { onDelete: 'cascade' }),
+    pinnedBy: text('pinned_by').references(() => user.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at').notNull().default(now),
+  },
+  (t) => [uniqueIndex('chat_pin_idx').on(t.roomId, t.messageId)],
+);
+
+/** Per user and room: last message read, and whether the room is muted. */
+export const chatMember = sqliteTable(
+  'chat_member',
+  {
+    roomId: text('room_id')
+      .notNull()
+      .references(() => chatRoom.id, { onDelete: 'cascade' }),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    lastReadSeq: integer('last_read_seq').notNull().default(0),
+    muted: integer('muted', { mode: 'boolean' }).notNull().default(false),
+  },
+  (t) => [uniqueIndex('chat_member_idx').on(t.roomId, t.userId)],
+);
+
+/** Files in R2 (`chat/<room>/<id>`), served only through the Worker after a permission check. */
+export const attachment = sqliteTable(
+  'attachment',
+  {
+    id: text('id').primaryKey(),
+    roomId: text('room_id')
+      .notNull()
+      .references(() => chatRoom.id, { onDelete: 'cascade' }),
+    /** Null until the message that carries it is sent. */
+    messageId: text('message_id').references(() => chatMessage.id, { onDelete: 'cascade' }),
+    uploaderId: text('uploader_id').references(() => user.id, { onDelete: 'set null' }),
+    key: text('key').notNull(),
+    name: text('name').notNull(),
+    mime: text('mime').notNull(),
+    size: integer('size').notNull(),
+    width: integer('width'),
+    height: integer('height'),
+    alt: text('alt'),
+    createdAt: timestamp('created_at').notNull().default(now),
+  },
+  (t) => [index('attachment_message_idx').on(t.messageId)],
+);
