@@ -15,6 +15,8 @@ export interface Me {
   /** null until the user saves preferences from any device. */
   preferences: Preferences | null;
   homeLayout: unknown;
+  /** Null until the welcome tour is finished or skipped. */
+  tourDoneAt: string | null;
   createdAt: string;
 }
 
@@ -49,6 +51,7 @@ export async function getMe(db: Db, id: string): Promise<Me> {
     avatarUrl: avatarUrl(row.id, row.avatarKey),
     preferences: prefs ? sanitizePreferences(prefs) : null,
     homeLayout: parseJsonColumn(row.homeLayout),
+    tourDoneAt: row.tourDoneAt?.toISOString() ?? null,
     createdAt: row.createdAt.toISOString(),
   };
 }

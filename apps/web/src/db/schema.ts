@@ -33,6 +33,12 @@ export const user = sqliteTable('user', {
   preferences: text('preferences'),
   /** JSON: ordered, visible Home blocks. */
   homeLayout: text('home_layout'),
+  /** JSON { path, title, at }: "Ritorna dove hai lasciato" across devices. */
+  lastLocation: text('last_location'),
+  /** Set when the welcome tour is finished or skipped. */
+  tourDoneAt: timestamp('tour_done_at'),
+  /** SHA-256 of the secret in the .ics feed URL (null: no feed). */
+  icsTokenHash: text('ics_token_hash').unique(),
 });
 
 export const session = sqliteTable(

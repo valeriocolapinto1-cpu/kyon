@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BellOff, Hash, MessagesSquare, Plus, Users } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
@@ -15,6 +16,7 @@ import { plainText } from '@/components/ui/InlineText';
 import { ApiClientError, api } from '@/lib/client/api';
 import { liveQueryFor, roomsKey, useRooms, type RoomItem } from '@/lib/client/chat';
 import { useLiveSource } from '@/lib/client/live';
+import { useGroupLive } from '@/lib/client/presence';
 import { cn } from '@/lib/cn';
 import { useFillHeight } from '@/lib/hooks/useFillHeight';
 import { it } from '@/lib/i18n/it';
@@ -134,7 +136,12 @@ export function ChatView() {
   const [newThreadFor, setNewThreadFor] = useState<string | null>(null);
   const roomId = params.get('room');
   const selected = rooms.data?.find((r) => r.id === roomId) ?? null;
-  const live = useLiveSource(liveQueryFor(selected));
+  // The group chat reuses the app-wide group socket (presence lives there too).
+  const group = useGroupLive();
+  const query = liveQueryFor(selected);
+  const isGroup = query === 'room=general';
+  const own = useLiveSource(isGroup ? null : query);
+  const live = isGroup ? group.live : own;
   const pane = useRef<HTMLDivElement>(null);
   const fill = useFillHeight(pane, Boolean(selected));
   const open = (id: string | null) =>
@@ -163,6 +170,12 @@ export function ChatView() {
           </li>
         ))}
       </ul>
+      <Link
+        href="/persone"
+        className="mt-2 flex min-h-touch items-center gap-2 rounded-control px-3 text-subhead font-semibold text-accent-text"
+      >
+        <Users className="size-4" aria-hidden="true" /> {it.people.title}
+      </Link>
     </nav>
   );
 
@@ -196,6 +209,7 @@ export function ChatView() {
                 title={roomTitle(selected)}
                 live={live}
                 muted={selected.muted}
+                online={isGroup ? group.online : undefined}
                 fullScreen
               />
             </div>

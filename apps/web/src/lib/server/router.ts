@@ -9,6 +9,7 @@ import * as auth from './routes/auth';
 import * as github from './routes/github';
 import * as githubWebhook from './routes/githubWebhook';
 import * as people from './routes/people';
+import * as home from './routes/home';
 import * as projectRoutes from './routes/project';
 import * as projects from './routes/projects';
 import * as repos from './routes/repos';
@@ -52,6 +53,17 @@ const routes: [string, Module][] = [
   ['/api/admin/users/:id/reset-link', adminResetLink],
   ['/api/admin/users/:id/sessions', adminSessions],
   ['/api/people', people],
+  ['/api/people/:id', { GET: home.person }],
+  ['/api/home', { GET: home.home }],
+  ['/api/me/location', { PUT: home.location }],
+  ['/api/me/tour', { PUT: home.tour }],
+  [
+    '/api/me/calendar',
+    { GET: home.calendarState, POST: home.calendarRotate, DELETE: home.calendarRevoke },
+  ],
+  ['/api/calendar/:file', { GET: home.calendarFeed }],
+  ['/api/search', { GET: home.search }],
+  ['/api/activity', { GET: home.activity }],
   ['/api/github', github],
   ['/api/github/connect', { GET: github.connect }],
   ['/api/github/callback', { GET: github.callback }],

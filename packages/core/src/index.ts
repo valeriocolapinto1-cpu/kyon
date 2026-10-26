@@ -10,3 +10,4 @@ export * from './tasks';
 export * from './realtime';
 export * from './prompts';
 export * from './chat';
+export * from './home';

@@ -1,4 +1,4 @@
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
   can,
   type Actor,
@@ -7,7 +7,7 @@ import {
   type ProjectRole,
 } from '@kyon/core';
 import type { Db } from '@/db/client';
-import { githubRepo, kanbanColumn, project, projectMember, user } from '@/db/schema';
+import { activityEvent, githubRepo, kanbanColumn, project, projectMember, user } from '@/db/schema';
 import { chunk, inChunks, rowsPerInsert } from './d1';
 import { ApiError } from './errors';
 import { avatarUrl } from './users';
@@ -90,6 +90,8 @@ export interface ProjectSummary {
   repoFullName: string;
   archived: boolean;
   updatedAt: string;
+  /** The newest task ticked in this project (from the history), if any. */
+  lastCompleted: { text: string; by: string | null; at: string } | null;
 }
 
 export async function listMyProjects(db: Db, actor: Actor): Promise<ProjectSummary[]> {
@@ -100,14 +102,45 @@ export async function listMyProjects(db: Db, actor: Actor): Promise<ProjectSumma
     .innerJoin(githubRepo, eq(githubRepo.id, project.repoId))
     .where(eq(projectMember.userId, actor.id))
     .orderBy(project.name);
-  return rows.map((r) => ({
-    id: r.project.id,
-    name: r.project.name,
-    role: r.role as ProjectRole,
-    repoFullName: r.repoFullName,
-    archived: r.project.archivedAt !== null,
-    updatedAt: r.project.updatedAt.toISOString(),
-  }));
+  const last = await inChunks(
+    rows.map((r) => r.project.id),
+    (ids) =>
+      db
+        .select({
+          projectId: activityEvent.projectId,
+          payload: activityEvent.payload,
+          createdAt: activityEvent.createdAt,
+          by: user.name,
+        })
+        .from(activityEvent)
+        .leftJoin(user, eq(user.id, activityEvent.actorId))
+        .where(
+          and(
+            inArray(activityEvent.projectId, ids),
+            eq(activityEvent.type, 'task_completed'),
+            sql`${activityEvent.createdAt} = (SELECT max(b.created_at) FROM activity_event b WHERE b.project_id = ${activityEvent.projectId} AND b.type = 'task_completed')`,
+          ),
+        ),
+  );
+  const lastBy = new Map(last.map((e) => [e.projectId, e]));
+  return rows.map((r) => {
+    const done = lastBy.get(r.project.id);
+    let text = '';
+    try {
+      text = done ? String((JSON.parse(done.payload) as { text?: unknown }).text ?? '') : '';
+    } catch (error) {
+      console.warn('Invalid activity payload', error);
+    }
+    return {
+      id: r.project.id,
+      name: r.project.name,
+      role: r.role as ProjectRole,
+      repoFullName: r.repoFullName,
+      archived: r.project.archivedAt !== null,
+      updatedAt: r.project.updatedAt.toISOString(),
+      lastCompleted: done ? { text, by: done.by, at: done.createdAt.toISOString() } : null,
+    };
+  });
 }
 
 /** Everyone in the group who can see the repo (by its exposure), with names. */

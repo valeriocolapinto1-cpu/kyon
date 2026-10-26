@@ -100,6 +100,13 @@ merge ─▶ setDone (commit) ─▶ Fatto + "Annulla chiusura"   ·   "Verifica
 - Budget Free per webhook: al massimo 1 lettura dei commit della PR (solo se qualche esecuzione aspetta) + 1 dei check + 1 commit sulla repo.
 - Status: dati GitHub in `caches.default` per 60 s per progetto (tutti i membri vedono gli stessi dati), storico sempre da D1.
 
+## 3sexies. Home, ricerca, persone, calendario
+
+- Tutto passa da `lib/server/home.ts` e parte dall'elenco dei **progetti di cui sei membro** (`memberProjects`): ogni query successiva è ristretta a quegli id (a blocchi di massimo 100 parametri). Così un progetto non visibile non compare in nessun conteggio.
+- `GET /api/home` restituisce tutti i blocchi in una richiesta (5 query D1 in parallelo); la presenza arriva dal socket del gruppo.
+- Ricerca: `LIKE` su testo delle task e titolo dei prompt (pochi dati, nessun indice FTS necessario), FTS5 per i messaggi.
+- Feed `.ics` pubblico su `/api/calendar/<token>.ics`: il token si verifica con l'hash, la risposta ha `cache-control: private, max-age=300`.
+
 ## 4. Realtime (task dalla Fase 5, chat dalla Fase 7)
 
 ```

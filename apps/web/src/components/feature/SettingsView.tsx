@@ -3,6 +3,8 @@
 import { AccountSettings } from '@/components/feature/AccountSettings';
 import { AdminPanel } from '@/components/feature/AdminPanel';
 import { AppearanceSettings } from '@/components/feature/AppearanceSettings';
+import { CalendarSettings } from '@/components/feature/CalendarSettings';
+import { HelpSettings } from '@/components/feature/HelpSettings';
 import { GitHubSettings } from '@/components/feature/GitHubSettings';
 import { SessionsSettings } from '@/components/feature/SessionsSettings';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -23,6 +25,8 @@ export function SettingsView() {
     { href: '#account-profile', label: it.account.profile },
     { href: '#github', label: it.github.title },
     { href: '#sessions-title', label: it.account.sessions },
+    { href: '#calendar-title', label: it.calendar.title },
+    { href: '#help-title', label: it.settings.help },
     ...(me.data?.role === 'admin' ? [{ href: '#admin-title', label: it.admin.title }] : []),
   ];
   return (
@@ -45,6 +49,8 @@ export function SettingsView() {
           <AccountSettings me={me.data} />
           <GitHubSettings me={me.data} />
           <SessionsSettings />
+          <CalendarSettings />
+          <HelpSettings />
           {me.data.role === 'admin' && <AdminPanel me={me.data} />}
         </>
       ) : me.isError && (me.error as { status?: number }).status !== 401 ? (

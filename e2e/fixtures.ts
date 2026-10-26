@@ -70,6 +70,8 @@ export async function newMember(
     data: { code, name, email, key: await deriveClientKey(email, password) },
   });
   expect(joined.status()).toBe(200);
+  // Tests start past the welcome tour (auth.spec covers it).
+  expect((await api.put('/api/me/tour', { data: { done: true } })).status()).toBe(200);
   const storageState = await api.storageState();
   await api.dispose();
   const context = await browser.newContext({ storageState, baseURL });

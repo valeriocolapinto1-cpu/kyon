@@ -4,7 +4,7 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 8 — Home, Progetti, Chat, Persone, ricerca, extra** (da iniziare).
+**Fase 9 — Notifiche** (da iniziare).
 
 | Fase | Titolo                                          | Stato      |
 | ---- | ----------------------------------------------- | ---------- |
@@ -16,8 +16,8 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 | 5    | Pagina progetto: Task                           | ✅ fatta   |
 | 6    | Prompt, esecuzioni, tracciamento PR; Status     | ✅ fatta   |
 | 7    | Realtime, chat e thread                         | ✅ fatta   |
-| 8    | Home, Progetti, Chat, Persone, ricerca, extra   | ⏭ prossima |
-| 9    | Notifiche                                       | —          |
+| 8    | Home, Progetti, Chat, Persone, ricerca, extra   | ✅ fatta   |
+| 9    | Notifiche                                       | ⏭ prossima |
 | 10   | PWA offline, hardening, rilascio                | —          |
 
 ## In attesa dell'utente
@@ -42,6 +42,7 @@ Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 | 5    | 1669,4 KiB | 1,8 KiB       | 0,7 KiB   | + metadati, colonne, etichette, cronologia, ticket realtime; entry del Worker per i WebSocket                       |
 | 6    | 1697,7 KiB | 1,8 KiB       | 0,7 KiB   | + prompt, versioni, template, esecuzioni, webhook PR/CI, Status, CLAUDE.md                                          |
 | 7    | 1745,9 KiB | 2,2 KiB       | 0,7 KiB   | + chat (stanze, messaggi, reazioni, pin, ricerca FTS5, allegati R2, anteprime), presenza e "sta scrivendo"          |
+| 8    | 1770,7 KiB | 2,2 KiB       | 0,7 KiB   | + Home con dati, Persone, Cronologia, ricerca globale, feed .ics, tour, scorciatoie                                 |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -71,8 +72,48 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 2    | `/chat` (loggato)     | 95          | 100           | 100            |
 | 2    | `/settings` (loggato) | 86          | 100           | 100            |
 | 2    | `/login`              | 96          | 100           | 100            |
+| 8    | `/` (loggato)         | 86          | 100           | 100            |
+| 8    | `/progetti` (loggato) | 87          | 100           | 100            |
+| 8    | `/chat` (loggato)     | 86          | 100           | 100            |
+| 8    | `/settings` (loggato) | 80          | 100           | 100            |
+| 8    | `/login`              | 96          | 100           | 100            |
 
 ## Log delle fasi
+
+### Fase 8 — Home, Progetti, Chat, Persone, ricerca, extra ✅ (2026-10-26)
+
+Fatto:
+
+- **Home con dati reali** in una sola richiesta (`GET /api/home`): orologio, **ultimi contributi** (cronologia dei tuoi progetti, ora anche i **commit dei push** con messaggio e autore), **le mie task** (assegnate a te, aperte, per scadenza, con "Scaduta"/"Oggi"), **esecuzioni in corso** (prompt copiati, PR aperte, CI; prima le tue), **ultimi commenti** (thread di progetto e commenti delle task, con il punto esatto), **chi è online**. **Personalizza**: mostra/nascondi e riordina i blocchi con pulsanti su/giù (niente trascinamento obbligatorio), salvato nell'account.
+- **"Ritorna dove hai lasciato"**: la pagina (con scheda, task, stanza…) viene salvata dopo 2 s di sosta, solo alla navigazione e mai allo scroll, in `localStorage` e nell'account (`user.last_location`); vince la più recente. Solo percorsi interni (`safeResumePath`: niente `//host`, `/api`, `/login`…). Le pagine possono indicare un titolo migliore dell'h1 con `data-resume-title` (il nome del progetto).
+- **Presenza in tutta l'app**: un solo socket verso la stanza del gruppo (`GroupLiveProvider`), riusato dalla chat generale invece di aprirne un secondo.
+- **Persone** (`/persone`, `/persone?id=`): elenco con presenza e stato; profilo con bio, stato, GitHub, repo esposte che puoi vedere, **progetti in comune**, attività recente e statistiche (task completate, prompt lanciati) **contate solo nei progetti in comune**. Raggiungibile dalla Home e dalla Chat.
+- **Cronologia globale** (`/attivita`): tutta l'attività dei tuoi progetti, filtro per progetto, 30 alla volta.
+- **Ricerca globale** nella palette Cmd/Ctrl+K (e lente su telefono): progetti, task, prompt (`/api/search`, `LIKE` con caratteri jolly neutralizzati) e messaggi (FTS5), con risultati raggruppati; ogni risultato porta al punto esatto (i commenti di una task aprono la task). Nella palette anche Persone, Cronologia, Scorciatoie e Tour.
+- **Scorciatoie**: "?" ovunque (fuori dai campi di testo) apre l'elenco; anche da Settings → Aiuto e dalla palette.
+- **Tour iniziale** al primo accesso: 4 passi, saltabile, ricordato nell'account (`user.tour_done_at`), riapribile da Settings → Aiuto o dalla palette.
+- **Feed `.ics`** (Settings → Calendario): URL segreto (24 byte casuali, nel DB solo l'hash SHA-256), mostrato una volta, rigenerabile e revocabile; eventi di giornata intera con le scadenze delle task aperte **assegnate a te o a nessuno** nei progetti attivi; testo RFC 5545 con escape e piegatura a 75 ottetti (`packages/core/src/home/ics.ts`). Rate limit sul feed pubblico.
+- **Progetti**: ogni riga mostra a destra l'**ultima task completata** (testo, chi, quando).
+- Migrazione `0008_home`: `user.last_location`, `user.tour_done_at`, `user.ics_token_hash` (unico).
+- Test: 573 unit/integrazione (8 nuovi di integrazione sulla **visibilità**: chi non è membro non vede task, commenti, contributi, esecuzioni, risultati di ricerca, attività né statistiche, neanche come conteggio; feed `.ics` con rotazione e revoca; percorsi di ripresa rifiutati); e2e **110/110**: Home (le mie task → apertura della task, "Riprendi", personalizzazione che resta dopo il reload, persone, cronologia filtrata) su telefono, tablet e desktop; ricerca globale da Cmd+K e dalla lente; "?"; feed `.ics` letto senza cookie e poi revocato; tour al primo accesso.
+
+Decisioni:
+
+- "Ultima posizione" come colonna JSON su `user` invece di una tabella `user_last_location`: una riga per persona, letta solo dalla Home.
+- Il feed `.ics` contiene solo le task assegnate a te o a nessuno: le scadenze degli altri sarebbero rumore in un calendario personale.
+- L'URL del feed si vede solo alla creazione (nel DB c'è l'hash, come per gli inviti): se lo perdi, lo rigeneri.
+- Statistiche del profilo contate solo nei progetti in comune: altrimenti un numero rivelerebbe attività in progetti che non vedi.
+
+Correzioni trovate dai test:
+
+- Il link alla task dentro le righe di attività si distingueva solo per colore (axe `link-in-text-block`): ora è sottolineato.
+- I fogli di solo testo (scorciatoie, tour) non erano scorrevoli da tastiera: `Sheet` ha l'opzione `readingContent`.
+- Escape del punto e virgola nel testo `.ics`: mancava un backslash, quindi `;` restava senza escape (trovato dal lint `no-useless-escape`).
+
+Debito tecnico / da controllare:
+
+- Prestazioni Lighthouse di `/settings` a 80 (soglia 80): da alleggerire in Fase 10 (sezioni caricate quando servono).
+- Pulizia degli allegati orfani su R2 ancora da fare (Fase 10).
 
 ### Fase 7 — Realtime, chat e thread ✅ (2026-10-26)
 

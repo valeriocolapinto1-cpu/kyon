@@ -7,6 +7,7 @@ import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState, type FormEvent } from 'react';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge } from '@/components/ui/Badge';
+import { InlineText } from '@/components/ui/InlineText';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormError } from '@/components/ui/FormError';
 import { GlassButton } from '@/components/ui/GlassButton';
@@ -24,6 +25,7 @@ import { ApiClientError, api } from '@/lib/client/api';
 import { useRepos } from '@/lib/client/github';
 import { projectsKey, useProject, useProjects, type ProjectSummary } from '@/lib/client/projects';
 import { cn } from '@/lib/cn';
+import { relativeTime } from '@/lib/format/relative';
 import { it } from '@/lib/i18n/it';
 import { ProjectMenu } from './ProjectMenu';
 import { RunClosedToasts } from './prompts/RunClosedToasts';
@@ -138,12 +140,31 @@ function ProjectRow({ project, selected }: { project: ProjectSummary; selected: 
       aria-current={selected ? 'page' : undefined}
       className={cn('flex items-center justify-between gap-3', selected && 'ring-2 ring-focus')}
     >
-      <span className="min-w-0">
-        <span className="block truncate text-headline text-fg">{project.name}</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-2">
+          <span className="truncate text-headline text-fg">{project.name}</span>
+          <Badge tone={project.role === 'owner' ? 'accent' : 'neutral'}>
+            {p.role[project.role]}
+          </Badge>
+        </span>
         <span className="block truncate text-footnote text-muted">{project.repoFullName}</span>
       </span>
-      {/* "Ultima task completata" arrives with the task engine (Fase 4). */}
-      <Badge tone={project.role === 'owner' ? 'accent' : 'neutral'}>{p.role[project.role]}</Badge>
+      <span className="max-w-[50%] min-w-0 text-right">
+        {project.lastCompleted ? (
+          <>
+            <span className="block text-caption text-muted">{p.lastCompleted}</span>
+            <span className="block truncate text-footnote text-fg">
+              <InlineText text={project.lastCompleted.text} />
+            </span>
+            <span className="block truncate text-caption text-muted">
+              {project.lastCompleted.by ?? it.tasks.history.github} ·{' '}
+              {relativeTime(project.lastCompleted.at)}
+            </span>
+          </>
+        ) : (
+          <span className="block text-footnote text-muted">{p.noneCompleted}</span>
+        )}
+      </span>
     </GlassCard>
   );
 }
@@ -231,7 +252,11 @@ function ProjectDetailView({
       <GlassCard className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <h2 id="project-title" className="truncate text-title2 font-bold text-fg">
+            <h2
+              id="project-title"
+              data-resume-title
+              className="truncate text-title2 font-bold text-fg"
+            >
               {data.name}
             </h2>
             {data.repo && (

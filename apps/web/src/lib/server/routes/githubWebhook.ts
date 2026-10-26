@@ -1,6 +1,6 @@
 import { verifyGitHubSignature } from '@kyon/core';
 import { eq } from 'drizzle-orm';
-import { githubConnection, project } from '@/db/schema';
+import { activityEvent, githubConnection, project } from '@/db/schema';
 import { ApiError } from '../errors';
 import { githubConfig } from '../github/client';
 import { markInstallationUnavailable, markReposUnavailable, syncRepos } from '../github/repos';
@@ -8,6 +8,7 @@ import type { GhPull } from '../github/pulls';
 import { handleChecksEvent, handlePullRequestEvent, handlePushMarkers } from '../prompts/runs';
 import { syncProject } from '../tasks/sync';
 import { json, route } from '../http';
+import type { Db } from '@/db/client';
 
 interface InstallationPayload {
   action?: string;
@@ -20,7 +21,8 @@ interface InstallationPayload {
   pull_request?: GhPull;
   check_suite?: { head_sha: string };
   check_run?: { head_sha: string };
-  commits?: { message: string }[];
+  commits?: { id?: string; message: string; url?: string; author?: { username?: string } }[];
+  pusher?: { name?: string };
 }
 
 /**
@@ -103,6 +105,13 @@ export const POST = route(async ({ request, env, db }) => {
       .from(project)
       .where(eq(project.githubRepoId, payload.repository.id))
       .limit(1);
+    if (proj && payload.commits?.length && payload.ref?.startsWith('refs/heads/')) {
+      try {
+        await logPush(db, proj.id, payload);
+      } catch (error) {
+        console.warn('Webhook push activity failed', error);
+      }
+    }
     if (proj && !proj.archivedAt) {
       try {
         await syncProject(db, env, proj.id);
@@ -114,3 +123,35 @@ export const POST = route(async ({ request, env, db }) => {
   }
   return json({ ok: true, event });
 });
+
+/** "Ultimi contributi": who pushed what (first lines only, at most 5 commits per push). */
+async function logPush(db: Db, projectId: string, payload: InstallationPayload) {
+  const commits = payload.commits ?? [];
+  const senderId = payload.sender?.id;
+  const [connection] = senderId
+    ? await db
+        .select({ userId: githubConnection.userId })
+        .from(githubConnection)
+        .where(eq(githubConnection.githubUserId, senderId))
+        .limit(1)
+    : [];
+  await db.insert(activityEvent).values({
+    id: crypto.randomUUID(),
+    projectId,
+    actorId: connection?.userId ?? null,
+    taskId: null,
+    type: 'commits_pushed',
+    payload: JSON.stringify({
+      branch: payload.ref?.slice('refs/heads/'.length),
+      count: commits.length,
+      by: payload.pusher?.name ?? commits[0]?.author?.username ?? null,
+      text: commits.at(-1)?.message.split('\n')[0]?.slice(0, 200) ?? '',
+      commits: commits.slice(-5).map((c) => ({
+        sha: c.id?.slice(0, 40) ?? null,
+        message: c.message.split('\n')[0]?.slice(0, 200) ?? '',
+        url: c.url?.startsWith('https://github.com/') ? c.url : null,
+      })),
+    }),
+    createdAt: new Date(),
+  });
+}

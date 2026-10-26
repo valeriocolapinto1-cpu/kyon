@@ -14,6 +14,7 @@ export interface Me {
   avatarUrl: string | null;
   preferences: Preferences | null;
   homeLayout: unknown;
+  tourDoneAt: string | null;
   createdAt: string;
 }
 

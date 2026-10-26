@@ -18,6 +18,8 @@ interface SheetProps {
   footer?: ReactNode;
   /** Where focus goes after closing (default: back to the trigger). */
   onCloseAutoFocus?: (event: Event) => void;
+  /** Text-only content: the body takes keyboard focus so it can be scrolled with the keys. */
+  readingContent?: boolean;
 }
 
 const spring = { type: 'spring', stiffness: 420, damping: 40 } as const;
@@ -34,6 +36,7 @@ export function Sheet({
   children,
   footer,
   onCloseAutoFocus,
+  readingContent = false,
 }: SheetProps) {
   const desktop = useMediaQuery('(min-width: 768px)');
   const reduced = useReducedMotion();
@@ -135,7 +138,12 @@ export function Sheet({
                     <X className="size-5" aria-hidden="true" />
                   </Dialog.Close>
                 </div>
-                <div className="overflow-y-auto overscroll-contain px-5 py-4">{children}</div>
+                <div
+                  tabIndex={readingContent ? 0 : undefined}
+                  className="overflow-y-auto overscroll-contain px-5 py-4 outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-inset"
+                >
+                  {children}
+                </div>
                 {footer && (
                   <div className="flex justify-end gap-2 border-t border-separator px-5 py-3">
                     {footer}

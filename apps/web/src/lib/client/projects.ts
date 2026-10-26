@@ -11,6 +11,7 @@ export interface ProjectSummary {
   repoFullName: string;
   archived: boolean;
   updatedAt: string;
+  lastCompleted: { text: string; by: string | null; at: string } | null;
 }
 
 export interface ProjectDetail {

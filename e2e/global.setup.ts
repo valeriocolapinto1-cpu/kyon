@@ -10,6 +10,8 @@ setup('bootstrap the admin account', async ({ page }) => {
   await page.getByLabel('Password', { exact: true }).fill(ADMIN.password);
   await page.getByLabel('Ripeti la password').fill(ADMIN.password);
   await page.getByRole('button', { name: 'Crea account' }).click();
+  // The welcome tour on first access: skipped once, remembered in the account.
+  await page.getByRole('button', { name: 'Salta' }).click({ timeout: 15_000 });
   await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible({
     timeout: 15_000,
   });

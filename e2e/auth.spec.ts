@@ -65,9 +65,20 @@ test.describe('auth', () => {
     await guestPage.getByLabel('Password', { exact: true }).fill('una password lunga');
     await guestPage.getByLabel('Ripeti la password').fill('una password lunga');
     await guestPage.getByRole('button', { name: 'Crea account' }).click();
-    await expect(guestPage.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible({
-      timeout: 15_000,
-    });
+    // First access: the welcome tour, step by step, then it's remembered.
+    const tour = guestPage.getByRole('dialog', { name: 'Ciao! Questa è la Home' });
+    await expect(tour).toBeVisible({ timeout: 15_000 });
+    await expect(tour.getByText('Passo 1 di 4')).toBeVisible();
+    await expectNoA11yViolations(guestPage);
+    await tour.getByRole('button', { name: 'Avanti' }).click();
+    await expect(guestPage.getByRole('dialog', { name: 'Progetti = repo' })).toBeVisible();
+    await guestPage.getByRole('button', { name: 'Indietro' }).click();
+    await guestPage.getByRole('button', { name: 'Salta' }).click();
+    await expect(guestPage.getByRole('dialog')).toHaveCount(0);
+    await expect(guestPage.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
+    await guestPage.reload();
+    await expect(guestPage.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
+    await expect(guestPage.getByRole('dialog')).toHaveCount(0);
 
     // Members don't see the admin panel.
     await guestPage.goto('/settings');

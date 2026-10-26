@@ -491,7 +491,7 @@ export async function searchMessages(db: Db, actor: Actor, query: string, roomId
       .orderBy(desc(chatMessage.createdAt))
       .limit(30),
   );
-  return views(
+  const found = await views(
     db,
     actor,
     rows
@@ -499,4 +499,17 @@ export async function searchMessages(db: Db, actor: Actor, query: string, roomId
       .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())
       .slice(0, 30),
   );
+  // Where each result lives (task comments open in the task, not in Chat).
+  const rooms = await inChunks([...new Set(found.map((m) => m.roomId))], (slice) =>
+    db
+      .select({ id: chatRoom.id, projectId: chatRoom.projectId, taskId: chatRoom.taskId })
+      .from(chatRoom)
+      .where(inArray(chatRoom.id, slice)),
+  );
+  const byId = new Map(rooms.map((r) => [r.id, r]));
+  return found.map((m) => ({
+    ...m,
+    projectId: byId.get(m.roomId)?.projectId ?? null,
+    taskId: byId.get(m.roomId)?.taskId ?? null,
+  }));
 }

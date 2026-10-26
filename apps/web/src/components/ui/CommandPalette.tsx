@@ -19,10 +19,24 @@ interface CommandPaletteProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   items: CommandItem[];
+  /** Controlled search text (the parent fetches server results for it). */
+  query?: string;
+  onQueryChange?: (query: string) => void;
+  /** Results found by the server: always shown, whatever the local fuzzy match says. */
+  remoteItems?: CommandItem[];
+  loading?: boolean;
 }
 
 /** Cmd/Ctrl+K palette: jump anywhere or run an action. */
-export function CommandPalette({ open, onOpenChange, items }: CommandPaletteProps) {
+export function CommandPalette({
+  open,
+  onOpenChange,
+  items: localItems,
+  query,
+  onQueryChange,
+  remoteItems = [],
+  loading = false,
+}: CommandPaletteProps) {
   const router = useRouter();
 
   useEffect(() => {
@@ -36,6 +50,11 @@ export function CommandPalette({ open, onOpenChange, items }: CommandPaletteProp
     return () => window.removeEventListener('keydown', onKey);
   }, [open, onOpenChange]);
 
+  // Server results carry the query among their keywords, so cmdk's filter keeps them.
+  const items = [
+    ...localItems,
+    ...remoteItems.map((item) => ({ ...item, keywords: [...(item.keywords ?? []), query ?? ''] })),
+  ];
   const groups = [...new Set(items.map((item) => item.group))];
   const select = (item: CommandItem) => {
     onOpenChange(false);
@@ -52,13 +71,15 @@ export function CommandPalette({ open, onOpenChange, items }: CommandPaletteProp
       contentClassName="k-chrome fixed top-[12dvh] left-1/2 z-50 w-[min(36rem,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-sheet"
     >
       <Command.Input
+        value={query}
+        onValueChange={onQueryChange}
         placeholder={it.commandPalette.placeholder}
         aria-label={it.commandPalette.placeholder}
         className="min-h-touch w-full border-b border-separator bg-transparent px-5 py-4 text-fg outline-none placeholder:text-muted"
       />
       <Command.List className="max-h-[50dvh] overflow-y-auto p-2">
         <Command.Empty className="px-3 py-6 text-center text-muted">
-          {it.commandPalette.empty}
+          {loading ? it.search.loading : it.commandPalette.empty}
         </Command.Empty>
         {groups.map((group) => (
           <Command.Group

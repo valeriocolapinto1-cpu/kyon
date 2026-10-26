@@ -42,6 +42,8 @@ export interface ConversationProps {
   compact?: boolean;
   muted?: boolean;
   fullScreen?: boolean;
+  /** Presence known by a shared socket (the group room), when `live` is that socket. */
+  online?: string[];
 }
 
 /** Mount with `key={roomId}`. */
@@ -52,6 +54,7 @@ export function Conversation({
   compact = false,
   muted = false,
   fullScreen = false,
+  online,
 }: ConversationProps) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -110,7 +113,9 @@ export function Conversation({
   if (convo.error) return <EmptyState title={it.common.errorTitle} body={convo.error} />;
   if (!convo.info) return <SkeletonList rows={3} />;
   const { info } = convo;
-  const others = info.people.filter((p) => p.id !== me?.id && convo.online.includes(p.id));
+  const others = info.people.filter(
+    (p) => p.id !== me?.id && (online ?? convo.online).includes(p.id),
+  );
 
   const items = convo.messages.map((m, i) => {
     const prev = convo.messages[i - 1];
