@@ -7,3 +7,8 @@ dist
 coverage
 apps/web/src/db/migrations/meta
 KYON-PROMPT.md
+apps/web/src/styles/themes.generated.css
+playwright-report
+test-results
+.lighthouseci
+apps/web/AGENTS.md

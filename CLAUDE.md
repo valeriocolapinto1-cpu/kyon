@@ -70,8 +70,11 @@ pnpm typecheck && pnpm lint
 pnpm format:check         # prettier (pnpm format per correggere)
 pnpm test                 # vitest (progetti: core, web, workers, scripts)
 pnpm test packages/core/src/limits.test.ts       # un singolo file (senza `--`); aggiungi -t "nome" per un singolo test
-pnpm e2e                  # playwright + axe            (dalla Fase 1)
-pnpm lighthouse           # lhci con soglie             (dalla Fase 1)
+pnpm e2e                  # playwright + axe sul bundle di produzione (richiede pnpm build); mobile/tablet/desktop
+pnpm e2e e2e/shell.spec.ts --project=desktop   # un file / un progetto; -g "nome" per un singolo test
+pnpm lighthouse           # lhci: accessibilità ≥ 95, prestazioni mobile ≥ 80 (richiede pnpm build)
+pnpm theme:gen            # rigenera apps/web/src/styles/themes.generated.css da packages/core/src/theme.ts
+pnpm icons:gen            # rigenera le icone PNG PWA/Apple dai logo SVG in apps/web/public/brand
 pnpm db:generate <nome>   # migrazione da schema Drizzle (apps/web/src/db/schema.ts → src/db/migrations)
 pnpm db:migrate:local     # D1 locale
 pnpm build                # bundle OpenNext di apps/web (+ cache statica dei prerender)
@@ -79,7 +82,9 @@ pnpm size                 # misura gzip del bundle di ogni Worker, fallisce oltr
 pnpm build && pnpm run deploy  # usato dalla CI. Attenzione: `pnpm deploy` senza `run` è un comando interno di pnpm
 ```
 
-Cron in locale: `curl http://localhost:8789/cdn-cgi/handler/scheduled`. Anteprima del bundle di produzione: `pnpm --filter @kyon/web preview` dopo `pnpm build`.
+Cron in locale: `curl http://localhost:8789/cdn-cgi/handler/scheduled`. Anteprima del bundle di produzione: `pnpm --filter @kyon/web preview` dopo `pnpm build`. Galleria componenti: `/dev/ui` (nascosta quando `KYON_ENV=production`).
+
+Next.js 16 ha API diverse da quelle che potresti ricordare (es. `proxy` al posto di `middleware`, `params` asincroni): prima di usare un'API di Next leggi la guida in `apps/web/node_modules/next/dist/docs/` (vedi `apps/web/AGENTS.md`).
 
 Script in Node/TypeScript, **non in bash**. Niente comandi specifici di una shell. Usa `cross-env` dove serve, percorsi con `path`, `.gitattributes` per fine riga LF. Se un comando non esiste ancora, crealo nella fase in cui serve e documentalo qui.
 

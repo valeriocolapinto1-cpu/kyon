@@ -9,6 +9,7 @@
     "binding": "ASSETS",
   },
   "observability": { "enabled": true },
+  "vars": { "KYON_ENV": "development" },
   "services": [{ "binding": "WORKER_SELF_REFERENCE", "service": "kyon-web" }],
   // IDs are placeholders for local development; scripts/deploy.ts resolves the real ones.
   "d1_databases": [

@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t">
+  <title id="t">Kyon</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1B1F4B"/>
+      <stop offset="0.55" stop-color="#2A2D7C"/>
+      <stop offset="1" stop-color="#0E5A8A"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.6">
+      <stop offset="0" stop-color="#7FD4FF" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#7FD4FF" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="s1" cx="0.34" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#E9FBFF"/>
+      <stop offset="0.35" stop-color="#7FE0F5"/>
+      <stop offset="1" stop-color="#1679B8"/>
+    </radialGradient>
+    <radialGradient id="s2" cx="0.34" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#F1EEFF"/>
+      <stop offset="0.35" stop-color="#A9A2FF"/>
+      <stop offset="1" stop-color="#4B3FC9"/>
+    </radialGradient>
+    <radialGradient id="s3" cx="0.34" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#FFEFFA"/>
+      <stop offset="0.35" stop-color="#E7A1F2"/>
+      <stop offset="1" stop-color="#8A3BBF"/>
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.9"/>
+      <stop offset="0.5" stop-color="#FFFFFF" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.5"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000018" flood-opacity="0.45"/>
+    </filter>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" fill="url(#glow)"/>
+  <g filter="url(#shadow)" transform="translate(51.2 51.2) scale(0.8)">
+    <!-- Three heads of Cerbero: left, right, then the center one in front. -->
+    <circle cx="168" cy="292" r="92" fill="url(#s1)" fill-opacity="0.92"/>
+    <circle cx="168" cy="292" r="91" fill="none" stroke="url(#rim)" stroke-width="3"/>
+    <ellipse cx="140" cy="250" rx="36" ry="20" fill="#FFFFFF" fill-opacity="0.55" transform="rotate(-28 140 250)"/>
+    <circle cx="344" cy="292" r="92" fill="url(#s3)" fill-opacity="0.92"/>
+    <circle cx="344" cy="292" r="91" fill="none" stroke="url(#rim)" stroke-width="3"/>
+    <ellipse cx="316" cy="250" rx="36" ry="20" fill="#FFFFFF" fill-opacity="0.55" transform="rotate(-28 316 250)"/>
+    <circle cx="256" cy="214" r="104" fill="url(#s2)" fill-opacity="0.95"/>
+    <circle cx="256" cy="214" r="103" fill="none" stroke="url(#rim)" stroke-width="3.5"/>
+    <ellipse cx="222" cy="166" rx="42" ry="23" fill="#FFFFFF" fill-opacity="0.6" transform="rotate(-28 222 166)"/>
+  </g>
+</svg>

@@ -8,6 +8,8 @@ declare global {
     FILES: R2Bucket;
     PROJECT_ROOM: DurableObjectNamespace;
     GENERAL_ROOM: DurableObjectNamespace;
+    /** "production" on Cloudflare (set by scripts/deploy.ts), "development" locally. */
+    KYON_ENV: 'development' | 'production';
   }
 }
 

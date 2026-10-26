@@ -1,11 +1,302 @@
-:root {
-  color-scheme: light dark;
-  font-family: -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, sans-serif;
+@import 'tailwindcss';
+@import '../styles/themes.generated.css';
+
+/* Phones held sideways: little height, so navigation moves to a compact side rail. */
+@custom-variant phone-landscape (@media (orientation: landscape) and (max-height: 500px));
+
+/*
+ * Design tokens. Colors come from the generated themes (--k-*), selected by data attributes
+ * on <html>: data-accent, data-scheme, data-contrast. Components only use these utilities,
+ * never raw values.
+ */
+@theme inline {
+  --color-bg: var(--k-bg);
+  --color-surface: var(--k-surface);
+  --color-surface-solid: var(--k-surface-solid);
+  --color-chrome: var(--k-chrome);
+  --color-fg: var(--k-text);
+  --color-muted: var(--k-text-muted);
+  --color-separator: var(--k-separator);
+  --color-border: var(--k-border);
+  --color-input-border: var(--k-input-border);
+  --color-accent: var(--k-accent);
+  --color-accent-text: var(--k-accent-text);
+  --color-accent-fill: var(--k-accent-fill);
+  --color-on-accent: var(--k-on-accent);
+  --color-accent-soft: var(--k-accent-soft);
+  --color-neutral-soft: var(--k-neutral-soft);
+  --color-focus: var(--k-focus);
+  --color-success: var(--k-success-text);
+  --color-warning: var(--k-warning-text);
+  --color-danger: var(--k-danger-text);
+  --color-danger-fill: var(--k-danger-fill);
+  --color-on-danger: var(--k-on-danger);
+  --color-success-fill: var(--k-success-fill);
+  --color-on-success: var(--k-on-success);
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo, Consolas, monospace;
+
+  /* Type scale (Apple-like), in rem so it follows the user's text size. */
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1rem;
+  --text-footnote: 0.8125rem;
+  --text-footnote--line-height: 1.125rem;
+  --text-subhead: 0.9375rem;
+  --text-subhead--line-height: 1.25rem;
+  --text-body: 1.0625rem;
+  --text-body--line-height: 1.5rem;
+  --text-headline: 1.0625rem;
+  --text-headline--line-height: 1.5rem;
+  --text-headline--font-weight: 600;
+  --text-title3: 1.25rem;
+  --text-title3--line-height: 1.625rem;
+  --text-title2: 1.375rem;
+  --text-title2--line-height: 1.75rem;
+  --text-title1: 1.75rem;
+  --text-title1--line-height: 2.125rem;
+  --text-large: 2.125rem;
+  --text-large--line-height: 2.5rem;
+
+  --radius-control: 0.75rem;
+  --radius-card: 1.375rem;
+  --radius-sheet: 1.75rem;
+  --radius-pill: 9999px;
+
+  --spacing-touch: 2.75rem; /* 44px minimum touch target */
+  --spacing-content: 72rem; /* max content width on large screens */
+  --spacing-sidebar: 5.5rem;
+
+  --ease-spring: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-body {
-  margin: 0;
-  min-height: 100dvh;
-  display: grid;
-  place-items: center;
+@layer base {
+  /* ---------- Base ---------- */
+
+  :root {
+    --k-text-scale: 1;
+    --k-blur: 24px;
+    --k-saturate: 180%;
+    --k-shadow-1: 0 1px 2px rgb(var(--k-shadow) / calc(var(--k-shadow-alpha) * 0.6));
+    --k-shadow-2: 0 8px 24px rgb(var(--k-shadow) / var(--k-shadow-alpha));
+    --k-shadow-3: 0 24px 64px rgb(var(--k-shadow) / calc(var(--k-shadow-alpha) * 1.2));
+    --k-shadow: 0 0 0;
+    --k-safe-top: env(safe-area-inset-top, 0px);
+    --k-safe-bottom: env(safe-area-inset-bottom, 0px);
+    --k-safe-left: env(safe-area-inset-left, 0px);
+    --k-safe-right: env(safe-area-inset-right, 0px);
+    color-scheme: light;
+    font-size: calc(100% * var(--k-text-scale));
+  }
+
+  :root[data-scheme='dark'] {
+    color-scheme: dark;
+  }
+
+  /* iOS Dynamic Type: when the user hasn't chosen a size, rem follows the system text size. */
+  @supports (font: -apple-system-body) {
+    :root:not([data-text-scale]) {
+      font: -apple-system-body;
+    }
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+  }
+
+  body {
+    min-height: 100dvh;
+    background: var(--k-bg);
+    color: var(--k-text);
+    font-family: var(--font-sans);
+    font-size: var(--text-body);
+    line-height: var(--text-body--line-height);
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* Static mesh gradient, fixed behind everything. Only its colors change (with a soft fade). */
+  .k-mesh {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background:
+      radial-gradient(60% 50% at 12% 8%, var(--k-mesh-1) 0%, transparent 70%),
+      radial-gradient(55% 45% at 92% 18%, var(--k-mesh-2) 0%, transparent 70%),
+      radial-gradient(70% 60% at 50% 100%, var(--k-mesh-3) 0%, transparent 70%), var(--k-bg);
+    transition: background-color 600ms var(--ease-spring);
+  }
+
+  /* Inputs never below 16px, so iOS Safari does not zoom on focus. */
+  input,
+  textarea,
+  select {
+    font-size: max(1rem, 16px);
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--k-focus);
+    outline-offset: 2px;
+  }
+
+  :root[data-contrast='high'] :focus-visible {
+    outline-width: 4px;
+  }
+
+  /* "Non solo colore": links and states get shapes, not only hue. */
+  :root[data-non-color='on'] a:not([data-plain]) {
+    text-decoration: underline;
+    text-underline-offset: 0.2em;
+  }
+}
+
+/* Skeleton shimmer (static when motion is reduced). */
+@keyframes k-shimmer {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+/* Custom classes live in the components layer, so Tailwind utilities can still override them. */
+@layer components {
+  /* ---------- Liquid Glass ---------- */
+
+  .k-glass,
+  .k-chrome {
+    position: relative;
+    isolation: isolate;
+    background: var(--k-surface);
+    -webkit-backdrop-filter: blur(var(--k-blur)) saturate(var(--k-saturate));
+    backdrop-filter: blur(var(--k-blur)) saturate(var(--k-saturate));
+    border: 1px solid var(--k-border);
+    box-shadow: var(--k-shadow-1), var(--k-shadow-2);
+  }
+
+  .k-chrome {
+    background: var(--k-chrome);
+    box-shadow: var(--k-shadow-1), var(--k-shadow-3);
+  }
+
+  /* Thin specular edge: a gradient ring drawn with a mask, purely decorative. */
+  .k-glass::before,
+  .k-chrome::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    padding: 1px;
+    background: linear-gradient(
+      160deg,
+      var(--k-specular),
+      transparent 35%,
+      transparent 70%,
+      var(--k-specular)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    z-index: -1;
+    opacity: 0.8;
+  }
+
+  /* Subtle grain on top of the glass (inline SVG noise, tiny). */
+  .k-glass::after,
+  .k-chrome::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+    pointer-events: none;
+    z-index: -1;
+  }
+
+  /* Press feedback: the glass "gives" a little under the finger. */
+  .k-pressable {
+    transition:
+      transform 180ms var(--ease-spring),
+      box-shadow 180ms var(--ease-spring),
+      background-color 180ms var(--ease-spring);
+  }
+
+  .k-pressable:active {
+    transform: scale(0.97);
+  }
+
+  /* Lite mode: far less blur and shadow for weak devices. */
+  :root[data-lite='on'] {
+    --k-blur: 8px;
+    --k-saturate: 120%;
+    --k-shadow-2: 0 2px 8px rgb(var(--k-shadow) / var(--k-shadow-alpha));
+    --k-shadow-3: 0 4px 16px rgb(var(--k-shadow) / var(--k-shadow-alpha));
+  }
+
+  :root[data-lite='on'] .k-glass::after,
+  :root[data-lite='on'] .k-chrome::after {
+    display: none;
+  }
+
+  /* Reduce transparency (setting or system): opaque surfaces, no blur. */
+  :root[data-reduce-transparency='on'] .k-glass,
+  :root[data-contrast='high'] .k-glass {
+    background: var(--k-surface-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  :root[data-reduce-transparency='on'] .k-chrome,
+  :root[data-contrast='high'] .k-chrome {
+    background: var(--k-chrome-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+
+  :root[data-reduce-transparency='on'] .k-glass::after,
+  :root[data-reduce-transparency='on'] .k-chrome::after,
+  :root[data-contrast='high'] .k-glass::before,
+  :root[data-contrast='high'] .k-chrome::before,
+  :root[data-contrast='high'] .k-glass::after,
+  :root[data-contrast='high'] .k-chrome::after {
+    display: none;
+  }
+
+  :root[data-contrast='high'] .k-glass,
+  :root[data-contrast='high'] .k-chrome {
+    border: 2px solid var(--k-input-border);
+  }
+
+  /* Reduce motion (setting or system): no transforms, no transitions. */
+  :root[data-reduce-motion='on'] *,
+  :root[data-reduce-motion='on'] *::before,
+  :root[data-reduce-motion='on'] *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  :root[data-reduce-motion='on'] .k-pressable:active {
+    transform: none;
+  }
+
+  .k-skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--k-separator) 25%,
+      var(--k-accent-soft) 50%,
+      var(--k-separator) 75%
+    );
+    background-size: 200% 100%;
+    animation: k-shimmer 1.6s linear infinite;
+  }
 }

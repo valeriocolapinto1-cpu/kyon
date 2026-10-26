@@ -74,6 +74,7 @@ async function ensureR2(): Promise<void> {
 }
 
 interface WranglerConfig {
+  vars?: Record<string, string>;
   d1_databases?: { database_name: string; database_id: string }[];
   kv_namespaces?: { binding: string; id: string }[];
 }
@@ -84,6 +85,7 @@ function writeDeployConfig(dir: string, ids: { d1: string; kv: string }) {
     if (db.database_name === D1_NAME) db.database_id = ids.d1;
   }
   for (const ns of config.kv_namespaces ?? []) ns.id = ids.kv;
+  config.vars = { ...config.vars, KYON_ENV: 'production' };
   writeFileSync(path.join(dir, DEPLOY_CONFIG), JSON.stringify(config, null, 2));
 }
 

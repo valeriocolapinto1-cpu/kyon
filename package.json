@@ -18,10 +18,18 @@
     "test:watch": "vitest",
     "db:generate": "pnpm --filter @kyon/web run db:generate",
     "db:migrate:local": "pnpm --filter @kyon/web run db:migrate:local",
-    "size": "tsx scripts/size.ts"
+    "size": "tsx scripts/size.ts",
+    "theme:gen": "tsx scripts/gen-theme.ts",
+    "icons:gen": "tsx scripts/gen-icons.ts",
+    "e2e": "playwright test",
+    "lighthouse": "tsx scripts/lighthouse.ts"
   },
   "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
     "@eslint/js": "9.39.5",
+    "@kyon/core": "workspace:*",
+    "@lhci/cli": "0.15.1",
+    "@playwright/test": "1.63.0",
     "@types/node": "22.20.5",
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.3",

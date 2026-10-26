@@ -16,7 +16,7 @@ env:
 jobs:
   checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - uses: pnpm/action-setup@v4
@@ -31,9 +31,16 @@ jobs:
       - run: pnpm test
       - run: pnpm build
       - run: pnpm size
+      - name: Install Playwright Chromium
+        run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm e2e
+      - run: pnpm lighthouse
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: size-report
-          path: .size/report.json
+          name: reports
+          path: |
+            .size/report.json
+            playwright-report/
+            .lighthouseci/
           if-no-files-found: ignore

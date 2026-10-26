@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="t">
+  <title id="t">Kyon</title>
+  <!-- Monochrome mark for small sizes and single-color contexts. -->
+  <g fill="none" stroke="#1C1C1E" stroke-width="34">
+    <circle cx="168" cy="300" r="104"/>
+    <circle cx="344" cy="300" r="104"/>
+    <circle cx="256" cy="200" r="114" fill="#1C1C1E" fill-opacity="0.12"/>
+  </g>
+  <circle cx="220" cy="150" r="22" fill="#1C1C1E"/>
+</svg>
