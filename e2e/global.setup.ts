@@ -10,8 +10,11 @@ setup('bootstrap the admin account', async ({ page }) => {
   await page.getByLabel('Password', { exact: true }).fill(ADMIN.password);
   await page.getByLabel('Ripeti la password').fill(ADMIN.password);
   await page.getByRole('button', { name: 'Crea account' }).click();
-  // The welcome tour on first access: skipped once, remembered in the account.
-  await page.getByRole('button', { name: 'Salta' }).click({ timeout: 15_000 });
+  // Signed up: past the welcome tour through the API (auth.spec covers the tour itself), so
+  // nothing here depends on when the dialog shows up on a cold server.
+  await page.waitForURL((url) => url.pathname === '/', { timeout: 15_000 });
+  expect((await page.request.put('/api/me/tour', { data: { done: true } })).status()).toBe(200);
+  await page.reload();
   await expect(page.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible({
     timeout: 15_000,
   });
