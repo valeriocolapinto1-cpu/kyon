@@ -492,6 +492,7 @@ export const it = {
     created: 'Progetto creato',
     archived: 'Archiviati',
     lastCompleted: 'Ultima completata',
+    moreMembers: (n: number) => (n === 1 ? 'e un altro membro' : `e altri ${n} membri`),
     noneCompleted: 'Nessuna task completata, ancora.',
     restore: 'Ripristina',
     role: { owner: 'Proprietario', member: 'Membro', viewer: 'Osservatore' },
@@ -922,6 +923,28 @@ export const it = {
     emailNote: 'Sul piano gratuito di Cloudflare l’email arriva solo agli indirizzi verificati.',
     test: 'Invia una prova',
     testSent: 'Prova inviata',
+  },
+  pwa: {
+    offline: 'Sei offline: vedi i dati salvati su questo dispositivo, le modifiche sono in pausa.',
+    savedCopy: 'Copia salvata',
+    updated: 'Kyon è stato aggiornato',
+    reload: 'Ricarica',
+    installTitle: 'Installa Kyon',
+    installHelp:
+      'Con l’app installata Kyon si apre a schermo intero, funziona offline in sola lettura e riceve le notifiche push.',
+    installButton: 'Installa Kyon',
+    installed: 'Kyon è installato su questo dispositivo.',
+    iosSteps: [
+      'Apri Kyon in Safari.',
+      'Tocca il pulsante Condividi (il quadrato con la freccia in su).',
+      'Scegli «Aggiungi alla schermata Home» e conferma con «Aggiungi».',
+      'Apri Kyon dall’icona nella schermata Home.',
+    ],
+    manual:
+      'Nel menu del browser scegli «Installa app» o «Aggiungi alla schermata Home» (Chrome, Edge, Safari su Mac).',
+    reminder: 'Installa Kyon: si apre a schermo intero e ti avvisa con le notifiche push.',
+    reminderHow: 'Come si fa',
+    reminderOff: 'Non mostrare più',
   },
   notify: {
     groupChat: 'Chat del gruppo',

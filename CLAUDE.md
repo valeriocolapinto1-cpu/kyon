@@ -75,7 +75,7 @@ pnpm test packages/core/src/limits.test.ts       # un singolo file (senza `--`);
 pnpm e2e                  # playwright + axe sul bundle di produzione (richiede pnpm build); mobile/tablet/desktop; D1 pulito a ogni giro, admin creato dal progetto `setup`
 pnpm e2e e2e/shell.spec.ts --project=desktop   # un file / un progetto; -g "nome" per un singolo test
 pnpm lighthouse           # lhci: accessibilità ≥ 95, prestazioni mobile ≥ 80 (richiede pnpm build)
-pnpm profile / /settings  # profilo CPU (rallentata 4× come Lighthouse) delle pagine da loggato: task lunghi e funzioni più costose (richiede pnpm build)
+pnpm perf / /settings     # profilo CPU (rallentata 4× come Lighthouse) delle pagine da loggato: task lunghi e funzioni più costose (richiede pnpm build)
 pnpm theme:gen            # rigenera apps/web/src/styles/themes.generated.css da packages/core/src/theme.ts
 pnpm icons:gen            # rigenera le icone PNG PWA/Apple dai logo SVG in apps/web/public/brand
 pnpm admin:create-invite  # crea un invito nel D1 locale e stampa il link (--remote --url <sito> per la produzione)

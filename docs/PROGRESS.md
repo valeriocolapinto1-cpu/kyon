@@ -110,8 +110,9 @@ Prestazioni (regressione della Fase 8 trovata dalla CI, Lighthouse 0,70/0,65):
 - `motion` fuori dal primo caricamento: ingresso pagina e pillole attive (tab bar, sidebar, controlli segmentati, schede) in **CSS puro** (`SlidingPill`); i fogli (`Sheet`) caricano `motion` e Radix al primo gesto o alla prima apertura.
 - Palette, scorciatoie, tour, centro notifiche, "Personalizza": codice caricato solo quando servono. Formatter `Intl` creati al primo uso (`lazy`). Orologio analogico senza `Intl` per frame (`zoneOffsetMs` una volta al minuto + `clockAt`).
 - Settings: sezioni sotto la piega disegnate quando ci si avvicina (`Deferred when="visible"`, con il titolo vero al loro posto per gli screen reader; tutte subito con un `#ancora`).
+- **Fila di avatar dei membri** nell'intestazione del progetto: con molti membri sbordava dallo schermo del telefono, la pagina si allargava e ogni bersaglio si spostava (due e2e su telefono fallivano in CI). Ora al massimo 5 volti e "+N". I controlli axe degli e2e verificano anche il **reflow** (WCAG 1.4.10): nessuno scorrimento orizzontale sotto i 600 px.
 - Doppio tocco: `touch-action: manipulation` (niente zoom col doppio tocco, il pinch-zoom resta).
-- Nuovo comando `pnpm profile` (profilo CPU 4× delle pagine da loggato).
+- Nuovo comando `pnpm perf` (profilo CPU 4× delle pagine da loggato).
 
 Decisioni:
 
@@ -123,7 +124,6 @@ Decisioni:
 Debito tecnico / da controllare:
 
 - `/settings` resta la pagina più pesante (Lighthouse 74–77 qui, l'asserzione usa il giro migliore dei tre): in Fase 10 valutare sezioni ancora più leggere.
-- Su questo container, sotto carico pieno, due e2e su telefono (dettaglio task in un foglio) a volte non trovano il bersaglio fermo; in CI passano. Da verificare su un iPhone reale lo scorrimento del foglio del dettaglio task.
 - Raggruppamento delle notifiche per "progetto" oltre che per stanza: non necessario per 4 persone, per ora.
 
 ### Fase 8 — Home, Progetti, Chat, Persone, ricerca, extra ✅ (2026-10-26)

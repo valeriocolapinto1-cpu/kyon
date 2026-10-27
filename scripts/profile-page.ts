@@ -1,18 +1,42 @@
 /**
  * Dev tool: CPU profile of a logged-in page with Lighthouse-like 4× CPU throttling, on the
- * production bundle. `pnpm build`, then: pnpm profile / /settings
+ * production bundle. `pnpm build`, then: pnpm perf / /settings
  * Prints the long tasks and the functions with the most self time.
  */
 import { chromium } from '@playwright/test';
 import { deriveClientKey } from '../packages/core/src/auth/password';
-import { E2E_BOOTSTRAP_CODE, e2eServerArgs, prepareE2e, webDir } from './lib/e2e';
-import { spawnLong } from './lib/run';
+import {
+  E2E_BOOTSTRAP_CODE,
+  E2E_CONFIG,
+  e2eServerArgs,
+  e2eStateDir,
+  prepareE2e,
+  webDir,
+} from './lib/e2e';
+import { run, spawnLong } from './lib/run';
 
 const PORT = 8791;
 const base = `http://localhost:${PORT}`;
 const paths = process.argv.slice(2).length ? process.argv.slice(2) : ['/'];
 
 prepareE2e();
+await run(
+  'pnpm',
+  [
+    'exec',
+    'wrangler',
+    'd1',
+    'migrations',
+    'apply',
+    'kyon-db',
+    '--local',
+    '--config',
+    E2E_CONFIG,
+    '--persist-to',
+    e2eStateDir,
+  ],
+  { cwd: webDir, capture: true },
+);
 const server = spawnLong('server', 'pnpm', e2eServerArgs(PORT), webDir);
 try {
   for (let i = 0; ; i++) {
@@ -35,10 +59,9 @@ try {
       key: await deriveClientKey(email, 'password profilo'),
     }),
   });
-  const cookie = joined.headers
-    .getSetCookie()
-    .map((c) => c.split(';')[0])
-    .join('; ');
+  if (!joined.ok) throw new Error(`Sign-up failed: ${joined.status} ${await joined.text()}`);
+  const pairs = joined.headers.getSetCookie().map((c) => c.split(';')[0] ?? '');
+  const cookie = pairs.join('; ');
   await fetch(`${base}/api/me/tour`, {
     method: 'PUT',
     headers: { 'content-type': 'application/json', cookie },
@@ -51,7 +74,13 @@ try {
     isMobile: true,
     hasTouch: true,
   });
-  await context.setExtraHTTPHeaders({ cookie });
+  // Real cookies (not a fixed header): the browser keeps them up to date like for a person.
+  await context.addCookies(
+    pairs.map((pair) => {
+      const at = pair.indexOf('=');
+      return { name: pair.slice(0, at), value: pair.slice(at + 1), domain: 'localhost', path: '/' };
+    }),
+  );
   for (const path of paths) {
     const page = await context.newPage();
     page.on('console', (msg) => {
@@ -59,7 +88,13 @@ try {
         console.log(`[console.${msg.type()}] ${msg.text().slice(0, 300)}`);
     });
     page.on('response', (r) => {
-      if (r.status() >= 400) console.log(`[http ${r.status()}] ${r.url()}`);
+      if (r.status() >= 400)
+        void r
+          .request()
+          .allHeaders()
+          .then((h) =>
+            console.log(`[http ${r.status()}] ${r.url()} cookie=${(h.cookie ?? '').slice(0, 160)}`),
+          );
     });
     page.on('pageerror', (error) => console.log(`[pageerror] ${error.message.slice(0, 300)}`));
     const cdp = await context.newCDPSession(page);
@@ -77,7 +112,10 @@ try {
       }).observe({ type: 'longtask', buffered: true });
     });
     await cdp.send('Profiler.start');
-    await page.goto(base + path, { waitUntil: 'load' });
+    const response = await page.goto(base + path, { waitUntil: 'load' });
+    console.log(
+      `csp header: ${(await response?.headerValue('content-security-policy'))?.slice(0, 60) ?? 'none'}`,
+    );
     await page.waitForTimeout(8000);
     const { profile } = await cdp.send('Profiler.stop');
     const long = await page.evaluate(() => (window as unknown as { __long: number[][] }).__long);

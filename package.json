@@ -23,7 +23,7 @@
     "icons:gen": "tsx scripts/gen-icons.ts",
     "e2e": "playwright test",
     "lighthouse": "tsx scripts/lighthouse.ts",
-    "profile": "tsx scripts/profile-page.ts",
+    "perf": "tsx scripts/profile-page.ts",
     "admin:create-invite": "tsx scripts/admin-create-invite.ts"
   },
   "devDependencies": {

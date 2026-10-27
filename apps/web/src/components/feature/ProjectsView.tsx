@@ -35,6 +35,7 @@ import { PromptsTab } from './prompts/PromptsTab';
 import { StatusTab } from './prompts/StatusTab';
 
 const p = it.projects2;
+const MAX_FACES = 5;
 type Tab = 'task' | 'prompt' | 'status';
 const TABS: Tab[] = ['task', 'prompt', 'status'];
 
@@ -276,8 +277,9 @@ function ProjectDetailView({
           </GlassButton>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <ul className="flex -space-x-2" aria-label={p.members}>
-            {data.members.map((m) => (
+          {/* At most a few faces and "+N": a long row must never widen the page on a phone. */}
+          <ul className="flex min-w-0 -space-x-2" aria-label={p.members}>
+            {data.members.slice(0, MAX_FACES).map((m) => (
               <li key={m.id}>
                 <Avatar
                   name={m.name}
@@ -287,6 +289,14 @@ function ProjectDetailView({
                 />
               </li>
             ))}
+            {data.members.length > MAX_FACES && (
+              <li
+                className="flex size-8 items-center justify-center rounded-full bg-neutral-soft text-caption font-semibold text-fg ring-2 ring-[var(--k-surface-solid)]"
+                aria-label={p.moreMembers(data.members.length - MAX_FACES)}
+              >
+                <span aria-hidden="true">+{data.members.length - MAX_FACES}</span>
+              </li>
+            )}
           </ul>
           <SyncIndicator state={data.repo?.available === false ? 'error' : 'idle'} />
         </div>

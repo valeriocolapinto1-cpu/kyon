@@ -32,8 +32,18 @@ export async function setPreferences(page: Page, prefs: Partial<Preferences>) {
   }, prefs);
 }
 
-/** Fails on serious and critical WCAG 2.x A/AA violations. */
+/**
+ * Fails on serious and critical WCAG 2.x A/AA violations. On narrow screens it also checks
+ * reflow (WCAG 1.4.10): nothing may widen the page sideways (a too long row once shifted
+ * every tap target on phones).
+ */
 export async function expectNoA11yViolations(page: Page) {
+  const overflow = await page.evaluate(() =>
+    window.innerWidth < 600
+      ? Math.max(0, document.documentElement.scrollWidth - window.innerWidth)
+      : 0,
+  );
+  expect(overflow, 'horizontal overflow on a narrow screen').toBe(0);
   const results = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa'])
     .analyze();
