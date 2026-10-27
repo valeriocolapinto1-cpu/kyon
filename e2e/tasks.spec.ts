@@ -58,7 +58,6 @@ test('kanban: read tasks, move with the keyboard, tick with a commit, edit detai
     info.project.name === 'mobile' ? page.getByRole('dialog') : page.getByRole('complementary');
   await detail.getByLabel('Priorità').selectOption('high');
   await detail.getByLabel('Scadenza', { exact: true }).fill('2026-11-03');
-  await detail.getByLabel('Note di Kyon').click();
   await detail.getByLabel('Note di Kyon').fill('Partire dai test');
   await detail.getByLabel('Scadenza', { exact: true }).click(); // blur notes
   await expect(detail.getByText(/ha cambiato la priorità in Alta/)).toBeVisible();

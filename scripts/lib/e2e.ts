@@ -59,6 +59,10 @@ export function prepareE2e(): void {
     GITHUB_API_URL: fake,
     GITHUB_WEB_URL: fake,
     INTERNAL_SECRET: E2E_INTERNAL_SECRET,
+    // Test-only Web Push keys (the browser can't reach a real push service in e2e).
+    VAPID_PUBLIC_KEY:
+      'BMBH1u6S9GgNgCT-VMKQbAbG8Ft8sOTjk8L6cO_tAtNHaySUVdBrvj6zm8cHGVO3E0IMzbzj7RL0iBFFSp02-x4',
+    VAPID_PRIVATE_KEY: 'Gft1JSvz27DuQERjD9A-k3fvZm8mGJQDAIIivl4al4A',
   };
   mkdirSync(path.dirname(E2E_CONFIG), { recursive: true });
   writeFileSync(E2E_CONFIG, JSON.stringify(config, null, 2));

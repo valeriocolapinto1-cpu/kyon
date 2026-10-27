@@ -1,9 +1,8 @@
 'use client';
 
 import * as RadioGroup from '@radix-ui/react-radio-group';
-import { m } from 'motion/react';
-import { useId } from 'react';
 import { cn } from '@/lib/cn';
+import { SlidingPill } from './SlidingPill';
 
 export interface SegmentedOption<T extends string> {
   value: T;
@@ -26,15 +25,19 @@ export function Segmented<T extends string>({
   onChange,
   className,
 }: SegmentedProps<T>) {
-  const layoutId = useId();
   return (
     <RadioGroup.Root
       aria-label={label}
       value={value}
       onValueChange={(next) => onChange(next as T)}
       orientation="horizontal"
-      className={cn('inline-flex rounded-pill bg-accent-soft p-1', className)}
+      className={cn('relative inline-flex rounded-pill bg-accent-soft p-1', className)}
     >
+      <SlidingPill
+        index={options.findIndex((o) => o.value === value)}
+        count={options.length}
+        className="bg-surface-solid shadow-sm"
+      />
       {options.map((option) => {
         const selected = option.value === value;
         return (
@@ -46,13 +49,6 @@ export function Segmented<T extends string>({
               selected ? 'text-fg' : 'text-muted',
             )}
           >
-            {selected && (
-              <m.span
-                layoutId={layoutId}
-                className="absolute inset-0 rounded-pill bg-surface-solid shadow-sm"
-                transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-              />
-            )}
             <span className="relative">{option.label}</span>
           </RadioGroup.Item>
         );

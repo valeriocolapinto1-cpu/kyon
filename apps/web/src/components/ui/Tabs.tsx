@@ -1,8 +1,8 @@
 'use client';
 
-import { m } from 'motion/react';
-import { useId, useRef, type KeyboardEvent } from 'react';
+import { useRef, type KeyboardEvent } from 'react';
 import { cn } from '@/lib/cn';
+import { SlidingPill } from './SlidingPill';
 
 interface TabsProps<T extends string> {
   label: string;
@@ -15,7 +15,6 @@ interface TabsProps<T extends string> {
 
 /** WAI-ARIA tabs (arrow keys, Home/End), pill-styled. Pair with <TabPanel>. */
 export function Tabs<T extends string>({ label, value, tabs, onChange, idPrefix }: TabsProps<T>) {
-  const layoutId = useId();
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   const onKeyDown = (event: KeyboardEvent, index: number) => {
     const last = tabs.length - 1;
@@ -40,7 +39,16 @@ export function Tabs<T extends string>({ label, value, tabs, onChange, idPrefix 
     refs.current[next]?.focus();
   };
   return (
-    <div role="tablist" aria-label={label} className="inline-flex rounded-pill bg-accent-soft p-1">
+    <div
+      role="tablist"
+      aria-label={label}
+      className="relative inline-flex rounded-pill bg-accent-soft p-1"
+    >
+      <SlidingPill
+        index={tabs.findIndex((t) => t.value === value)}
+        count={tabs.length}
+        className="bg-surface-solid shadow-sm"
+      />
       {tabs.map((tab, index) => {
         const selected = tab.value === value;
         return (
@@ -58,17 +66,10 @@ export function Tabs<T extends string>({ label, value, tabs, onChange, idPrefix 
             onClick={() => onChange(tab.value)}
             onKeyDown={(e) => onKeyDown(e, index)}
             className={cn(
-              'relative min-h-touch rounded-pill px-5 text-subhead font-semibold',
+              'relative min-h-touch flex-1 rounded-pill px-5 text-subhead font-semibold',
               selected ? 'text-fg' : 'text-muted',
             )}
           >
-            {selected && (
-              <m.span
-                layoutId={layoutId}
-                className="absolute inset-0 rounded-pill bg-surface-solid shadow-sm"
-                transition={{ type: 'spring', stiffness: 500, damping: 38 }}
-              />
-            )}
             <span className="relative">{tab.label}</span>
           </button>
         );

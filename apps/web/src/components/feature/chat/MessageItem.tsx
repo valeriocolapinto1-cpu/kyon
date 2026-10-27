@@ -21,15 +21,19 @@ import { Menu, type MenuEntry } from '@/components/ui/Menu';
 import { api } from '@/lib/client/api';
 import type { ChatMessage } from '@/lib/client/chat';
 import { cn } from '@/lib/cn';
+import { lazy } from '@/lib/format/lazy';
 import { it } from '@/lib/i18n/it';
 
 const c = it.chat;
 
-const timeFormat = new Intl.DateTimeFormat('it-IT', {
-  hour: '2-digit',
-  minute: '2-digit',
-  timeZone: 'Europe/Rome',
-});
+const timeFormat = lazy(
+  () =>
+    new Intl.DateTimeFormat('it-IT', {
+      hour: '2-digit',
+      minute: '2-digit',
+      timeZone: 'Europe/Rome',
+    }),
+);
 const sizeOf = (bytes: number) =>
   bytes < 1024
     ? `${bytes} B`
@@ -147,7 +151,7 @@ export function MessageItem({
 }: MessageItemProps) {
   const mine = m.author?.id === meId;
   const name = m.author?.name ?? c.someone;
-  const time = timeFormat.format(new Date(m.createdAt));
+  const time = timeFormat().format(new Date(m.createdAt));
   const links = m.deleted
     ? []
     : previewTargets(m.body, typeof window === 'undefined' ? null : window.location.origin);

@@ -30,6 +30,7 @@ import {
   user,
 } from '@/db/schema';
 import { ApiError } from '../errors';
+import { notifyRun } from '../notifications/sources';
 import { GitHubError } from '../github/client';
 import {
   checkRuns,
@@ -58,6 +59,20 @@ const plain = (text: string) =>
     .replace(/\[([^\]]+)\]\([^)\s]+\)/g, '$1')
     .replace(/(\*\*|__|`)/g, '')
     .trim();
+
+async function notifyRunSafely(
+  db: Db,
+  env: CloudflareEnv,
+  run: RunRow,
+  kind: 'linked' | 'ci_failed' | 'merged',
+  pr: number | null,
+) {
+  try {
+    await notifyRun(db, env, run, kind, pr);
+  } catch (error) {
+    console.warn('Run notification failed', error);
+  }
+}
 
 async function logRunEvent(
   db: Db,
@@ -304,18 +319,23 @@ async function syncRunWithPull(
   if (run.state !== 'abandoned' || merged) values.state = state;
   await db.update(promptRun).set(values).where(eq(promptRun.id, run.id));
   const next = { ...run, ...values } as RunRow;
-  if (firstLink)
+  if (firstLink) {
     await logRunEvent(db, run, actorId, 'run_linked', {
       pr: pull.number,
       source: values.linkSource,
     });
-  if (values.state && values.state !== run.state && !firstLink)
+    await notifyRunSafely(db, env, run, 'linked', pull.number);
+  }
+  if (values.state && values.state !== run.state && !firstLink) {
     await logRunEvent(db, run, actorId, `run_${values.state}`, { pr: pull.number });
+    if (values.state === 'ci_failed') await notifyRunSafely(db, env, run, 'ci_failed', pull.number);
+  }
 
   let closed = false;
   if (merged && run.state !== 'merged' && !run.taskClosedByRun) {
     await logRunEvent(db, run, null, 'run_merged', { pr: pull.number });
     closed = await closeTaskForRun(db, env, next, proj);
+    await notifyRunSafely(db, env, run, 'merged', pull.number);
   }
   await runsChanged(
     env,
@@ -405,6 +425,7 @@ export async function handleChecksEvent(
       .set({ state, updatedAt: new Date() })
       .where(eq(promptRun.id, run.id));
     await logRunEvent(db, run, null, `run_${state}`, { pr: run.prNumber });
+    if (state === 'ci_failed') await notifyRunSafely(db, env, run, 'ci_failed', run.prNumber);
   }
   await runsChanged(env, proj.id, null);
   return open.length;

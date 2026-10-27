@@ -2,7 +2,7 @@
 
 import { Command } from 'cmdk';
 import { useRouter } from 'next/navigation';
-import { useEffect, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
 import { it } from '@/lib/i18n/it';
 
 export interface CommandItem {
@@ -27,7 +27,7 @@ interface CommandPaletteProps {
   loading?: boolean;
 }
 
-/** Cmd/Ctrl+K palette: jump anywhere or run an action. */
+/** The palette: jump anywhere or run an action (the shell opens it with Cmd/Ctrl+K). */
 export function CommandPalette({
   open,
   onOpenChange,
@@ -38,17 +38,6 @@ export function CommandPalette({
   loading = false,
 }: CommandPaletteProps) {
   const router = useRouter();
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() === 'k' && (event.metaKey || event.ctrlKey)) {
-        event.preventDefault();
-        onOpenChange(!open);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onOpenChange]);
 
   // Server results carry the query among their keywords, so cmdk's filter keeps them.
   const items = [

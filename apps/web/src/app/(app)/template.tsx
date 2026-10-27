@@ -1,6 +1,5 @@
 'use client';
 
-import { m } from 'motion/react';
 import { usePathname } from 'next/navigation';
 import { useEffect, type ReactNode } from 'react';
 
@@ -29,13 +28,5 @@ export default function AppTemplate({ children }: { children: ReactNode }) {
     return () => cancelAnimationFrame(frame);
   }, [pathname]);
 
-  return (
-    <m.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ type: 'spring', stiffness: 380, damping: 34 }}
-    >
-      {children}
-    </m.div>
-  );
+  return <div className="k-page-in">{children}</div>;
 }

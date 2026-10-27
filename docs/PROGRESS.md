@@ -4,7 +4,7 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 9 — Notifiche** (da iniziare).
+**Fase 10 — PWA offline, hardening, rilascio** (da iniziare).
 
 | Fase | Titolo                                          | Stato      |
 | ---- | ----------------------------------------------- | ---------- |
@@ -17,8 +17,8 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 | 6    | Prompt, esecuzioni, tracciamento PR; Status     | ✅ fatta   |
 | 7    | Realtime, chat e thread                         | ✅ fatta   |
 | 8    | Home, Progetti, Chat, Persone, ricerca, extra   | ✅ fatta   |
-| 9    | Notifiche                                       | ⏭ prossima |
-| 10   | PWA offline, hardening, rilascio                | —          |
+| 9    | Notifiche                                       | ✅ fatta   |
+| 10   | PWA offline, hardening, rilascio                | ⏭ prossima |
 
 ## In attesa dell'utente
 
@@ -26,6 +26,8 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 - [ ] (Facoltativo) Secret GitHub `ADMIN_BOOTSTRAP_CODE` per creare il primo account admin dal telefono (`docs/SETUP.md` §A6). In alternativa `pnpm admin:create-invite --remote`.
 - [ ] Dopo il primo deploy: aprire `/api/health` e guardare **CPU Time** nelle metriche di `kyon-web` (prima misura reale della CPU), in particolare su `/api/auth/sign-in/email`.
 - [ ] **GitHub App** (`docs/SETUP.md` §B): creala, poi secrets `KYON_GH_CLIENT_ID`, `KYON_GH_CLIENT_SECRET`, `KYON_GH_WEBHOOK_SECRET` e variabile `KYON_GH_APP_SLUG` nella repo. Senza, Settings → GitHub dice che l'app non è configurata.
+- [ ] (Facoltativo) **Email** (`docs/SETUP.md` §D2): dominio su Cloudflare Email Service, destinatari verificati sul piano Free, variabile `KYON_EMAIL_FROM` nella repo. Senza, le notifiche arrivano in Kyon e come push.
+- [ ] Su un **iPhone reale**: installare Kyon nella schermata Home e attivare le push (Settings → Notifiche → Invia una prova). Le push non sono verificabili negli e2e (nessun servizio push reale).
 - [ ] Un `.md` reale di Biohybrid (es. `PROSSIMI-PASSI.md`) per le fixture del parser (serve in Fase 4).
 
 ## Numeri del bundle (gzip, `pnpm size`)
@@ -43,6 +45,7 @@ Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 | 6    | 1697,7 KiB | 1,8 KiB       | 0,7 KiB   | + prompt, versioni, template, esecuzioni, webhook PR/CI, Status, CLAUDE.md                                          |
 | 7    | 1745,9 KiB | 2,2 KiB       | 0,7 KiB   | + chat (stanze, messaggi, reazioni, pin, ricerca FTS5, allegati R2, anteprime), presenza e "sta scrivendo"          |
 | 8    | 1770,7 KiB | 2,2 KiB       | 0,7 KiB   | + Home con dati, Persone, Cronologia, ricerca globale, feed .ics, tour, scorciatoie                                 |
+| 9    | 1810,6 KiB | 2,2 KiB       | 0,7 KiB   | + notifiche (in-app, Web Push RFC 8291/8292 con WebCrypto, email via EmailProvider), presenza interrogabile dal DO  |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -77,8 +80,51 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 | 8    | `/chat` (loggato)     | 86          | 100           | 100            |
 | 8    | `/settings` (loggato) | 80          | 100           | 100            |
 | 8    | `/login`              | 96          | 100           | 100            |
+| 9    | `/` (loggato)         | 76–84       | 100           | 100            |
+| 9    | `/progetti` (loggato) | 81–89       | 100           | 100            |
+| 9    | `/chat` (loggato)     | 80–89       | 100           | 100            |
+| 9    | `/settings` (loggato) | 74–77       | 100           | 100            |
+| 9    | `/login`              | 90–95       | 100           | 100            |
+
+Dalla Fase 9 ogni pagina è misurata 3 volte con una **sessione nuova per pagina** (vedi decisioni Fase 9: prima le pagine dopo la prima erano misurate da sloggato). Gli intervalli sono i 3 giri su questa macchina, che oscilla di ±8 punti.
 
 ## Log delle fasi
+
+### Fase 9 — Notifiche ✅ (2026-10-27)
+
+Fatto:
+
+- **Logica pura** (`packages/core/src/notifications`, test): eventi `mention`, `assigned`, `due`, `message`, `run` × canali `inapp`, `push`, `email`; preferenze sanificate (orari silenziosi `HH:MM` anche a cavallo della mezzanotte, nel fuso della persona, default **23:00–08:00**; "consenti menzioni dirette" spento); regole di consegna (chat silenziata: niente messaggi, menzioni solo in-app; chi ha la chat aperta: niente push/email e niente in-app per i messaggi; orari silenziosi: solo in-app); raggruppamento in finestra di 10 minuti.
+- **Web Push senza librerie**: cifratura **RFC 8291** (aes128gcm, ECDH P-256 + HKDF + AES-GCM) e **VAPID RFC 8292** (JWT ES256) con WebCrypto, verificate sul **vettore ufficiale dell'RFC 8291** byte per byte e con un round-trip di decifratura. Endpoint accettati solo dei servizi push reali (FCM, Mozilla, Apple, Windows): niente SSRF da un endpoint falso.
+- **Dati** (migrazione `0009_notifications`): `notification` (con `group_key` e conteggio), `push_subscription` (rimosse da sole su 404/410), `user.notification_prefs`.
+- **Sorgenti**: menzioni (in qualsiasi chat) e nuovi messaggi (chat di progetto, thread, commenti delle task), assegnazioni (mai a sé stessi), esecuzioni (PR collegata, CI fallita, merge: una volta per stato, anche con webhook riconsegnati), **scadenze** dal cron (il giorno prima e il giorno stesso, dalle 08:00 di Roma, una volta sola, solo se l'assegnatario è ancora nel progetto).
+- **Presenza dal DO**: `GET /presence` (con il segreto interno) dice chi ha la stanza aperta, per non mandare push a chi sta già guardando.
+- **Email** dietro `EmailProvider`: Cloudflare Email Service (`env.EMAIL.send`) se al deploy c'è `KYON_EMAIL_FROM`, altrimenti nessun invio e la colonna Email in Settings è disattivata con spiegazione. Link assoluti con `KYON_URL`, letto dal deploy dal sottodominio `workers.dev`.
+- **Chiavi VAPID** generate una volta sola dal deploy (secrets) e da `pnpm dev` (`.dev.vars`).
+- **UI**: campanella con badge (header su telefono, sidebar altrove) aggiornata **live** dal socket del gruppo (viaggiano solo gli id dei destinatari, mai il contenuto); centro notifiche con "Segna tutte come lette"; **Settings → Notifiche**: matrice evento × canale (tabella con caselle etichettate), orari silenziosi, menzioni dirette, push su questo dispositivo, **guida iOS** (Aggiungi alla schermata Home) quando serve, "Invia una prova". Service worker `public/sw.js` per `push` e `notificationclick`.
+- Test: 591 unit/integrazione (7 di integrazione: menzioni e messaggi raggruppati, nulla a chi non è nel progetto, letture solo proprie, push cifrate con VAPID e servizio finto, rifiuto di endpoint arbitrari, rimozione su 410, email secondo matrice, orari silenziosi, chat silenziata, promemoria scadenze una volta sola, prova); e2e: menzione → campanella live → apertura → letta (telefono e desktop), preferenze salvate e "Invia una prova".
+
+Prestazioni (regressione della Fase 8 trovata dalla CI, Lighthouse 0,70/0,65):
+
+- **Misura sbagliata**: Lighthouse riusava un cookie fisso, ma l'app ruota il token alla prima pagina della sessione: dalla seconda pagina in poi si misurava il rimbalzo al login. Ora ogni pagina ha una sessione nuova, e il tour iniziale è segnato come visto prima di misurare (lo vedi una volta sola).
+- `motion` fuori dal primo caricamento: ingresso pagina e pillole attive (tab bar, sidebar, controlli segmentati, schede) in **CSS puro** (`SlidingPill`); i fogli (`Sheet`) caricano `motion` e Radix al primo gesto o alla prima apertura.
+- Palette, scorciatoie, tour, centro notifiche, "Personalizza": codice caricato solo quando servono. Formatter `Intl` creati al primo uso (`lazy`). Orologio analogico senza `Intl` per frame (`zoneOffsetMs` una volta al minuto + `clockAt`).
+- Settings: sezioni sotto la piega disegnate quando ci si avvicina (`Deferred when="visible"`, con il titolo vero al loro posto per gli screen reader; tutte subito con un `#ancora`).
+- Doppio tocco: `touch-action: manipulation` (niente zoom col doppio tocco, il pinch-zoom resta).
+- Nuovo comando `pnpm profile` (profilo CPU 4× delle pagine da loggato).
+
+Decisioni:
+
+- Email spenta per default su tutti gli eventi (sul Free arriva solo a destinatari verificati); push accese per menzioni, assegnazioni, scadenze ed esecuzioni, spente per i messaggi.
+- Le preferenze di notifica stanno in una colonna JSON di `user` (una riga per persona) invece di `notification_pref`.
+- Un promemoria "once" viene registrato anche se l'in-app è spento (letto), così il cron non lo rimanda ogni 15 minuti.
+- La CI gira anche sui branch `claude/**` (il deploy resta solo su `main`).
+
+Debito tecnico / da controllare:
+
+- `/settings` resta la pagina più pesante (Lighthouse 74–77 qui, l'asserzione usa il giro migliore dei tre): in Fase 10 valutare sezioni ancora più leggere.
+- Su questo container, sotto carico pieno, due e2e su telefono (dettaglio task in un foglio) a volte non trovano il bersaglio fermo; in CI passano. Da verificare su un iPhone reale lo scorrimento del foglio del dettaglio task.
+- Raggruppamento delle notifiche per "progetto" oltre che per stanza: non necessario per 4 persone, per ora.
 
 ### Fase 8 — Home, Progetti, Chat, Persone, ricerca, extra ✅ (2026-10-26)
 

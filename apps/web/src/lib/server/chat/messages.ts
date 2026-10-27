@@ -5,6 +5,7 @@ import { attachment, chatMessage, chatPin, chatReaction, chatRoom, user } from '
 import { chunk, inChunks } from '../d1';
 import { ApiError } from '../errors';
 import { avatarUrl } from '../users';
+import { notifyChatMessage } from '../notifications/sources';
 import { publishChat, roomAccess, roomPeople } from './rooms';
 
 export const MAX_MESSAGE_LENGTH = 4000;
@@ -322,6 +323,16 @@ export async function sendMessage(
     actorId: actor.id,
     message: neutral(view),
   });
+  try {
+    await notifyChatMessage(db, env, actor, access, {
+      body,
+      mentions,
+      hasAttachments: files.length > 0,
+    });
+  } catch (error) {
+    // The message is stored: a notification problem must not turn it into an error.
+    console.warn('Chat notifications failed', error);
+  }
   return view;
 }
 

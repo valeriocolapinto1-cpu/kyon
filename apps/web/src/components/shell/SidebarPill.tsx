@@ -2,15 +2,17 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { m } from 'motion/react';
 import { Search } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { cn } from '@/lib/cn';
 import { it } from '@/lib/i18n/it';
 import { Logo } from './Logo';
+import { SlidingPill } from '@/components/ui/SlidingPill';
 import { NAV_ITEMS, isActive } from './nav';
 
 /** Floating glass sidebar (tablet, desktop and phones in landscape). */
-export function SidebarPill({ onSearch }: { onSearch: () => void }) {
+/** `bell` is the notification bell (left out where there's no data, e.g. the gallery). */
+export function SidebarPill({ onSearch, bell }: { onSearch: () => void; bell?: ReactNode }) {
   const pathname = usePathname();
   return (
     <nav
@@ -26,7 +28,15 @@ export function SidebarPill({ onSearch }: { onSearch: () => void }) {
         >
           <Logo className="size-8" />
         </Link>
-        <ul className="flex flex-col gap-1">
+        <ul className="relative flex flex-col gap-1">
+          <SlidingPill
+            index={NAV_ITEMS.findIndex(({ href }) => isActive(pathname, href))}
+            count={NAV_ITEMS.length}
+            axis="y"
+            inset="0px"
+            gap="0.25rem"
+            className="bg-accent-soft"
+          />
           {NAV_ITEMS.map(({ href, label, Icon }) => {
             const active = isActive(pathname, href);
             return (
@@ -40,13 +50,6 @@ export function SidebarPill({ onSearch }: { onSearch: () => void }) {
                     active ? 'text-accent-text' : 'text-fg',
                   )}
                 >
-                  {active && (
-                    <m.span
-                      layoutId="sidebar-active"
-                      className="absolute inset-0 rounded-pill bg-accent-soft"
-                      transition={{ type: 'spring', stiffness: 520, damping: 40 }}
-                    />
-                  )}
                   <Icon
                     className="relative size-6"
                     strokeWidth={active ? 2.6 : 1.8}
@@ -73,6 +76,7 @@ export function SidebarPill({ onSearch }: { onSearch: () => void }) {
         >
           <Search className="size-5" aria-hidden="true" />
         </button>
+        {bell}
       </div>
     </nav>
   );

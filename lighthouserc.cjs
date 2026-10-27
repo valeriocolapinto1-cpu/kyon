@@ -5,7 +5,9 @@ module.exports = {
   ci: {
     collect: {
       url: ['/', '/progetti', '/chat', '/settings', '/login'].map((p) => `${base}${p}`),
-      numberOfRuns: 1,
+      // 3 runs: a single run on a shared CI machine swings by ±10 points. Assertions use lhci's
+      // default aggregation (the best run); the reports keep all three.
+      numberOfRuns: 3,
       settings: {
         chromeFlags: '--no-sandbox --headless=new',
         extraHeaders: process.env.LHCI_COOKIE

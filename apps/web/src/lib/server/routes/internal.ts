@@ -1,8 +1,9 @@
 import { asc, desc, eq, sql } from 'drizzle-orm';
-import { timingSafeEqual } from '@kyon/core';
+import { localMinutes, timingSafeEqual } from '@kyon/core';
 import { project, projectSync } from '@/db/schema';
 import { ApiError } from '../errors';
 import { json, route } from '../http';
+import { notifyDueTasks } from '../notifications/sources';
 import { purgeOrphans } from '../tasks/apply';
 import { syncProject } from '../tasks/sync';
 
@@ -41,5 +42,14 @@ export const cron = route(async ({ request, env, db }) => {
     }
   }
   await purgeOrphans(db);
-  return json({ ok: true, results });
+  // Due-date reminders: from 08:00 Rome time (after the default quiet hours); each one once.
+  let reminders = 0;
+  if (localMinutes(new Date(), 'Europe/Rome') >= 8 * 60) {
+    try {
+      reminders = await notifyDueTasks(db, env);
+    } catch (error) {
+      console.warn('Due reminders failed', error);
+    }
+  }
+  return json({ ok: true, results, reminders });
 });

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { formatClock, handAngles, zonedClock } from '@kyon/core';
+import { clockAt, formatClock, handAngles, zoneOffsetMs } from '@kyon/core';
 import { it } from '@/lib/i18n/it';
 import { useReducedMotion } from '@/lib/preferences/context';
 
@@ -31,9 +31,16 @@ export function ClockAnalog({ size = 132 }: { size?: number }) {
   useEffect(() => {
     let raf = 0;
     let timer = 0;
+    // Zone offset refreshed once a minute; each frame is plain arithmetic.
+    let offset = zoneOffsetMs(new Date());
+    let offsetAt = Date.now();
     const draw = () => {
-      const now = new Date();
-      const angles = handAngles(zonedClock(now), reduced ? 0 : now.getMilliseconds());
+      const now = Date.now();
+      if (now - offsetAt > 60_000) {
+        offset = zoneOffsetMs(new Date(now));
+        offsetAt = now;
+      }
+      const angles = handAngles(clockAt(now, offset), reduced ? 0 : now % 1000);
       hourRef.current?.setAttribute('transform', `rotate(${angles.hour} 50 50)`);
       minuteRef.current?.setAttribute('transform', `rotate(${angles.minute} 50 50)`);
       secondRef.current?.setAttribute('transform', `rotate(${angles.second} 50 50)`);

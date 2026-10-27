@@ -140,7 +140,7 @@ test.describe('auth', () => {
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
 
     await page.goto('/settings');
-    await expect(page.getByText('Questo dispositivo')).toBeVisible();
+    await expect(page.getByText('Questo dispositivo', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Disconnetti tutti gli altri' }).click();
     await expect(page.getByText('Altri dispositivi disconnessi', { exact: true })).toBeVisible();
     await secondPage.reload();

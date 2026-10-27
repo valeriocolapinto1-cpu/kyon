@@ -5,8 +5,6 @@ import {
   Activity,
   ArrowRight,
   CalendarClock,
-  ChevronDown,
-  ChevronUp,
   History,
   MessageSquareText,
   PlayCircle,
@@ -15,7 +13,8 @@ import {
   X,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { moveHomeBlock, today, type HomeBlockId, type Priority, type RunState } from '@kyon/core';
+import { today, type HomeBlockId, type Priority, type RunState } from '@kyon/core';
+import dynamic from 'next/dynamic';
 import { HomeClock } from '@/components/feature/HomeClock';
 import { RunStateBadge } from '@/components/feature/prompts/RunState';
 import { Avatar } from '@/components/ui/Avatar';
@@ -25,9 +24,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { InlineText } from '@/components/ui/InlineText';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
-import { Sheet } from '@/components/ui/Sheet';
 import { SkeletonList } from '@/components/ui/Skeleton';
-import { Switch } from '@/components/ui/Switch';
 import {
   messageHref,
   taskHref,
@@ -45,6 +42,7 @@ import { it } from '@/lib/i18n/it';
 import { ActivityLine } from './ActivityLine';
 
 const h = it.home;
+const CustomizeSheet = dynamic(() => import('./CustomizeSheet'), { ssr: false });
 
 const ICONS: Record<HomeBlockId, typeof Activity> = {
   clock: CalendarClock,
@@ -254,73 +252,13 @@ function Resume({ data }: { data: HomeData }) {
   );
 }
 
-function CustomizeSheet({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (o: boolean) => void;
-}) {
-  const me = useMe().data;
-  const { layout, save } = useHomeLayout(me);
-  return (
-    <Sheet
-      open={open}
-      onOpenChange={onOpenChange}
-      title={h.customizeTitle}
-      description={h.customizeHelp}
-    >
-      <ul className="flex flex-col gap-2">
-        {layout.map((block, i) => {
-          const name = h.blocks[block.id] ?? block.id;
-          return (
-            <li
-              key={block.id}
-              className="flex items-center gap-2 rounded-control border border-border bg-surface-solid px-3 py-1"
-            >
-              <div className="min-w-0 flex-1">
-                <Switch
-                  label={name}
-                  checked={!block.hidden}
-                  onCheckedChange={(checked) =>
-                    void save(
-                      layout.map((b) => (b.id === block.id ? { ...b, hidden: !checked } : b)),
-                    )
-                  }
-                />
-              </div>
-              <GlassButton
-                size="icon"
-                variant="plain"
-                aria-label={h.moveUp(name)}
-                disabled={i === 0}
-                onClick={() => void save(moveHomeBlock(layout, block.id, -1))}
-              >
-                <ChevronUp className="size-5" aria-hidden="true" />
-              </GlassButton>
-              <GlassButton
-                size="icon"
-                variant="plain"
-                aria-label={h.moveDown(name)}
-                disabled={i === layout.length - 1}
-                onClick={() => void save(moveHomeBlock(layout, block.id, 1))}
-              >
-                <ChevronDown className="size-5" aria-hidden="true" />
-              </GlassButton>
-            </li>
-          );
-        })}
-      </ul>
-    </Sheet>
-  );
-}
-
 /** Home: blocks in the order (and visibility) the person chose, each with its own empty state. */
 export function HomeView() {
   const me = useMe().data;
   const home = useHome();
   const { layout } = useHomeLayout(me);
-  const [customizing, setCustomizing] = useState(false);
+  // null until first opened: the sheet's code loads only then.
+  const [customizing, setCustomizing] = useState<boolean | null>(null);
 
   const content = (id: HomeBlockId, data: HomeData) => {
     switch (id) {
@@ -408,7 +346,7 @@ export function HomeView() {
             )}
         </div>
       )}
-      <CustomizeSheet open={customizing} onOpenChange={setCustomizing} />
+      {customizing !== null && <CustomizeSheet open={customizing} onOpenChange={setCustomizing} />}
     </>
   );
 }

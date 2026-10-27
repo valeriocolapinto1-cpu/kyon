@@ -13,16 +13,20 @@ import { SkeletonList } from '@/components/ui/Skeleton';
 import { usePeople, usePerson, type PersonProfile } from '@/lib/client/home';
 import { useMe } from '@/lib/client/me';
 import { useGroupLive } from '@/lib/client/presence';
+import { lazy } from '@/lib/format/lazy';
 import { it } from '@/lib/i18n/it';
 
 const p = it.people;
 
-const dateFormat = new Intl.DateTimeFormat('it-IT', {
-  day: 'numeric',
-  month: 'long',
-  year: 'numeric',
-  timeZone: 'Europe/Rome',
-});
+const dateFormat = lazy(
+  () =>
+    new Intl.DateTimeFormat('it-IT', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'Europe/Rome',
+    }),
+);
 
 function Section({
   id,
@@ -68,7 +72,7 @@ function Profile({ person }: { person: PersonProfile }) {
             {person.admin && <Badge tone="accent">{p.admin}</Badge>}
           </p>
           <p className="text-footnote text-muted">
-            {p.memberSince(dateFormat.format(new Date(person.memberSince)))}
+            {p.memberSince(dateFormat().format(new Date(person.memberSince)))}
             {person.githubLogin ? ` · ${p.github(person.githubLogin)}` : ''}
           </p>
         </div>

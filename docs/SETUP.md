@@ -149,9 +149,33 @@ Non serve per usare Kyon, solo se vuoi provare il codice sul tuo computer.
 
 ---
 
-## D. Passi delle fasi successive
+## D. Notifiche (Fase 9)
 
-Questi passi verranno dettagliati qui quando arriva la fase relativa.
+### D1. Push: niente da fare
 
-- **Fase 9 — Notifiche**: chiavi VAPID per le push, verifica dell'invio email sul piano Free.
+Le chiavi VAPID per le notifiche push vengono **generate una volta sola dal primo deploy** e restano solo nei secrets di Cloudflare (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`). Non rigenerarle: tutti i dispositivi dovrebbero riattivare le push.
+
+Ogni persona attiva le push da **Settings → Notifiche → Attiva le push**, su ogni dispositivo.
+
+- **iPhone e iPad (iOS/iPadOS 16.4 o successivo)**: le push funzionano solo dall'app installata. In Safari tocca **Condividi → Aggiungi alla schermata Home**, apri Kyon dall'icona e attiva le push da lì. Kyon lo spiega anche nella pagina, se apri Settings da Safari.
+- **Mac (Safari, Chrome), Windows/Linux (Chrome, Edge, Firefox), Android**: basta il browser.
+- Se il browser ha bloccato le notifiche per Kyon, riattivale dalle impostazioni del sito.
+
+### D2. Email (facoltativo)
+
+Senza questo passo l'app funziona comunque: le notifiche arrivano in Kyon e come push, e la colonna Email in Settings è disattivata con una spiegazione.
+
+1. Cloudflare → **Email Service** → aggiungi un dominio di invio (serve un dominio tuo: con il solo `workers.dev` non si può). Segui la verifica DNS che ti propone.
+2. Sul piano **Free** l'invio arriva solo agli **indirizzi verificati** del tuo account: aggiungi lì le email delle 4 persone (Email Service → indirizzi di destinazione). Con **Workers Paid** puoi scrivere a chiunque.
+3. Su GitHub → repo `kyon` → Settings → Secrets and variables → Actions → **Variables** → **New repository variable**:
+   - Nome: `KYON_EMAIL_FROM`
+   - Valore: per esempio `kyon@tuodominio.it` (deve essere sul dominio del punto 1).
+4. Al deploy successivo Kyon aggiunge il binding `EMAIL` e attiva la colonna Email in Settings. Prova con **Settings → Notifiche → Invia una prova** e attivando l'email su un evento.
+
+L'indirizzo del sito usato nei link delle email (`KYON_URL`) viene letto in automatico dal tuo sottodominio `workers.dev`. Se un giorno userai un dominio personalizzato, aggiungi anche la variabile `KYON_URL` (es. `https://kyon.tuodominio.it`).
+
+---
+
+## E. Passi delle fasi successive
+
 - **Fase 10 — Ripristino dati**: istruzioni per D1 Time Travel.

@@ -107,6 +107,19 @@ merge ─▶ setDone (commit) ─▶ Fatto + "Annulla chiusura"   ·   "Verifica
 - Ricerca: `LIKE` su testo delle task e titolo dei prompt (pochi dati, nessun indice FTS necessario), FTS5 per i messaggi.
 - Feed `.ics` pubblico su `/api/calendar/<token>.ics`: il token si verifica con l'hash, la risposta ha `cache-control: private, max-age=300`.
 
+## 3septies. Notifiche
+
+```
+evento (messaggio, assegnazione, esecuzione, cron scadenze)
+  → notify(): preferenze della persona + presenza dal DO + chat silenziate
+  → in-app (D1 `notification`, raggruppate per group_key) → evento `notify` sulla stanza del gruppo (solo id)
+  → push (waitUntil): RFC 8291 + VAPID con WebCrypto, verso FCM / Mozilla / Apple / Windows
+  → email (waitUntil): EmailProvider → Cloudflare Email Service se configurato
+```
+
+- Costo per evento sul Free: 1–2 query di lettura (persone, silenziate), 1 fetch al DO per la presenza (solo se serve), 1 scrittura per destinatario, 1 subrequest per dispositivo push. Con 4 persone resta lontano dai limiti di subrequest (50) e CPU.
+- Le preferenze hanno un'unica fonte di verità (`deliveryChannels` in `packages/core`), testata con una tabella di casi.
+
 ## 4. Realtime (task dalla Fase 5, chat dalla Fase 7)
 
 ```

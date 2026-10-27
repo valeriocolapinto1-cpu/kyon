@@ -18,7 +18,13 @@ export interface VapidKeys {
   privateKey: string;
 }
 
-const enc = new TextEncoder();
+const encoder = new TextEncoder();
+/** UTF-8 bytes typed for WebCrypto in every runtime (DOM and Workers typings differ). */
+const utf8 = (text: string) => new Uint8Array(encoder.encode(text));
+/** The same exports typed alike in DOM and Workers typings. */
+const exportRaw = async (key: CryptoKey) =>
+  new Uint8Array((await crypto.subtle.exportKey('raw', key)) as ArrayBuffer);
+type DeriveAlgorithm = Parameters<typeof crypto.subtle.deriveBits>[0];
 
 export function base64UrlEncode(bytes: Uint8Array): string {
   let binary = '';
@@ -49,8 +55,8 @@ export async function generateVapidKeys(): Promise<VapidKeys> {
     'sign',
     'verify',
   ])) as CryptoKeyPair;
-  const raw = new Uint8Array(await crypto.subtle.exportKey('raw', pair.publicKey));
-  const jwk = await crypto.subtle.exportKey('jwk', pair.privateKey);
+  const raw = await exportRaw(pair.publicKey);
+  const jwk = (await crypto.subtle.exportKey('jwk', pair.privateKey)) as JsonWebKey;
   return { publicKey: base64UrlEncode(raw), privateKey: jwk.d ?? '' };
 }
 
@@ -74,9 +80,9 @@ export async function vapidAuthorization(
   subject: string,
   now = new Date(),
 ): Promise<string> {
-  const header = base64UrlEncode(enc.encode(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
+  const header = base64UrlEncode(utf8(JSON.stringify({ typ: 'JWT', alg: 'ES256' })));
   const claims = base64UrlEncode(
-    enc.encode(
+    utf8(
       JSON.stringify({
         aud: new URL(endpoint).origin,
         // At most 24 h; 12 h leaves room for clock skew.
@@ -93,11 +99,7 @@ export async function vapidAuthorization(
     ['sign'],
   );
   const signature = new Uint8Array(
-    await crypto.subtle.sign(
-      { name: 'ECDSA', hash: 'SHA-256' },
-      key,
-      enc.encode(`${header}.${claims}`),
-    ),
+    await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, key, utf8(`${header}.${claims}`)),
   );
   return `vapid t=${header}.${claims}.${base64UrlEncode(signature)}, k=${keys.publicKey}`;
 }
@@ -122,10 +124,10 @@ export async function deriveContentKeys(
   asPublic: Uint8Array<ArrayBuffer>,
   salt: Uint8Array<ArrayBuffer>,
 ) {
-  const keyInfo = concat(enc.encode('WebPush: info\0'), uaPublic, asPublic);
+  const keyInfo = concat(utf8('WebPush: info\0'), uaPublic, asPublic);
   const ikm = await hkdf(authSecret, ecdhSecret, keyInfo, 32);
-  const cek = await hkdf(salt, ikm, enc.encode('Content-Encoding: aes128gcm\0'), 16);
-  const nonce = await hkdf(salt, ikm, enc.encode('Content-Encoding: nonce\0'), 12);
+  const cek = await hkdf(salt, ikm, utf8('Content-Encoding: aes128gcm\0'), 16);
+  const nonce = await hkdf(salt, ikm, utf8('Content-Encoding: nonce\0'), 12);
   return { cek, nonce };
 }
 
@@ -151,9 +153,7 @@ export async function encryptPushPayload(
         'deriveBits',
       ])) as CryptoKeyPair);
   const asPrivate = fixed?.privateKey ?? (ephemeral as CryptoKeyPair).privateKey;
-  const asPublic =
-    fixed?.publicKey ??
-    new Uint8Array(await crypto.subtle.exportKey('raw', (ephemeral as CryptoKeyPair).publicKey));
+  const asPublic = fixed?.publicKey ?? (await exportRaw((ephemeral as CryptoKeyPair).publicKey));
   const uaKey = await crypto.subtle.importKey(
     'raw',
     uaPublic,
@@ -162,11 +162,15 @@ export async function encryptPushPayload(
     [],
   );
   const ecdhSecret = new Uint8Array(
-    await crypto.subtle.deriveBits({ name: 'ECDH', public: uaKey }, asPrivate, 256),
+    await crypto.subtle.deriveBits(
+      { name: 'ECDH', public: uaKey } as unknown as DeriveAlgorithm,
+      asPrivate,
+      256,
+    ),
   );
   const salt = fixed?.salt ?? crypto.getRandomValues(new Uint8Array(16));
   const { cek, nonce } = await deriveContentKeys(ecdhSecret, authSecret, uaPublic, asPublic, salt);
-  const data = enc.encode(payload);
+  const data = utf8(payload);
   // One record: the data, then the 0x02 delimiter of the last record.
   if (data.length + 1 + 16 > RECORD_SIZE) throw new Error('Push payload too large');
   const plaintext = concat(data, new Uint8Array([2]));

@@ -1,18 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
 import { Sheet } from '@/components/ui/Sheet';
 import { it } from '@/lib/i18n/it';
 
 const s = it.shortcuts;
 
-function typingInField(target: EventTarget | null) {
-  const el = target as HTMLElement | null;
-  if (!el) return false;
-  return el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
-}
-
-/** "?" anywhere (outside text fields) lists the keyboard shortcuts. */
+/** The keyboard shortcuts ("?" anywhere outside text fields, wired in the app shell). */
 export function ShortcutsDialog({
   open,
   onOpenChange,
@@ -20,17 +13,6 @@ export function ShortcutsDialog({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== '?' || event.metaKey || event.ctrlKey || event.altKey) return;
-      if (typingInField(event.target) || document.querySelector('[role="dialog"]')) return;
-      event.preventDefault();
-      onOpenChange(true);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onOpenChange]);
-
   return (
     <Sheet open={open} onOpenChange={onOpenChange} title={s.title} readingContent>
       <div className="flex flex-col gap-5">

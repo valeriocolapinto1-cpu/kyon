@@ -10,6 +10,7 @@ import * as github from './routes/github';
 import * as githubWebhook from './routes/githubWebhook';
 import * as people from './routes/people';
 import * as home from './routes/home';
+import * as notifications from './routes/notifications';
 import * as projectRoutes from './routes/project';
 import * as projects from './routes/projects';
 import * as repos from './routes/repos';
@@ -64,6 +65,12 @@ const routes: [string, Module][] = [
   ['/api/calendar/:file', { GET: home.calendarFeed }],
   ['/api/search', { GET: home.search }],
   ['/api/activity', { GET: home.activity }],
+  ['/api/notifications', { GET: notifications.list }],
+  ['/api/notifications/read', { POST: notifications.read }],
+  ['/api/notifications/setup', { GET: notifications.setup }],
+  ['/api/notifications/test', { POST: notifications.test }],
+  ['/api/me/notifications', notifications.prefs],
+  ['/api/push/subscriptions', { POST: notifications.subscribe, DELETE: notifications.unsubscribe }],
   ['/api/github', github],
   ['/api/github/connect', { GET: github.connect }],
   ['/api/github/callback', { GET: github.callback }],

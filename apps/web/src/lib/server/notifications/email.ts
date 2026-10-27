@@ -47,11 +47,14 @@ export function emailProvider(env: CloudflareEnv): EmailProvider {
     : new NoEmailProvider();
 }
 
-const escapeHtml = (text: string) =>
-  text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
+const escapeHtml = (text: string) => text.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 /** A short, plain email: title, text, one link. */
-export function notificationEmail(title: string, body: string, link: string | null): EmailMessage['html'] {
+export function notificationEmail(
+  title: string,
+  body: string,
+  link: string | null,
+): EmailMessage['html'] {
   return `<!doctype html><html lang="it"><body style="font-family:-apple-system,system-ui,'Segoe UI',sans-serif;color:#1c1c1e;line-height:1.5">
 <h1 style="font-size:20px">${escapeHtml(title)}</h1>
 <p>${escapeHtml(body)}</p>

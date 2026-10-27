@@ -2,7 +2,8 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # Work branches too: the full checks run before anything reaches main (deploy stays main-only).
+    branches: [main, 'claude/**']
   pull_request:
 
 concurrency:

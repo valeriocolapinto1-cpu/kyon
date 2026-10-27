@@ -2,9 +2,9 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { m } from 'motion/react';
 import { cn } from '@/lib/cn';
 import { it } from '@/lib/i18n/it';
+import { SlidingPill } from '@/components/ui/SlidingPill';
 import { NAV_ITEMS, isActive } from './nav';
 
 /** Floating pill tab bar at the bottom (phones in portrait). */
@@ -19,6 +19,12 @@ export function TabBarPill() {
         data-tabbar
         className="k-chrome flex w-full max-w-md items-stretch justify-between rounded-pill p-1.5"
       >
+        <SlidingPill
+          index={NAV_ITEMS.findIndex(({ href }) => isActive(pathname, href))}
+          count={NAV_ITEMS.length}
+          inset="0.375rem"
+          className="bg-accent-soft"
+        />
         {NAV_ITEMS.map(({ href, label, Icon }) => {
           const active = isActive(pathname, href);
           return (
@@ -32,13 +38,6 @@ export function TabBarPill() {
                   active ? 'text-accent-text' : 'text-fg',
                 )}
               >
-                {active && (
-                  <m.span
-                    layoutId="tabbar-active"
-                    className="absolute inset-0 rounded-pill bg-accent-soft"
-                    transition={{ type: 'spring', stiffness: 520, damping: 40 }}
-                  />
-                )}
                 <Icon
                   className="relative size-6"
                   strokeWidth={active ? 2.6 : 1.8}

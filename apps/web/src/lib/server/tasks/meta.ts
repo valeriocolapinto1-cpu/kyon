@@ -12,6 +12,7 @@ import {
 } from '@/db/schema';
 import { ApiError } from '../errors';
 import { authorizeProject } from '../projects';
+import { notifyAssigned } from '../notifications/sources';
 import { publishTasks } from '../realtime';
 import { setDone } from './write';
 
@@ -188,6 +189,18 @@ export async function updateTaskMeta(
       column: columnName,
     },
   ]);
+  if (set.assigneeId)
+    try {
+      await notifyAssigned(
+        db,
+        env,
+        actor,
+        { id: taskId, projectId, text: meta.text },
+        set.assigneeId,
+      );
+    } catch (error) {
+      console.warn('Assignment notification failed', error);
+    }
 }
 
 /** History shown in the task detail: newest first, with who did it. */

@@ -5,8 +5,10 @@ import { AdminPanel } from '@/components/feature/AdminPanel';
 import { AppearanceSettings } from '@/components/feature/AppearanceSettings';
 import { CalendarSettings } from '@/components/feature/CalendarSettings';
 import { HelpSettings } from '@/components/feature/HelpSettings';
+import { NotificationSettings } from '@/components/feature/NotificationSettings';
 import { GitHubSettings } from '@/components/feature/GitHubSettings';
 import { SessionsSettings } from '@/components/feature/SessionsSettings';
+import { Deferred, SectionPlaceholder } from '@/components/ui/Deferred';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { SkeletonList } from '@/components/ui/Skeleton';
@@ -25,6 +27,7 @@ export function SettingsView() {
     { href: '#account-profile', label: it.account.profile },
     { href: '#github', label: it.github.title },
     { href: '#sessions-title', label: it.account.sessions },
+    { href: '#notifications-title', label: it.notifications.settingsTitle },
     { href: '#calendar-title', label: it.calendar.title },
     { href: '#help-title', label: it.settings.help },
     ...(me.data?.role === 'admin' ? [{ href: '#admin-title', label: it.admin.title }] : []),
@@ -46,12 +49,50 @@ export function SettingsView() {
       <AppearanceSettings />
       {me.data ? (
         <>
-          <AccountSettings me={me.data} />
-          <GitHubSettings me={me.data} />
-          <SessionsSettings />
-          <CalendarSettings />
-          <HelpSettings />
-          {me.data.role === 'admin' && <AdminPanel me={me.data} />}
+          <Deferred order={1}>
+            <AccountSettings me={me.data} />
+          </Deferred>
+          {/* Below the fold: rendered when scrolled near (or at once for an #anchor). */}
+          <Deferred
+            when="visible"
+            fallback={<SectionPlaceholder id="github" title={it.github.title} />}
+          >
+            <GitHubSettings me={me.data} />
+          </Deferred>
+          <Deferred
+            when="visible"
+            fallback={<SectionPlaceholder id="sessions-title" title={it.account.sessions} />}
+          >
+            <SessionsSettings />
+          </Deferred>
+          <Deferred
+            when="visible"
+            fallback={
+              <SectionPlaceholder id="notifications-title" title={it.notifications.settingsTitle} />
+            }
+          >
+            <NotificationSettings />
+          </Deferred>
+          <Deferred
+            when="visible"
+            fallback={<SectionPlaceholder id="calendar-title" title={it.calendar.title} />}
+          >
+            <CalendarSettings />
+          </Deferred>
+          <Deferred
+            when="visible"
+            fallback={<SectionPlaceholder id="help-title" title={it.settings.help} />}
+          >
+            <HelpSettings />
+          </Deferred>
+          {me.data.role === 'admin' && (
+            <Deferred
+              when="visible"
+              fallback={<SectionPlaceholder id="admin-title" title={it.admin.title} />}
+            >
+              <AdminPanel me={me.data} />
+            </Deferred>
+          )}
         </>
       ) : me.isError && (me.error as { status?: number }).status !== 401 ? (
         <EmptyState
