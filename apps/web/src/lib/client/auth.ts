@@ -1,5 +1,6 @@
 import { deriveClientKey, normalizeEmail } from '@kyon/core';
 import { api } from './api';
+import { clearOfflineData } from './pwa';
 
 /**
  * All password handling happens here: the password is stretched in the browser
@@ -8,10 +9,13 @@ import { api } from './api';
 
 export async function signIn(email: string, password: string) {
   const key = await deriveClientKey(email, password);
-  return api('/api/auth/sign-in/email', {
+  const result = await api('/api/auth/sign-in/email', {
     method: 'POST',
     json: { email: normalizeEmail(email), password: key },
   });
+  // Someone else may have used this browser: no leftovers from their offline copy.
+  await clearOfflineData().catch((error: unknown) => console.warn('Offline data kept', error));
+  return result;
 }
 
 export async function join(code: string, name: string, email: string, password: string) {
@@ -26,8 +30,11 @@ export function checkInvite(code: string) {
   return api<{ valid: boolean; bootstrap: boolean }>(`/api/join?code=${encodeURIComponent(code)}`);
 }
 
-export function signOut() {
-  return api('/api/auth/sign-out', { method: 'POST', json: {} });
+export async function signOut() {
+  const result = await api('/api/auth/sign-out', { method: 'POST', json: {} });
+  // The data saved for offline use belongs to this person: forget it.
+  await clearOfflineData().catch((error: unknown) => console.warn('Offline data kept', error));
+  return result;
 }
 
 export async function resetPassword(token: string, email: string, password: string) {

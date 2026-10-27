@@ -1,6 +1,7 @@
 import path from 'node:path';
 import type { NextConfig } from 'next';
 import { initOpenNextCloudflareForDev } from '@opennextjs/cloudflare';
+import { contentSecurityPolicy } from './src/lib/securityHeaders';
 
 const nextConfig: NextConfig = {
   reactStrictMode: true,
@@ -19,6 +20,12 @@ const nextConfig: NextConfig = {
             value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
           },
           { key: 'Cross-Origin-Opener-Policy', value: 'same-origin' },
+          {
+            key: 'Content-Security-Policy',
+            value: contentSecurityPolicy(process.env.NODE_ENV === 'development'),
+          },
+          // Ignored on plain http (local e2e), enforced on workers.dev.
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
         ],
       },
     ];

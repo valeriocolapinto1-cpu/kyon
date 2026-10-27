@@ -38,6 +38,7 @@ import { useShellPanels, type ShellPanel } from '@/lib/client/shellEvents';
 import { SidebarPill } from './SidebarPill';
 import { TabBarPill } from './TabBarPill';
 import { Logo } from './Logo';
+import { PwaBridge } from './PwaBridge';
 
 /**
  * App frame: mesh background, navigation (tab bar on phones, floating sidebar elsewhere),
@@ -171,6 +172,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           <Suspense fallback={null}>
             <LocationTracker />
           </Suspense>
+          <PwaBridge />
           <a
             href="#contenuto"
             data-plain

@@ -5,6 +5,7 @@ import { AdminPanel } from '@/components/feature/AdminPanel';
 import { AppearanceSettings } from '@/components/feature/AppearanceSettings';
 import { CalendarSettings } from '@/components/feature/CalendarSettings';
 import { HelpSettings } from '@/components/feature/HelpSettings';
+import { InstallSettings } from '@/components/feature/InstallSettings';
 import { NotificationSettings } from '@/components/feature/NotificationSettings';
 import { GitHubSettings } from '@/components/feature/GitHubSettings';
 import { SessionsSettings } from '@/components/feature/SessionsSettings';
@@ -29,6 +30,7 @@ export function SettingsView() {
     { href: '#sessions-title', label: it.account.sessions },
     { href: '#notifications-title', label: it.notifications.settingsTitle },
     { href: '#calendar-title', label: it.calendar.title },
+    { href: '#install-title', label: it.pwa.installTitle },
     { href: '#help-title', label: it.settings.help },
     ...(me.data?.role === 'admin' ? [{ href: '#admin-title', label: it.admin.title }] : []),
   ];
@@ -78,13 +80,19 @@ export function SettingsView() {
           </Deferred>
           <Deferred
             order={6}
+            fallback={<SectionPlaceholder id="install-title" title={it.pwa.installTitle} />}
+          >
+            <InstallSettings />
+          </Deferred>
+          <Deferred
+            order={7}
             fallback={<SectionPlaceholder id="help-title" title={it.settings.help} />}
           >
             <HelpSettings />
           </Deferred>
           {me.data.role === 'admin' && (
             <Deferred
-              order={7}
+              order={8}
               fallback={<SectionPlaceholder id="admin-title" title={it.admin.title} />}
             >
               <AdminPanel me={me.data} />

@@ -10,6 +10,8 @@ export class ApiClientError extends Error {
 }
 
 const OFFLINE_MESSAGE = 'Sei offline o il server non risponde. Riprova.';
+const WRITE_OFFLINE_MESSAGE =
+  'Sei offline: le modifiche sono in pausa. Riprova quando torni in linea.';
 
 /** JSON fetch against our own API. Throws ApiClientError on non-2xx. */
 export async function api<T>(
@@ -17,6 +19,10 @@ export async function api<T>(
   init: RequestInit & { json?: unknown } = {},
 ): Promise<T> {
   const { json, ...rest } = init;
+  const method = (rest.method ?? 'GET').toUpperCase();
+  // Offline the app is read-only: writes stop here with a clear message (no silent loss).
+  if (method !== 'GET' && typeof navigator !== 'undefined' && navigator.onLine === false)
+    throw new ApiClientError(0, 'offline', WRITE_OFFLINE_MESSAGE);
   const headers = new Headers(rest.headers);
   if (json !== undefined) headers.set('content-type', 'application/json');
   let response: Response;

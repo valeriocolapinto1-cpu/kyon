@@ -34,6 +34,7 @@ import {
   type HomeData,
 } from '@/lib/client/home';
 import { readLocalLocation } from '@/lib/client/location';
+import { useInstallReminder } from '@/lib/client/pwa';
 import { useMe } from '@/lib/client/me';
 import { useGroupLive } from '@/lib/client/presence';
 import { formatDayShort } from '@/lib/format/day';
@@ -252,6 +253,30 @@ function Resume({ data }: { data: HomeData }) {
   );
 }
 
+/** Discreet reminder to install the app, after a few days of use (this device only). */
+function InstallReminder() {
+  const { show, dismiss } = useInstallReminder();
+  if (!show) return null;
+  return (
+    <GlassCard
+      as="aside"
+      aria-label={it.pwa.installTitle}
+      className="mb-4 flex flex-wrap items-center gap-3 py-2"
+    >
+      <p className="min-w-0 flex-1 text-subhead text-fg">{it.pwa.reminder}</p>
+      <Link
+        href="/settings#install-title"
+        className="inline-flex min-h-touch items-center text-subhead font-semibold text-accent-text"
+      >
+        {it.pwa.reminderHow}
+      </Link>
+      <GlassButton size="sm" variant="plain" onClick={dismiss}>
+        {it.pwa.reminderOff}
+      </GlassButton>
+    </GlassCard>
+  );
+}
+
 /** Home: blocks in the order (and visibility) the person chose, each with its own empty state. */
 export function HomeView() {
   const me = useMe().data;
@@ -321,6 +346,7 @@ export function HomeView() {
         }
       />
       {home.data && <Resume data={home.data} />}
+      <InstallReminder />
       {home.isError ? (
         <EmptyState
           title={it.common.errorTitle}
