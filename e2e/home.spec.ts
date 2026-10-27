@@ -158,8 +158,9 @@ test('calendar feed from Settings: secret URL with my due dates', async ({
 
   page.once('dialog', (d) => void d.accept());
   await section.getByRole('button', { name: 'Disattiva il feed' }).click();
-  await expect(page.getByText('Feed disattivato')).toBeVisible();
-  expect((await anonymous.get(url)).status()).toBe(404);
+  // The toast can be gone already on a busy machine: the feed itself is the proof.
+  await expect.poll(async () => (await anonymous.get(url)).status()).toBe(404);
+  await expect(section.getByRole('button', { name: 'Crea il feed' })).toBeVisible();
   await anonymous.dispose();
   await context.close();
 });

@@ -40,6 +40,7 @@ test('connect GitHub, expose a repo, create a project and keep hidden repos priv
   // Create the project from it.
   await page.goto('/progetti');
   await page.getByRole('button', { name: 'Nuovo progetto' }).first().click();
+  await expect(page.getByRole('dialog', { name: 'Nuovo progetto' })).toBeVisible();
   await expect(page.getByRole('radio', { name: new RegExp(`segreta-${tag}`) })).toHaveCount(0);
   await page.getByRole('radio', { name: new RegExp(`pubblica-${tag}`) }).click();
   await page.getByLabel('Nome del progetto').fill(`Progetto ${tag}`);
@@ -58,14 +59,16 @@ test('connect GitHub, expose a repo, create a project and keep hidden repos priv
   await otherPage.goto('/progetti');
   await expect(otherPage.getByRole('link', { name: new RegExp(`Progetto ${tag}`) })).toBeVisible();
   await otherPage.getByRole('button', { name: 'Nuovo progetto' }).first().click();
+  // Wait for the sheet itself: a "count 0" check before it renders would pass vacuously.
+  await expect(otherPage.getByRole('dialog', { name: 'Nuovo progetto' })).toBeVisible();
   await expect(otherPage.getByRole('radio', { name: new RegExp(`segreta-${tag}`) })).toHaveCount(0);
   await otherPage.keyboard.press('Escape');
 
   // Members can't delete; the owner can, after typing the name.
   await otherPage.getByRole('link', { name: new RegExp(`Progetto ${tag}`) }).click();
   await otherPage.getByRole('button', { name: 'Menu progetto' }).click();
-  await expect(otherPage.getByRole('button', { name: 'Elimina progetto' })).toHaveCount(0);
   await expect(otherPage.getByRole('button', { name: 'Abbandona progetto' })).toBeVisible();
+  await expect(otherPage.getByRole('button', { name: 'Elimina progetto' })).toHaveCount(0);
 
   await page.getByRole('button', { name: 'Menu progetto' }).click();
   await page.getByRole('button', { name: 'Elimina progetto' }).click();

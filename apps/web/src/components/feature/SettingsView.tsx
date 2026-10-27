@@ -52,21 +52,18 @@ export function SettingsView() {
           <Deferred order={1}>
             <AccountSettings me={me.data} />
           </Deferred>
-          {/* Below the fold: rendered when scrolled near (or at once for an #anchor). */}
-          <Deferred
-            when="visible"
-            fallback={<SectionPlaceholder id="github" title={it.github.title} />}
-          >
+          {/* Below the fold: mounted one by one when the browser is idle (short tasks). */}
+          <Deferred order={2} fallback={<SectionPlaceholder id="github" title={it.github.title} />}>
             <GitHubSettings me={me.data} />
           </Deferred>
           <Deferred
-            when="visible"
+            order={3}
             fallback={<SectionPlaceholder id="sessions-title" title={it.account.sessions} />}
           >
             <SessionsSettings />
           </Deferred>
           <Deferred
-            when="visible"
+            order={4}
             fallback={
               <SectionPlaceholder id="notifications-title" title={it.notifications.settingsTitle} />
             }
@@ -74,20 +71,20 @@ export function SettingsView() {
             <NotificationSettings />
           </Deferred>
           <Deferred
-            when="visible"
+            order={5}
             fallback={<SectionPlaceholder id="calendar-title" title={it.calendar.title} />}
           >
             <CalendarSettings />
           </Deferred>
           <Deferred
-            when="visible"
+            order={6}
             fallback={<SectionPlaceholder id="help-title" title={it.settings.help} />}
           >
             <HelpSettings />
           </Deferred>
           {me.data.role === 'admin' && (
             <Deferred
-              when="visible"
+              order={7}
               fallback={<SectionPlaceholder id="admin-title" title={it.admin.title} />}
             >
               <AdminPanel me={me.data} />
