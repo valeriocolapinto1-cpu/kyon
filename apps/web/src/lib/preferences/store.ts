@@ -14,6 +14,16 @@ import { PREFERENCES_KEY, readStorage, writeStorage } from './storage';
 
 type Listener = () => void;
 
+/**
+ * Equal values keep the same reference: every new snapshot re-renders all the consumers
+ * synchronously (useSyncExternalStore), and right after hydration a snapshot that differs
+ * from the server one only by reference costs a whole extra render.
+ */
+function stable<T>(next: T, ...candidates: (T | null)[]): T {
+  const json = JSON.stringify(next);
+  return candidates.find((c) => c !== null && JSON.stringify(c) === json) ?? next;
+}
+
 // ---------- Preferences ----------
 
 const prefListeners = new Set<Listener>();
@@ -26,7 +36,7 @@ function readStoredPreferences(): Preferences {
   const raw = readStorage(PREFERENCES_KEY);
   if (!raw) return DEFAULT_PREFERENCES;
   try {
-    return sanitizePreferences(JSON.parse(raw));
+    return stable(sanitizePreferences(JSON.parse(raw)), DEFAULT_PREFERENCES);
   } catch (error) {
     console.warn('Invalid stored preferences, using defaults', error);
     return DEFAULT_PREFERENCES;
@@ -63,7 +73,13 @@ export const preferencesStore = {
   },
   /** Applies values without counting as a user change (e.g. preferences loaded from the account). */
   apply(patch: Partial<Preferences>) {
-    const next = sanitizePreferences({ ...preferencesStore.get(), ...patch });
+    const current = preferencesStore.get();
+    const next = stable(
+      sanitizePreferences({ ...current, ...patch }),
+      current,
+      DEFAULT_PREFERENCES,
+    );
+    if (next === current) return;
     prefSnapshot = next;
     writeStorage(PREFERENCES_KEY, JSON.stringify(next));
     for (const listener of prefListeners) listener();
@@ -99,17 +115,23 @@ const envListeners = new Set<Listener>();
 
 function readEnvironment(): Environment {
   const match = (q: string) => window.matchMedia(q).matches;
-  return {
-    prefersDark: match(QUERIES.prefersDark),
-    prefersContrastMore: match(QUERIES.prefersContrastMore),
-    prefersReducedMotion: match(QUERIES.prefersReducedMotion),
-    prefersReducedTransparency: match(QUERIES.prefersReducedTransparency),
-    liteDetected,
-  };
+  return stable(
+    {
+      prefersDark: match(QUERIES.prefersDark),
+      prefersContrastMore: match(QUERIES.prefersContrastMore),
+      prefersReducedMotion: match(QUERIES.prefersReducedMotion),
+      prefersReducedTransparency: match(QUERIES.prefersReducedTransparency),
+      liteDetected,
+    },
+    envSnapshot,
+    SERVER_ENV,
+  );
 }
 
 function refreshEnvironment() {
-  envSnapshot = readEnvironment();
+  const next = readEnvironment();
+  if (next === envSnapshot) return;
+  envSnapshot = next;
   for (const listener of envListeners) listener();
 }
 

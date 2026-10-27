@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useMe } from './me';
 import { useLiveSource, type LiveSource } from './live';
 
@@ -27,11 +27,9 @@ export function GroupLiveProvider({ children }: { children: ReactNode }) {
       }),
     [live],
   );
-  return (
-    <GroupLiveContext.Provider value={{ live: me.data ? live : null, online }}>
-      {children}
-    </GroupLiveContext.Provider>
-  );
+  const signedIn = Boolean(me.data);
+  const value = useMemo(() => ({ live: signedIn ? live : null, online }), [signedIn, live, online]);
+  return <GroupLiveContext.Provider value={value}>{children}</GroupLiveContext.Provider>;
 }
 
 export const useGroupLive = () => useContext(GroupLiveContext);

@@ -116,6 +116,7 @@ Debito tecnico / da controllare:
 
 - CPU reale sul Worker (Metrics → CPU Time) dopo il primo deploy: tutte le misure finora sono su workerd locale.
 - Prova sui dispositivi (`docs/RELEASE.md` §3), in particolare push su iPhone installato e VoiceOver.
+- Prestazioni Lighthouse vicine alla soglia (80) su `/` e `/settings`: sulla CI passano (Fase 10 verde), nella sandbox cloud, più lenta, oscillano tra 70 e 82. Il tempo bloccante viene da render sincroni di React all'arrivo dei dati (le query usano `useSyncExternalStore`, che non si spezza in parti). Già fatto: snapshot delle preferenze e dell'ambiente stabili quando i valori non cambiano (niente render in più dopo l'idratazione), valore del contesto presenza memoizzato. Provati e scartati perché peggioravano: sezioni di Settings come chunk separati (più valutazioni di moduli) e sezioni rese in transizione (un unico commit grande).
 
 ### Fase 9 — Notifiche ✅ (2026-10-27)
 
