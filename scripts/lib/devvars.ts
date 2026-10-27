@@ -1,5 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
+import { generateVapidKeys } from '@kyon/core';
 import { repoRoot } from './run';
 
 export const devVarsPath = path.join(repoRoot, 'apps', 'web', '.dev.vars');
@@ -9,7 +10,7 @@ function randomSecret(bytes = 32): string {
 }
 
 /** Creates apps/web/.dev.vars with random local secrets if missing. Returns the values. */
-export function ensureDevVars(): Record<string, string> {
+export async function ensureDevVars(): Promise<Record<string, string>> {
   const vars: Record<string, string> = {};
   if (existsSync(devVarsPath)) {
     for (const line of readFileSync(devVarsPath, 'utf8').split(/\r?\n/)) {
@@ -34,6 +35,12 @@ export function ensureDevVars(): Record<string, string> {
   }
   if (!vars.INTERNAL_SECRET) {
     vars.INTERNAL_SECRET = randomSecret();
+    changed = true;
+  }
+  if (!vars.VAPID_PUBLIC_KEY || !vars.VAPID_PRIVATE_KEY) {
+    const keys = await generateVapidKeys();
+    vars.VAPID_PUBLIC_KEY = keys.publicKey;
+    vars.VAPID_PRIVATE_KEY = keys.privateKey;
     changed = true;
   }
   // `next dev` can't upgrade WebSockets: the browser connects to the realtime Worker directly.

@@ -9,7 +9,7 @@ import { ensureDevVars } from './lib/devvars';
 import { localStateDir, repoRoot, run, spawnLong } from './lib/run';
 
 const web = path.join(repoRoot, 'apps', 'web');
-const vars = ensureDevVars();
+const vars = await ensureDevVars();
 const fakeGitHub = vars.GITHUB_API_URL?.startsWith('http://localhost:8799')
   ? serve({
       fetch: createFakeGitHub({

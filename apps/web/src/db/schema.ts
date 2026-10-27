@@ -39,6 +39,8 @@ export const user = sqliteTable('user', {
   tourDoneAt: timestamp('tour_done_at'),
   /** SHA-256 of the secret in the .ics feed URL (null: no feed). */
   icsTokenHash: text('ics_token_hash').unique(),
+  /** JSON of @kyon/core NotificationPrefs (event × channel, quiet hours). */
+  notificationPrefs: text('notification_prefs'),
 });
 
 export const session = sqliteTable(
@@ -574,4 +576,53 @@ export const attachment = sqliteTable(
     createdAt: timestamp('created_at').notNull().default(now),
   },
   (t) => [index('attachment_message_idx').on(t.messageId)],
+);
+
+// ---------- Notifications ----------
+
+/** In-app notifications. Same-kind news within a few minutes is merged (count, latest text). */
+export const notification = sqliteTable(
+  'notification',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    /** mention | assigned | due | message | run */
+    type: text('type').notNull(),
+    title: text('title').notNull(),
+    body: text('body').notNull(),
+    /** In-app path to open (always relative). */
+    url: text('url').notNull(),
+    projectId: text('project_id').references(() => project.id, { onDelete: 'cascade' }),
+    /** Merge key (e.g. the chat room) and dedupe key for reminders. */
+    groupKey: text('group_key'),
+    count: integer('count').notNull().default(1),
+    readAt: timestamp('read_at'),
+    createdAt: timestamp('created_at').notNull().default(now),
+    updatedAt: timestamp('updated_at').notNull().default(now),
+  },
+  (t) => [
+    index('notification_user_idx').on(t.userId, t.updatedAt),
+    index('notification_group_idx').on(t.userId, t.groupKey),
+  ],
+);
+
+/** A browser/device that accepted Web Push for a person. */
+export const pushSubscription = sqliteTable(
+  'push_subscription',
+  {
+    id: text('id').primaryKey(),
+    userId: text('user_id')
+      .notNull()
+      .references(() => user.id, { onDelete: 'cascade' }),
+    endpoint: text('endpoint').notNull().unique(),
+    p256dh: text('p256dh').notNull(),
+    auth: text('auth').notNull(),
+    userAgent: text('user_agent'),
+    createdAt: timestamp('created_at').notNull().default(now),
+    lastSuccessAt: timestamp('last_success_at'),
+    failures: integer('failures').notNull().default(0),
+  },
+  (t) => [index('push_subscription_user_idx').on(t.userId)],
 );

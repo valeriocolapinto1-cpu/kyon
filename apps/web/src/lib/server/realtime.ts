@@ -47,3 +47,25 @@ export const publishTasks = (
   actorId: string | null,
   tasks?: Extract<RoomEvent, { type: 'tasks_changed' }>['tasks'],
 ) => publish(env, projectRoom(projectId), { type: 'tasks_changed', actorId, tasks });
+
+/** Who has a room open right now (best effort: an error means "nobody", so nothing is lost). */
+export async function roomPresence(env: CloudflareEnv, room: string): Promise<string[]> {
+  const secret = env.INTERNAL_SECRET;
+  const namespace = room === GENERAL_ROOM ? env.GENERAL_ROOM : env.PROJECT_ROOM;
+  if (!secret || !namespace) return [];
+  try {
+    const response = await namespace
+      .get(namespace.idFromName(room))
+      .fetch('https://room/presence', {
+        headers: { [ROOM_HEADER]: room, [INTERNAL_HEADER]: secret },
+      });
+    if (!response.ok) return [];
+    const data = (await response.json()) as { userIds?: unknown };
+    return Array.isArray(data.userIds)
+      ? data.userIds.filter((id): id is string => typeof id === 'string')
+      : [];
+  } catch (error) {
+    console.warn('realtime presence failed', error);
+    return [];
+  }
+}

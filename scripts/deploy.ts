@@ -20,9 +20,11 @@ import {
   ensureD1,
   ensureKv,
   ensureR2,
+  resolveSiteUrl,
   webDir,
   writeDeployConfig,
 } from './lib/cloudflare';
+import { generateVapidKeys } from '@kyon/core';
 import { repoRoot, run } from './lib/run';
 
 for (const name of ['CLOUDFLARE_API_TOKEN', 'CLOUDFLARE_ACCOUNT_ID']) {
@@ -42,7 +44,8 @@ await ensureR2();
 
 const realtimeDir = path.join(repoRoot, 'workers', 'realtime');
 const cronDir = path.join(repoRoot, 'workers', 'cron');
-for (const dir of [webDir, realtimeDir, cronDir]) writeDeployConfig(dir, ids);
+const siteUrl = await resolveSiteUrl();
+for (const dir of [webDir, realtimeDir, cronDir]) writeDeployConfig(dir, ids, siteUrl);
 
 console.log('Applying D1 migrations...');
 await run(
@@ -105,6 +108,14 @@ if (
   await putSecret('INTERNAL_SECRET', value);
   await putSecret('INTERNAL_SECRET', value, cronDir);
   await putSecret('INTERNAL_SECRET', value, realtimeDir);
+}
+
+// Web Push (VAPID): generated once. Rotating it would silently break every push subscription.
+if (!secrets.has('VAPID_PRIVATE_KEY') || !secrets.has('VAPID_PUBLIC_KEY')) {
+  console.log('Generating VAPID keys for Web Push...');
+  const keys = await generateVapidKeys();
+  await putSecret('VAPID_PUBLIC_KEY', keys.publicKey);
+  await putSecret('VAPID_PRIVATE_KEY', keys.privateKey);
 }
 
 const bootstrap = process.env.ADMIN_BOOTSTRAP_CODE;

@@ -24,7 +24,9 @@ export type RoomEvent =
   /** Sent by the room itself (never by the web Worker): who is connected, who is typing. */
   | { type: 'presence'; userIds: string[] }
   | { type: 'typing'; roomId: string; userId: string }
-  | { type: 'project_changed'; actorId: string | null };
+  | { type: 'project_changed'; actorId: string | null }
+  /** New notifications for these people (the bell refetches; no content travels here). */
+  | { type: 'notify'; userIds: string[] };
 
 /** What a client may send on the socket (anything else is ignored). */
 export type ClientRoomMessage = { type: 'typing'; roomId: string };
@@ -52,6 +54,7 @@ export const ROOM_EVENT_TYPES = [
   'presence',
   'typing',
   'project_changed',
+  'notify',
 ] as const;
 
 export const projectRoom = (projectId: string) => `project:${projectId}`;

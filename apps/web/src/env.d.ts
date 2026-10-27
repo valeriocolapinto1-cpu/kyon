@@ -1,5 +1,13 @@
 // Bindings declared in wrangler.jsonc. Kept by hand (not generated) so typecheck works without wrangler.
 declare global {
+  interface EmailOutgoing {
+    to: string;
+    from: string;
+    subject: string;
+    text: string;
+    html?: string;
+  }
+
   interface CloudflareEnv {
     ASSETS: Fetcher;
     WORKER_SELF_REFERENCE: Fetcher;
@@ -31,6 +39,16 @@ declare global {
     /** Workers rate limiting bindings. */
     AUTH_LIMITER: RateLimit;
     WRITE_LIMITER: RateLimit;
+    /** Web Push (generated once by scripts/deploy.ts, or .dev.vars locally). */
+    VAPID_PUBLIC_KEY?: string;
+    VAPID_PRIVATE_KEY?: string;
+    /** Cloudflare Email Service binding and sender (only when KYON_EMAIL_FROM is set on deploy). */
+    EMAIL?: { send(message: EmailOutgoing): Promise<{ messageId?: string } | unknown> };
+    EMAIL_FROM?: string;
+    /** Public URL of the app (set by scripts/deploy.ts): links in emails, Web Push contact. */
+    KYON_URL?: string;
+    /** Tests/e2e only: origin of a fake push service accepted besides the real ones. */
+    PUSH_TEST_ORIGIN?: string;
   }
 }
 

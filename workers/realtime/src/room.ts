@@ -39,6 +39,12 @@ abstract class Room extends DurableObject<RealtimeEnv> {
       }
       return Response.json({ sent });
     }
+    // Who is connected right now (web Worker only): no push to someone already looking.
+    if (url.pathname.endsWith('/presence') && request.method === 'GET') {
+      if (!secret || request.headers.get(INTERNAL_HEADER) !== secret)
+        return new Response('Forbidden', { status: 403 });
+      return Response.json({ userIds: this.connectedUsers() });
+    }
     if (request.headers.get('Upgrade') !== 'websocket') {
       return new Response('Expected WebSocket', { status: 426 });
     }
@@ -82,11 +88,16 @@ abstract class Room extends DurableObject<RealtimeEnv> {
   }
 
   /** Who is connected (each user once), to everyone. `leaving` is excluded while it closes. */
-  private broadcastPresence(leaving?: WebSocket) {
+  private connectedUsers(leaving?: WebSocket) {
     const sockets = this.ctx.getWebSockets().filter((ws) => ws !== leaving);
-    const userIds = [
+    return [
       ...new Set(sockets.map((ws) => (ws.deserializeAttachment() as Attachment | null)?.userId)),
     ].filter((id): id is string => Boolean(id));
+  }
+
+  private broadcastPresence(leaving?: WebSocket) {
+    const sockets = this.ctx.getWebSockets().filter((ws) => ws !== leaving);
+    const userIds = this.connectedUsers(leaving);
     const event = JSON.stringify({ type: 'presence', userIds });
     for (const ws of sockets) this.trySend(ws, event);
   }

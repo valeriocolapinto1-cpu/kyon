@@ -11,3 +11,4 @@ export * from './realtime';
 export * from './prompts';
 export * from './chat';
 export * from './home';
+export * from './notifications';

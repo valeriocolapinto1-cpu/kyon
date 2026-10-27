@@ -60,9 +60,37 @@ interface WranglerConfig {
   vars?: Record<string, string>;
   d1_databases?: { database_name: string; database_id: string }[];
   kv_namespaces?: { binding: string; id: string }[];
+  send_email?: { name: string }[];
 }
 
-export function writeDeployConfig(dir: string, ids: { d1: string; kv: string }) {
+/**
+ * Public URL of the web Worker on workers.dev (for links in emails and the Web Push contact).
+ * Null when the account has no workers.dev subdomain yet or the API call fails.
+ */
+export async function resolveSiteUrl(): Promise<string | null> {
+  const account = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const token = process.env.CLOUDFLARE_API_TOKEN;
+  if (process.env.KYON_URL) return process.env.KYON_URL;
+  if (!account || !token) return null;
+  try {
+    const res = await fetch(
+      `https://api.cloudflare.com/client/v4/accounts/${account}/workers/subdomain`,
+      { headers: { authorization: `Bearer ${token}` } },
+    );
+    const body = (await res.json()) as { result?: { subdomain?: string } };
+    const sub = body.result?.subdomain;
+    return sub ? `https://kyon-web.${sub}.workers.dev` : null;
+  } catch (error) {
+    console.warn('Cannot read the workers.dev subdomain', error);
+    return null;
+  }
+}
+
+export function writeDeployConfig(
+  dir: string,
+  ids: { d1: string; kv: string },
+  siteUrl: string | null = null,
+) {
   const config = parseJsonc<WranglerConfig>(readFileSync(path.join(dir, 'wrangler.jsonc'), 'utf8'));
   for (const db of config.d1_databases ?? []) {
     if (db.database_name === D1_NAME) db.database_id = ids.d1;
@@ -72,6 +100,14 @@ export function writeDeployConfig(dir: string, ids: { d1: string; kv: string }) 
     ...config.vars,
     KYON_ENV: 'production',
     ...(process.env.KYON_GH_APP_SLUG ? { GITHUB_APP_SLUG: process.env.KYON_GH_APP_SLUG } : {}),
+    ...(siteUrl ? { KYON_URL: siteUrl } : {}),
   };
+  // Email (Cloudflare Email Service): only with a sender on an onboarded domain, otherwise
+  // the app keeps in-app and push notifications (docs/SETUP.md §C).
+  const from = process.env.KYON_EMAIL_FROM;
+  if (from && path.basename(dir) === 'web') {
+    config.send_email = [{ name: 'EMAIL' }];
+    config.vars = { ...config.vars, EMAIL_FROM: from };
+  }
   writeFileSync(path.join(dir, DEPLOY_CONFIG), JSON.stringify(config, null, 2));
 }
