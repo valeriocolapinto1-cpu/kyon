@@ -4,21 +4,21 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 ## Fase corrente
 
-**Fase 10 — PWA offline, hardening, rilascio** (da iniziare).
+**Tutte le fasi fatte.** Restano i passi manuali ("In attesa dell'utente") e la prova sui dispositivi in `docs/RELEASE.md` §3.
 
-| Fase | Titolo                                          | Stato      |
-| ---- | ----------------------------------------------- | ---------- |
-| 0    | Scaffold e infrastruttura                       | ✅ fatta   |
-| 1    | Design system Liquid Glass, a11y di base, shell | ✅ fatta   |
-| 2    | Auth, inviti, admin, Settings account           | ✅ fatta   |
-| 3    | GitHub, repo, visibilità, progetti, membri      | ✅ fatta   |
-| 4    | Motore task da `.md`                            | ✅ fatta   |
-| 5    | Pagina progetto: Task                           | ✅ fatta   |
-| 6    | Prompt, esecuzioni, tracciamento PR; Status     | ✅ fatta   |
-| 7    | Realtime, chat e thread                         | ✅ fatta   |
-| 8    | Home, Progetti, Chat, Persone, ricerca, extra   | ✅ fatta   |
-| 9    | Notifiche                                       | ✅ fatta   |
-| 10   | PWA offline, hardening, rilascio                | ⏭ prossima |
+| Fase | Titolo                                          | Stato    |
+| ---- | ----------------------------------------------- | -------- |
+| 0    | Scaffold e infrastruttura                       | ✅ fatta |
+| 1    | Design system Liquid Glass, a11y di base, shell | ✅ fatta |
+| 2    | Auth, inviti, admin, Settings account           | ✅ fatta |
+| 3    | GitHub, repo, visibilità, progetti, membri      | ✅ fatta |
+| 4    | Motore task da `.md`                            | ✅ fatta |
+| 5    | Pagina progetto: Task                           | ✅ fatta |
+| 6    | Prompt, esecuzioni, tracciamento PR; Status     | ✅ fatta |
+| 7    | Realtime, chat e thread                         | ✅ fatta |
+| 8    | Home, Progetti, Chat, Persone, ricerca, extra   | ✅ fatta |
+| 9    | Notifiche                                       | ✅ fatta |
+| 10   | PWA offline, hardening, rilascio                | ✅ fatta |
 
 ## In attesa dell'utente
 
@@ -46,6 +46,7 @@ Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.
 | 7    | 1745,9 KiB | 2,2 KiB       | 0,7 KiB   | + chat (stanze, messaggi, reazioni, pin, ricerca FTS5, allegati R2, anteprime), presenza e "sta scrivendo"          |
 | 8    | 1770,7 KiB | 2,2 KiB       | 0,7 KiB   | + Home con dati, Persone, Cronologia, ricerca globale, feed .ics, tour, scorciatoie                                 |
 | 9    | 1810,6 KiB | 2,2 KiB       | 0,7 KiB   | + notifiche (in-app, Web Push RFC 8291/8292 con WebCrypto, email via EmailProvider), presenza interrogabile dal DO  |
+| 10   | 1809,0 KiB | 2,2 KiB       | 0,7 KiB   | + PWA offline, CSP, audit permessi, export, Salute; `motion` fuori dal primo caricamento                            |
 
 ## Misure di CPU / latenza (locali, indicative)
 
@@ -89,6 +90,32 @@ Tempo totale della richiesta su workerd locale (`wrangler dev` sul bundle di pro
 Dalla Fase 9 ogni pagina è misurata 3 volte con una **sessione nuova per pagina** (vedi decisioni Fase 9: prima le pagine dopo la prima erano misurate da sloggato). Gli intervalli sono i 3 giri su questa macchina, che oscilla di ±8 punti.
 
 ## Log delle fasi
+
+### Fase 10 — PWA offline, hardening, rilascio ✅ (2026-10-27)
+
+Fatto:
+
+- **Offline in sola lettura** (`public/sw.js`): pagine e dati principali (Home, progetti, task, prompt, chat, notifiche, cronologia) dalla rete e, senza rete, dall'ultima copia salvata sul dispositivo; file statici con hash in cache una volta sola; le scritture non passano mai dalla cache. **Banner "Sei offline"** e scritture rifiutate con un messaggio chiaro (niente modifiche perse in silenzio). Dati salvati cancellati all'**accesso** e all'**uscita** (sul dispositivo restano solo quelli di chi lo usa). Toast "Kyon è stato aggiornato — Ricarica" al cambio di versione.
+- **Installazione guidata**: Settings → Installa Kyon con il pulsante nativo (Chrome/Edge), i passi per iPhone/iPad e un **promemoria discreto** in Home dopo 3 giorni d'uso, disattivabile.
+- **Sicurezza** (revisione di `CLAUDE.md` §7): **CSP** e **HSTS** sulle risposte del Worker e sugli asset statici (identiche, verificate da un test); **audit automatico** di tutte le route dell'API (chi non ha una sessione è sempre rifiutato, tranne una lista pubblica motivata: health, auth, inviti, reset, webhook firmato, OAuth, feed `.ics` con segreto, cron con segreto, avatar); **rate limit centrale** su ogni scrittura (per IP, oltre a quelli per persona) con il binding Workers Rate Limiting; verificato che token GitHub cifrati, webhook HMAC a tempo costante, inviti monouso con hash, allegati con `nosniff` e sandbox, anteprime solo GitHub/Kyon restano come previsto.
+- **Admin → Salute**: configurazione (GitHub App, push, email), ultimo webhook valido, ultimo giro del cron, sincronizzazione di ogni repo (nomi solo per i progetti di cui l'admin fa parte), errori, dispositivi push con errori, conteggi e dimensione del database (da `meta.size_after` di D1).
+- **Esportazione** JSON e Markdown: progetti di cui l'admin fa parte (membri, colonne, metadati delle task, prompt con tutte le versioni, esecuzioni), discussioni e chat del gruppo.
+- **Pulizia nel cron**: gli allegati caricati e mai inviati lasciano R2 dopo 24 ore (pochi per giro).
+- **D1 Time Travel**: istruzioni passo-passo in `docs/SETUP.md` §E.
+- **Dipendenze**: tolta `@kyon/core` dal Worker cron (non usata); le altre sono tutte in uso (`hono` alla radice serve a `@hono/node-server`).
+- **Audit finale e checklist**: `docs/RELEASE.md` (automatico, manuale, prova sui dispositivi, tabella del piano Free).
+- Test: 601 unit/integrazione (nuovi: audit dei permessi con controllo di mutazione, export e Salute solo admin e senza dati altrui, pulizia degli allegati), e2e **117/117** (nuovi: offline su telefono e desktop, Salute ed export).
+
+Decisioni:
+
+- L'export dell'admin **non** contiene i progetti di cui non fa parte: la promessa di visibilità vale anche per l'admin. Per il backup completo c'è D1 Time Travel.
+- La CSP usa `'unsafe-inline'` per gli script: le pagine statiche non possono avere un nonce per richiesta (lo script di avvio del tema e il bootstrap di Next sono inline). Tutto il resto è limitato a questa origine.
+- La copia offline è "prima la rete": i dati mostrati offline sono quelli dell'ultima visita, mai più vecchi del necessario quando c'è rete.
+
+Debito tecnico / da controllare:
+
+- CPU reale sul Worker (Metrics → CPU Time) dopo il primo deploy: tutte le misure finora sono su workerd locale.
+- Prova sui dispositivi (`docs/RELEASE.md` §3), in particolare push su iPhone installato e VoiceOver.
 
 ### Fase 9 — Notifiche ✅ (2026-10-27)
 

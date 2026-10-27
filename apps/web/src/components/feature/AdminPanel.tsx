@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { KeyRound, LogOut, Plus, Shield, ShieldOff } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
+import { AdminHealth } from '@/components/feature/AdminHealth';
 import { Avatar } from '@/components/ui/Avatar';
 import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { CopyField } from '@/components/ui/CopyField';
@@ -341,6 +342,7 @@ export function AdminPanel({ me }: { me: Me }) {
         <Invites />
         <Users me={me} />
         <PromptFooter />
+        <AdminHealth />
       </div>
     </section>
   );

@@ -2,7 +2,7 @@
 
 Kyon è il gestionale privato del gruppo "Cerbero" (4 persone). Coordina progetti di sviluppo: task lette dai file `.md` delle repo GitHub, prompt per Claude Code legati alle task con tracciamento della PR che ne risulta, chat e thread, stato di commit/PR/CI. Interfaccia mobile-first, in italiano, estetica "Liquid Glass" in stile Apple, accessibile (WCAG 2.2 AA).
 
-Leggi questo file all'inizio di ogni sessione. Specifiche funzionali complete: `docs/SPEC.md` (generato in Fase 0 da `KYON-PROMPT.md`). Stato del lavoro: `docs/PROGRESS.md`. Passi manuali per l'utente: `docs/SETUP.md`.
+Leggi questo file all'inizio di ogni sessione. Specifiche funzionali complete: `docs/SPEC.md` (generato in Fase 0 da `KYON-PROMPT.md`). Stato del lavoro: `docs/PROGRESS.md`. Passi manuali per l'utente: `docs/SETUP.md`. Checklist di rilascio: `docs/RELEASE.md`.
 
 ---
 

@@ -11,6 +11,7 @@ import * as githubWebhook from './routes/githubWebhook';
 import * as people from './routes/people';
 import * as home from './routes/home';
 import * as notifications from './routes/notifications';
+import * as adminHealth from './routes/adminHealth';
 import * as projectRoutes from './routes/project';
 import * as projects from './routes/projects';
 import * as repos from './routes/repos';
@@ -38,7 +39,7 @@ type Module = Partial<Record<'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE', Handle
  * One route means one copy of the server code in the Worker bundle (Turbopack duplicates
  * shared code per route), and the API stays framework-independent (Plan B: plain Hono).
  */
-const routes: [string, Module][] = [
+export const routes: [string, Module][] = [
   ['/api/health', health],
   ['/api/auth/*', auth],
   ['/api/join', join],
@@ -53,6 +54,8 @@ const routes: [string, Module][] = [
   ['/api/admin/users/:id', adminUser],
   ['/api/admin/users/:id/reset-link', adminResetLink],
   ['/api/admin/users/:id/sessions', adminSessions],
+  ['/api/admin/health', { GET: adminHealth.health }],
+  ['/api/admin/export', { GET: adminHealth.exportRoute }],
   ['/api/people', people],
   ['/api/people/:id', { GET: home.person }],
   ['/api/home', { GET: home.home }],

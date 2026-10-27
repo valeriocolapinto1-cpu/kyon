@@ -1,7 +1,7 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, lt, or } from 'drizzle-orm';
 import { MAX_ATTACHMENT_BYTES, checkAttachment, type Actor } from '@kyon/core';
 import type { Db } from '@/db/client';
-import { attachment } from '@/db/schema';
+import { attachment, chatMessage } from '@/db/schema';
 import { ApiError } from '../errors';
 import { roomAccess } from './rooms';
 
@@ -78,4 +78,37 @@ export async function downloadAttachment(db: Db, env: CloudflareEnv, actor: Acto
         "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
     },
   });
+}
+
+/** An upload not sent with a message within this time is considered abandoned. */
+const ORPHAN_AFTER_MS = 24 * 3600_000;
+
+/**
+ * Cron housekeeping: files uploaded but never sent (after a day) and files of deleted
+ * messages leave R2 and the database. A few per run, to stay inside the Free plan's limits.
+ */
+export async function purgeAttachments(db: Db, env: CloudflareEnv, now = new Date(), limit = 20) {
+  const rows = await db
+    .select({ id: attachment.id, key: attachment.key })
+    .from(attachment)
+    .leftJoin(chatMessage, eq(chatMessage.id, attachment.messageId))
+    .where(
+      or(
+        and(
+          isNull(attachment.messageId),
+          lt(attachment.createdAt, new Date(now.getTime() - ORPHAN_AFTER_MS)),
+        ),
+        isNotNull(chatMessage.deletedAt),
+      ),
+    )
+    .limit(limit);
+  if (!rows.length) return 0;
+  if (env.FILES) await env.FILES.delete(rows.map((r) => r.key));
+  await db.delete(attachment).where(
+    inArray(
+      attachment.id,
+      rows.map((r) => r.id),
+    ),
+  );
+  return rows.length;
 }

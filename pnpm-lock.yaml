@@ -160,10 +160,6 @@ importers:
   packages/core: {}
 
   workers/cron:
-    dependencies:
-      '@kyon/core':
-        specifier: workspace:*
-        version: link:../../packages/core
     devDependencies:
       '@cloudflare/workers-types':
         specifier: 5.20261026.1

@@ -1,6 +1,9 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { CookieJar } from '@/test/d1';
+import { createDb } from '@/db/client';
+import { attachment } from '@/db/schema';
 import { createTestD1, testEnv } from '@/test/d1';
+import { purgeAttachments } from './chat/attachments';
 import { createFakeGitHub, installFakeFetch } from '@/test/fakeGithub';
 import { connectGitHub, fakeRepo, projectFromRepo } from '@/test/github';
 import { ORIGIN, body, call, inviteAndJoin, joinAs } from '@/test/http';
@@ -389,5 +392,35 @@ describe('chat', () => {
       ),
     );
     expect(gh.preview).toBeNull();
+  });
+
+  it('housekeeping: uploads never sent leave R2 after a day; sent ones stay', async () => {
+    const upload = async (text: string) => {
+      const bytes = new TextEncoder().encode(text);
+      const res = await call(`/api/chat/rooms/${projectRoom()}/attachments?name=nota.txt`, {
+        method: 'PUT',
+        jar: valerio,
+        body: bytes,
+        headers: {
+          'content-type': 'text/plain',
+          'content-length': String(bytes.length),
+          origin: ORIGIN,
+        },
+      });
+      return ((await res.json()) as { id: string }).id;
+    };
+    const abandoned = await upload('mai inviato');
+    const kept = await upload('inviato');
+    await send(valerio, projectRoom(), 'con allegato', { attachmentIds: [kept] });
+    const db = createDb(env.DB);
+    expect(await purgeAttachments(db, env)).toBe(0); // too recent
+    // Also removes what earlier tests left pending: the ids below are what matters.
+    expect(await purgeAttachments(db, env, new Date(Date.now() + 25 * 3600_000))).toBeGreaterThan(
+      0,
+    );
+    const rows = await db.select({ id: attachment.id }).from(attachment);
+    expect(rows.map((r) => r.id)).toContain(kept);
+    expect(rows.map((r) => r.id)).not.toContain(abandoned);
+    expect((await call(`/api/files/chat/${kept}`, { jar: christian })).status).toBe(200);
   });
 });

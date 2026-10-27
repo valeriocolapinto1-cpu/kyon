@@ -1,6 +1,7 @@
 import { verifyGitHubSignature } from '@kyon/core';
 import { eq } from 'drizzle-orm';
 import { activityEvent, githubConnection, project } from '@/db/schema';
+import { recordWebhook } from '../admin';
 import { ApiError } from '../errors';
 import { githubConfig } from '../github/client';
 import { markInstallationUnavailable, markReposUnavailable, syncRepos } from '../github/repos';
@@ -39,6 +40,11 @@ export const POST = route(async ({ request, env, db }) => {
     throw new ApiError('unauthorized', 'Firma non valida.');
   }
   const event = request.headers.get('x-github-event') ?? '';
+  try {
+    await recordWebhook(db, event);
+  } catch (error) {
+    console.warn('Webhook heartbeat not saved', error);
+  }
   const payload = JSON.parse(new TextDecoder().decode(body)) as InstallationPayload;
 
   if (

@@ -7,9 +7,6 @@
     "dev": "wrangler dev",
     "typecheck": "tsc -p tsconfig.json"
   },
-  "dependencies": {
-    "@kyon/core": "workspace:*"
-  },
   "devDependencies": {
     "@cloudflare/workers-types": "5.20261026.1",
     "typescript": "6.0.3",

@@ -1,4 +1,4 @@
-import { expect, newMember, setPreferences, test } from './fixtures';
+import { expect, expectNoA11yViolations, newMember, setPreferences, test } from './fixtures';
 
 test.describe('appearance settings', () => {
   test('accent, theme and high contrast apply at once and follow the account', async ({
@@ -88,4 +88,17 @@ test.describe('appearance settings', () => {
     await expect(group.getByRole('radio', { name: 'Digitale' })).toBeChecked();
     await member.context.close();
   });
+});
+
+test('admin: health page and data export download', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'admin tools: one layout is enough');
+  await page.goto('/settings#health-title');
+  const health = page.getByRole('region', { name: 'Salute' });
+  await expect(health.getByText('GitHub App')).toBeVisible();
+  await expect(health.getByText('Ultimo giro del cron')).toBeVisible();
+  await expectNoA11yViolations(page);
+  const download = page.waitForEvent('download');
+  await health.getByRole('link', { name: 'Esporta Markdown' }).click();
+  const file = await download;
+  expect(file.suggestedFilename()).toMatch(/^kyon-\d{4}-\d{2}-\d{2}\.md$/);
 });

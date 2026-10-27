@@ -176,6 +176,33 @@ L'indirizzo del sito usato nei link delle email (`KYON_URL`) viene letto in auto
 
 ---
 
-## E. Passi delle fasi successive
+## E. Ripristino dei dati (D1 Time Travel)
 
-- **Fase 10 — Ripristino dati**: istruzioni per D1 Time Travel.
+Il database D1 tiene in automatico la cronologia degli ultimi **7 giorni** sul piano Free (30 su Paid): puoi riportarlo a un minuto qualsiasi di quel periodo. Le task stanno comunque nelle repo GitHub: il ripristino riguarda metadati, prompt, chat e notifiche. Gli allegati (R2) non sono coperti.
+
+Prima di ripristinare, scarica un export da **Settings → Admin → Salute → Esporta JSON** (contiene i progetti di cui fai parte e la chat del gruppo).
+
+I comandi vanno lanciati da un computer con Node e il repo clonato, con le stesse variabili della CI (`CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`): mai `wrangler login`.
+
+1. Guarda il punto attuale (da copiare, ti serve per tornare indietro):
+   ```
+   pnpm --filter @kyon/web exec wrangler d1 time-travel info kyon-db
+   ```
+2. Ripristina a un'ora precisa (UTC, formato RFC 3339):
+   ```
+   pnpm --filter @kyon/web exec wrangler d1 time-travel restore kyon-db --timestamp=2026-10-27T08:00:00Z
+   ```
+   Wrangler stampa il **bookmark** di prima del ripristino: annotalo.
+3. Hai sbagliato momento? Torna indietro con il bookmark del punto 2:
+   ```
+   pnpm --filter @kyon/web exec wrangler d1 time-travel restore kyon-db --bookmark=<bookmark>
+   ```
+4. Apri Kyon, poi **Settings → Admin → Salute**: controlla che i numeri tornino. Su ogni progetto premi **Sincronizza ora** per riallineare le task con le repo.
+
+Le migrazioni non vanno rifatte: il ripristino riporta anche lo schema di quel momento, e al deploy successivo la CI applica quelle mancanti.
+
+---
+
+## F. Prima del rilascio
+
+La checklist completa è in `docs/RELEASE.md`.

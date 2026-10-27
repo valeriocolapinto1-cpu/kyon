@@ -120,6 +120,12 @@ evento (messaggio, assegnazione, esecuzione, cron scadenze)
 - Costo per evento sul Free: 1–2 query di lettura (persone, silenziate), 1 fetch al DO per la presenza (solo se serve), 1 scrittura per destinatario, 1 subrequest per dispositivo push. Con 4 persone resta lontano dai limiti di subrequest (50) e CPU.
 - Le preferenze hanno un'unica fonte di verità (`deliveryChannels` in `packages/core`), testata con una tabella di casi.
 
+## 3octies. PWA, offline e sicurezza delle risposte
+
+- Service worker `public/sw.js` (registrato solo nelle build di produzione): `navigate` → rete, poi copia per percorso (le pagine sono shell statiche, la query string sceglie solo i dati); `/_next/static` → cache una volta; API di lettura in elenco → rete, poi copia con l'header `x-kyon-offline`; scritture mai in cache. Il client rifiuta le scritture quando `navigator.onLine` è falso.
+- CSP in `src/lib/securityHeaders.ts`, usata da `next.config.ts` e copiata in `public/_headers` (un test le confronta).
+- Ogni route passa da `route()` (`src/lib/server/http.ts`): stessa origine per le scritture, rate limit per IP su ogni scrittura, errori in italiano. L'elenco delle route pubbliche è nel test di audit.
+
 ## 4. Realtime (task dalla Fase 5, chat dalla Fase 7)
 
 ```

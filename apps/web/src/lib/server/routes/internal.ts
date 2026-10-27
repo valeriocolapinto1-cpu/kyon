@@ -3,6 +3,7 @@ import { localMinutes, timingSafeEqual } from '@kyon/core';
 import { project, projectSync } from '@/db/schema';
 import { ApiError } from '../errors';
 import { json, route } from '../http';
+import { purgeAttachments } from '../chat/attachments';
 import { notifyDueTasks } from '../notifications/sources';
 import { purgeOrphans } from '../tasks/apply';
 import { syncProject } from '../tasks/sync';
@@ -42,6 +43,12 @@ export const cron = route(async ({ request, env, db }) => {
     }
   }
   await purgeOrphans(db);
+  let attachments = 0;
+  try {
+    attachments = await purgeAttachments(db, env);
+  } catch (error) {
+    console.warn('Attachment cleanup failed', error);
+  }
   // Due-date reminders: from 08:00 Rome time (after the default quiet hours); each one once.
   let reminders = 0;
   if (localMinutes(new Date(), 'Europe/Rome') >= 8 * 60) {
@@ -51,5 +58,5 @@ export const cron = route(async ({ request, env, db }) => {
       console.warn('Due reminders failed', error);
     }
   }
-  return json({ ok: true, results, reminders });
+  return json({ ok: true, results, reminders, attachments });
 });

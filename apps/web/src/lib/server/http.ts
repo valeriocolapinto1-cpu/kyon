@@ -31,7 +31,7 @@ function assertSameOrigin(request: Request) {
   if (origin && origin !== new URL(request.url).origin) throw new ApiError('forbidden');
 }
 
-/** Wraps a route handler: env, db, error mapping, same-origin check. */
+/** Wraps a route handler: env, db, error mapping, same-origin check, write rate limit. */
 export function route<P extends Params = Params>(
   handler: (ctx: RouteContext, params: P) => Promise<Response>,
 ) {
@@ -39,6 +39,10 @@ export function route<P extends Params = Params>(
     try {
       assertSameOrigin(request);
       const env = await getEnv();
+      // Safety net for every write, whatever the route: a per-IP budget (routes add per-user
+      // ones). Counters live in the Workers Rate Limiting binding: no storage writes.
+      if (request.method !== 'GET' && request.method !== 'HEAD')
+        await rateLimit(env.WRITE_LIMITER, `ip:${clientIp(request)}`);
       const params = ((await context?.params) ?? {}) as P;
       return await handler({ request, env, db: createDb(env.DB) }, params);
     } catch (error) {
