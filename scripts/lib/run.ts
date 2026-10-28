@@ -17,6 +17,8 @@ export interface RunOptions {
   capture?: boolean;
   /** Written to the child's stdin (e.g. a secret value), then closed. */
   stdin?: string;
+  /** Still shown live, but also kept and appended to the error message on failure. */
+  keepStderr?: boolean;
 }
 
 export function run(command: string, args: string[], options: RunOptions = {}): Promise<string> {
@@ -27,7 +29,7 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
       stdio: [
         options.stdin !== undefined ? 'pipe' : 'ignore',
         options.capture ? 'pipe' : 'inherit',
-        'inherit',
+        options.keepStderr ? 'pipe' : 'inherit',
       ],
       shell: useShell,
     };
@@ -39,10 +41,20 @@ export function run(command: string, args: string[], options: RunOptions = {}): 
     child.stdout?.on('data', (chunk: Buffer) => {
       stdout += chunk.toString();
     });
+    let stderr = '';
+    child.stderr?.on('data', (chunk: Buffer) => {
+      stderr += chunk.toString();
+      process.stderr.write(chunk);
+    });
     child.on('error', reject);
     child.on('exit', (code) => {
       if (code === 0) resolve(stdout);
-      else reject(new Error(`${command} ${args.join(' ')} exited with code ${code}`));
+      else
+        reject(
+          new Error(
+            `${command} ${args.join(' ')} exited with code ${code}${stderr ? `\n${stderr}` : ''}`,
+          ),
+        );
     });
   });
 }

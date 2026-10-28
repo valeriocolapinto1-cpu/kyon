@@ -56,9 +56,24 @@ await run(
 
 // Order matters on the very first deploy: the web Worker binds to the realtime Durable
 // Object classes by script name, and the cron Worker has a service binding to the web one.
-for (const dir of [realtimeDir, webDir, cronDir]) {
+for (const dir of [realtimeDir, webDir]) {
   console.log(`Deploying ${path.relative(repoRoot, dir)}...`);
   await run('pnpm', ['exec', 'wrangler', 'deploy', '--config', DEPLOY_CONFIG], { cwd: dir });
+}
+console.log('Deploying workers/cron...');
+try {
+  await run('pnpm', ['exec', 'wrangler', 'deploy', '--config', DEPLOY_CONFIG], {
+    cwd: cronDir,
+    keepStderr: true,
+  });
+} catch (error) {
+  // Workers Free allows 5 cron triggers per account, shared with the account's other Workers.
+  // The cron Worker's code is uploaded anyway; only its schedule is missing. Kyon keeps working
+  // (webhooks carry the updates), without reconciliation, due-date reminders and cleanup.
+  if (!String(error).includes('10072')) throw error;
+  console.log(
+    '::warning title=Cron schedule not set::This Cloudflare account already uses the 5 cron triggers of the Free plan. Kyon works, but without periodic reconciliation, due-date reminders and cleanup. See docs/SETUP.md §A7.',
+  );
 }
 
 async function existingSecrets(dir = webDir): Promise<Set<string>> {

@@ -60,6 +60,12 @@ Poi, da **Settings → Admin → Inviti**, crei un invito per ciascun amico e gl
 
 **Misura della CPU reale** (facoltativo ma utile): Cloudflare → Workers & Pages → `kyon-web` → **Metrics** → **CPU Time**. Se vedi valori vicini a 10 ms segnalalo in chat.
 
+### A7. Se il deploy avvisa "Cron schedule not set"
+
+Il piano Free permette **5 cron trigger per account**, condivisi con tutti i tuoi Worker. Se ne usi già 5 per altri progetti, il deploy pubblica Kyon lo stesso ma senza la pianificazione ogni 15 minuti: l'app funziona (gli aggiornamenti arrivano dai webhook), però mancano riconciliazione con GitHub, promemoria delle scadenze e pulizia degli allegati.
+
+Per sistemare: Cloudflare → **Workers & Pages** → apri un Worker che non ti serve più (o di cui non ti serve la pianificazione) → **Settings → Trigger events** → elimina il suo cron. Poi rilancia il deploy (**Actions → CI → Re-run all jobs** sull'ultimo commit di `main`). In **Settings → Admin → Salute** di Kyon comparirà "ultimo giro del cron" entro 15 minuti.
+
 ---
 
 ## B. GitHub App (serve per collegare le repo, Fase 3)
