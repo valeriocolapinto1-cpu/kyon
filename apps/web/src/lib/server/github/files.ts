@@ -53,6 +53,13 @@ function encodeBase64Utf8(text: string): string {
   return btoa(binary);
 }
 
+/** The file's content can't be obtained (e.g. over the blob API limit): never treat it as empty. */
+export class FileUnreadableError extends Error {
+  constructor(readonly path: string) {
+    super(`File not readable: ${path}`);
+  }
+}
+
 export async function getFile(
   config: GitHubConfig,
   token: string,
@@ -66,7 +73,18 @@ export async function getFile(
     'GET',
     `/repos/${ref.owner}/${ref.repo}/contents/${enc(path)}?ref=${encodeURIComponent(branch)}`,
   );
-  return { sha: res.data.sha, content: decodeBase64Utf8(res.data.content) };
+  if (res.data.encoding === 'base64')
+    return { sha: res.data.sha, content: decodeBase64Utf8(res.data.content) };
+  // Over ~1 MB the Contents API answers with empty content and encoding "none": the blob API
+  // still serves the file (up to 100 MB).
+  const blob = await gh<{ content: string; encoding: string }>(
+    config,
+    token,
+    'GET',
+    `/repos/${ref.owner}/${ref.repo}/git/blobs/${encodeURIComponent(res.data.sha)}`,
+  );
+  if (blob.data.encoding !== 'base64') throw new FileUnreadableError(path);
+  return { sha: res.data.sha, content: decodeBase64Utf8(blob.data.content) };
 }
 
 export class WriteConflictError extends Error {}

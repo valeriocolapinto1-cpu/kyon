@@ -289,6 +289,59 @@ describe('task engine against the fake GitHub', () => {
     });
   });
 
+  const sync = (): Promise<TasksResponse> =>
+    body(call(`/api/projects/${projectId}/sync`, { method: 'POST', jar: valerio }));
+
+  it('does not orphan tasks of files missing from a truncated tree', async () => {
+    // Sorts last, so a truncated listing drops it.
+    await externalEdit(repoId, 'zzz-tail.md', '- [ ] Task in coda\n');
+    expect(byText(await sync(), 'Task in coda')).toBeTruthy();
+
+    fake.state.truncatedTree = true;
+    try {
+      const res = await sync();
+      expect(res.sync.lastError).toBe('tree_truncated');
+      expect(byText(res, 'Task in coda')).toBeTruthy();
+      expect(res.orphaned.map((o) => o.text)).not.toContain('Task in coda');
+    } finally {
+      fake.state.truncatedTree = false;
+    }
+
+    // A complete listing still removes files that really disappeared.
+    await externalEdit(repoId, 'zzz-tail.md', null);
+    const res = await sync();
+    expect(res.sync.lastError).toBeNull();
+    expect(res.orphaned.map((o) => o.text)).toContain('Task in coda');
+  });
+
+  it('reads files over 1 MB through the blob API instead of seeing them empty', async () => {
+    await externalEdit(repoId, 'big.md', '- [ ] Task in un file grande\n');
+    fake.state.largeFiles.add('big.md');
+    try {
+      const res = await sync();
+      expect(byText(res, 'Task in un file grande')).toBeTruthy();
+      expect(res.sync.lastError).toBeNull();
+    } finally {
+      fake.state.largeFiles.delete('big.md');
+    }
+  });
+
+  it('keeps the last snapshot of a file it cannot read at all', async () => {
+    await externalEdit(repoId, 'huge.md', '- [ ] Task in un file enorme\n');
+    expect(byText(await sync(), 'Task in un file enorme')).toBeTruthy();
+
+    fake.state.hugeFiles.add('huge.md');
+    try {
+      await externalEdit(repoId, 'huge.md', '- [ ] Task in un file enorme\n- [ ] Altra\n');
+      const res = await sync();
+      expect(res.sync.lastError).toBe('file_unreadable:huge.md');
+      expect(byText(res, 'Task in un file enorme')).toBeTruthy();
+      expect(res.orphaned.map((o) => o.text)).not.toContain('Task in un file enorme');
+    } finally {
+      fake.state.hugeFiles.delete('huge.md');
+    }
+  });
+
   it('proposes TASKS.md only for projects without tasks', async () => {
     expect(
       (await call(`/api/projects/${projectId}/tasks-file`, { method: 'POST', jar: valerio }))
