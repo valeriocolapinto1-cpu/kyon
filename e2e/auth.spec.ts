@@ -140,6 +140,8 @@ test.describe('auth', () => {
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
 
     await page.goto('/settings');
+    // Sections below the fold mount when the person scrolls to them, like here.
+    await page.getByRole('heading', { name: 'Dispositivi connessi' }).scrollIntoViewIfNeeded();
     await expect(page.getByText('Questo dispositivo', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Disconnetti tutti gli altri' }).click();
     await expect(page.getByText('Altri dispositivi disconnessi', { exact: true })).toBeVisible();

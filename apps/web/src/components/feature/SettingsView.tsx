@@ -54,18 +54,24 @@ export function SettingsView() {
           <Deferred order={1}>
             <AccountSettings me={me.data} />
           </Deferred>
-          {/* Below the fold: mounted one by one when the browser is idle (short tasks). */}
-          <Deferred order={2} fallback={<SectionPlaceholder id="github" title={it.github.title} />}>
+          {/* Below the fold: mounted when the person starts using the page (short tasks). */}
+          <Deferred
+            order={2}
+            when="interaction"
+            fallback={<SectionPlaceholder id="github" title={it.github.title} />}
+          >
             <GitHubSettings me={me.data} />
           </Deferred>
           <Deferred
             order={3}
+            when="interaction"
             fallback={<SectionPlaceholder id="sessions-title" title={it.account.sessions} />}
           >
             <SessionsSettings />
           </Deferred>
           <Deferred
             order={4}
+            when="interaction"
             fallback={
               <SectionPlaceholder id="notifications-title" title={it.notifications.settingsTitle} />
             }
@@ -74,18 +80,21 @@ export function SettingsView() {
           </Deferred>
           <Deferred
             order={5}
+            when="interaction"
             fallback={<SectionPlaceholder id="calendar-title" title={it.calendar.title} />}
           >
             <CalendarSettings />
           </Deferred>
           <Deferred
             order={6}
+            when="interaction"
             fallback={<SectionPlaceholder id="install-title" title={it.pwa.installTitle} />}
           >
             <InstallSettings />
           </Deferred>
           <Deferred
             order={7}
+            when="interaction"
             fallback={<SectionPlaceholder id="help-title" title={it.settings.help} />}
           >
             <HelpSettings />
@@ -93,6 +102,7 @@ export function SettingsView() {
           {me.data.role === 'admin' && (
             <Deferred
               order={8}
+              when="interaction"
               fallback={<SectionPlaceholder id="admin-title" title={it.admin.title} />}
             >
               <AdminPanel me={me.data} />
