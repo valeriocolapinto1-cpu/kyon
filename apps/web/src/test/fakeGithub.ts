@@ -75,6 +75,12 @@ export interface FakeState {
   requests: { method: string; path: string }[];
   /** Simulates someone pushing between Kyon's read and write: the next PUTs on `path` fail with 409. */
   conflicts: { path: string; content: string; times: number }[];
+  /** Simulates GitHub truncating the recursive tree: only the first half of the entries is listed. */
+  truncatedTree: boolean;
+  /** Paths served like files over 1 MB: Contents API with empty content and encoding "none". */
+  largeFiles: Set<string>;
+  /** Paths the blob API refuses too (over 100 MB). */
+  hugeFiles: Set<string>;
 }
 
 export function defaultFakeState(kyonOrigin = 'http://localhost:8787'): FakeState {
@@ -118,6 +124,9 @@ export function defaultFakeState(kyonOrigin = 'http://localhost:8787'): FakeStat
     webOrigin: 'http://fake-github.test',
     requests: [],
     conflicts: [],
+    truncatedTree: false,
+    largeFiles: new Set(),
+    hugeFiles: new Set(),
   };
 }
 
@@ -342,13 +351,32 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
     if (!found) return c.json({ message: 'Not Found' }, 404);
     const map = files(found.repo, c.req.param('ref'));
     if (!map) return c.json({ message: 'Not Found' }, 404);
-    const tree = [...map.entries()]
+    const all = [...map.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([path, content]) => ({ path, type: 'blob', sha: fakeSha(content) }));
+    const tree = state.truncatedTree ? all.slice(0, Math.floor(all.length / 2)) : all;
     const sha = fakeSha(JSON.stringify(tree));
     const etag = `"${sha}"`;
     if (c.req.header('if-none-match') === etag) return c.body(null, 304, { etag });
-    return c.json({ sha, tree, truncated: false }, 200, { etag });
+    return c.json({ sha, tree, truncated: state.truncatedTree }, 200, { etag });
+  });
+
+  app.get('/repos/:owner/:repo/git/blobs/:sha', (c) => {
+    const found = authorizedRepo(c);
+    if (!found) return c.json({ message: 'Not Found' }, 404);
+    for (const [, map] of found.repo.branches ?? []) {
+      for (const [path, content] of map) {
+        if (fakeSha(content) !== c.req.param('sha')) continue;
+        if (state.hugeFiles.has(path))
+          return c.json({ sha: c.req.param('sha'), encoding: 'none', content: '' });
+        return c.json({
+          sha: c.req.param('sha'),
+          encoding: 'base64',
+          content: encodeBase64(content),
+        });
+      }
+    }
+    return c.json({ message: 'Not Found' }, 404);
   });
 
   app.get('/repos/:owner/:repo/contents/:path{.+}', (c) => {
@@ -357,6 +385,14 @@ export function createFakeGitHub(state: FakeState = defaultFakeState()) {
     const ref = c.req.query('ref') ?? found.repo.defaultBranch;
     const content = files(found.repo, ref)?.get(c.req.param('path'));
     if (content === undefined) return c.json({ message: 'Not Found' }, 404);
+    if (state.largeFiles.has(c.req.param('path')) || state.hugeFiles.has(c.req.param('path')))
+      return c.json({
+        type: 'file',
+        path: c.req.param('path'),
+        sha: fakeSha(content),
+        encoding: 'none',
+        content: '',
+      });
     return c.json({
       type: 'file',
       path: c.req.param('path'),

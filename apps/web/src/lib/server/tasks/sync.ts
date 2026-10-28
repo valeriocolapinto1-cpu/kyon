@@ -5,7 +5,7 @@ import { project, projectSync, taskFile } from '@/db/schema';
 import { ApiError } from '../errors';
 import { publishTasks } from '../realtime';
 import { GitHubError } from '../github/client';
-import { getFile, getTree } from '../github/files';
+import { FileUnreadableError, getFile, getTree } from '../github/files';
 import { parseIgnoreGlobs, parsePlanKeywords, readBranch, repoAccess } from './access';
 import { applyParsedFile, removeFile } from './apply';
 
@@ -91,8 +91,18 @@ export async function syncProject(
     const pending = changed.slice(MAX_FILES_PER_SYNC).map((b) => b.path);
     const keywords = parsePlanKeywords(row);
 
+    // Files whose content can't be read are skipped, keeping their last snapshot: an unreadable
+    // file must never look like a file without tasks.
+    const unreadable: string[] = [];
     for (const blob of toFetch) {
-      const file = await getFile(access.config, access.token, access.ref, blob.path, branch);
+      let file;
+      try {
+        file = await getFile(access.config, access.token, access.ref, blob.path, branch);
+      } catch (error) {
+        if (!(error instanceof FileUnreadableError)) throw error;
+        unreadable.push(blob.path);
+        continue;
+      }
       await applyParsedFile(
         db,
         projectId,
@@ -104,7 +114,8 @@ export async function syncProject(
       );
     }
     const present = new Set(wanted.map((b) => b.path));
-    const removed = existing.filter((f) => !present.has(f.path));
+    // A truncated tree lacks files: absence proves nothing, so nothing is removed.
+    const removed = tree.truncated ? [] : existing.filter((f) => !present.has(f.path));
     for (const f of removed) await removeFile(db, projectId, f.path, now);
 
     const values = {
@@ -114,7 +125,11 @@ export async function syncProject(
       treeEtag: pending.length ? null : tree.etag,
       pending: JSON.stringify(pending),
       lastSyncAt: now,
-      lastError: tree.truncated ? 'tree_truncated' : null,
+      lastError: tree.truncated
+        ? 'tree_truncated'
+        : unreadable.length
+          ? `file_unreadable:${unreadable[0]}`
+          : null,
     };
     await db
       .insert(projectSync)
