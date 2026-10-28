@@ -79,17 +79,6 @@ export function AppearanceSettings() {
             onChange={(accent) => update({ accent })}
           />
         </div>
-        <Row label={s.clock}>
-          <Segmented<Preferences['clockStyle']>
-            label={s.clock}
-            value={p.clockStyle}
-            onChange={(clockStyle) => update({ clockStyle })}
-            options={[
-              { value: 'analog', label: s.clockAnalog },
-              { value: 'digital', label: s.clockDigital },
-            ]}
-          />
-        </Row>
         <Row
           label={s.lite}
           help={p.lite === 'auto' && environment.liteDetected ? s.liteDetected : s.liteHelp}

@@ -15,7 +15,6 @@ import {
 import { useState, type ReactNode } from 'react';
 import { today, type HomeBlockId, type Priority, type RunState } from '@kyon/core';
 import dynamic from 'next/dynamic';
-import { HomeClock } from '@/components/feature/HomeClock';
 import { RunStateBadge } from '@/components/feature/prompts/RunState';
 import { Avatar } from '@/components/ui/Avatar';
 import { EmptyState } from '@/components/ui/EmptyState';
@@ -46,7 +45,6 @@ const h = it.home;
 const CustomizeSheet = dynamic(() => import('./CustomizeSheet'), { ssr: false });
 
 const ICONS: Record<HomeBlockId, typeof Activity> = {
-  clock: CalendarClock,
   contributions: Activity,
   myTasks: CalendarClock,
   runs: PlayCircle,
@@ -59,7 +57,7 @@ function Block({
   children,
   footer,
 }: {
-  id: Exclude<HomeBlockId, 'clock'>;
+  id: HomeBlockId;
   children: ReactNode;
   footer?: ReactNode;
 }) {
@@ -287,12 +285,6 @@ export function HomeView() {
 
   const content = (id: HomeBlockId, data: HomeData) => {
     switch (id) {
-      case 'clock':
-        return (
-          <GlassCard key={id} className="flex items-center justify-center">
-            <HomeClock />
-          </GlassCard>
-        );
       case 'contributions':
         return (
           <Block key={id} id={id} footer={<MoreLink href="/attivita">{h.allActivity}</MoreLink>}>
@@ -362,7 +354,7 @@ export function HomeView() {
           {layout
             .filter((b) => !b.hidden)
             .map((b) =>
-              home.data || b.id === 'clock' || b.id === 'online' ? (
+              home.data || b.id === 'online' ? (
                 content(b.id, home.data ?? EMPTY)
               ) : (
                 <GlassCard key={b.id} aria-hidden="true">

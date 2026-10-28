@@ -43,18 +43,18 @@ test('home blocks: my tasks, resume where I left off, customize, people and hist
   const resume = page.getByRole('link', { name: `Riprendi: Task ${tag}` });
   await expect(resume).toBeVisible();
 
-  // Customize: hide the clock, move "Chi è online" first; it sticks after a reload.
+  // Customize: hide "Ultimi contributi", move "Chi è online" first; it sticks after a reload.
   await page.getByRole('button', { name: 'Personalizza' }).click();
   const sheet = page.getByRole('dialog', { name: 'Personalizza la Home' });
-  await sheet.getByRole('switch', { name: 'Orologio' }).click();
-  for (let i = 0; i < 5; i++)
+  await sheet.getByRole('switch', { name: 'Ultimi contributi' }).click();
+  for (let i = 0; i < 4; i++)
     await sheet.getByRole('button', { name: 'Sposta su Chi è online' }).click();
   await expect(sheet.getByRole('button', { name: 'Sposta su Chi è online' })).toBeDisabled();
   await expectNoA11yViolations(page);
   await page.keyboard.press('Escape');
   await page.reload();
   await expect(page.getByRole('region', { name: 'Chi è online' })).toBeVisible();
-  await expect(page.getByRole('img', { name: /^Ora: / })).toHaveCount(0);
+  await expect(page.getByRole('region', { name: 'Ultimi contributi' })).toHaveCount(0);
   const regions = await page
     .locator('main .grid > section[aria-labelledby^="home-"] h2')
     .allTextContents();

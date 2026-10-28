@@ -79,13 +79,13 @@ test.describe('appearance settings', () => {
     const page = await member.context.newPage();
     await setPreferences(page, { theme: 'light' });
     await page.goto('/settings');
-    const group = page.getByRole('radiogroup', { name: 'Orologio' });
-    await group.getByRole('radio', { name: 'Analogico' }).focus();
+    const group = page.getByRole('radiogroup', { name: 'Tema' });
+    await group.getByRole('radio', { name: 'Sistema' }).focus();
     // Radix moves focus on a timer and selects only while the arrow is held, like a real key press.
     await page.keyboard.down('ArrowRight');
-    await expect(group.getByRole('radio', { name: 'Digitale' })).toBeFocused();
+    await expect(group.getByRole('radio', { name: 'Chiaro' })).toBeFocused();
     await page.keyboard.up('ArrowRight');
-    await expect(group.getByRole('radio', { name: 'Digitale' })).toBeChecked();
+    await expect(group.getByRole('radio', { name: 'Chiaro' })).toBeChecked();
     await member.context.close();
   });
 });

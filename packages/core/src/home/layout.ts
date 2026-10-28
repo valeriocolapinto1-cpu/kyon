@@ -1,6 +1,5 @@
 /** The Home blocks a person can reorder and hide (the order here is the default). */
 export const HOME_BLOCKS = [
-  'clock',
   'contributions',
   'myTasks',
   'runs',

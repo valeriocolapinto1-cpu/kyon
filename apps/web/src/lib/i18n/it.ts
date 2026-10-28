@@ -29,7 +29,6 @@ export const it = {
     resume: (title: string) => `Riprendi: ${title}`,
     dismissResume: 'Nascondi',
     blocks: {
-      clock: 'Orologio',
       contributions: 'Ultimi contributi',
       myTasks: 'Le mie task',
       runs: 'Esecuzioni in corso',
@@ -275,9 +274,6 @@ export const it = {
     themeLight: 'Chiaro',
     themeDark: 'Scuro',
     accent: 'Colore di accento',
-    clock: 'Orologio',
-    clockAnalog: 'Analogico',
-    clockDigital: 'Digitale',
     lite: 'Modalità Leggera',
     liteHelp: 'Meno vetro e ombre, per dispositivi lenti.',
     liteAuto: 'Automatica',
