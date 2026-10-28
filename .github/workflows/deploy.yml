@@ -30,7 +30,8 @@ jobs:
       KYON_GH_CLIENT_ID: ${{ secrets.KYON_GH_CLIENT_ID }}
       KYON_GH_CLIENT_SECRET: ${{ secrets.KYON_GH_CLIENT_SECRET }}
       KYON_GH_WEBHOOK_SECRET: ${{ secrets.KYON_GH_WEBHOOK_SECRET }}
-      KYON_GH_APP_SLUG: ${{ vars.KYON_GH_APP_SLUG }}
+      # A variable (not secret: it's public), but accepted as a secret too, an easy slip.
+      KYON_GH_APP_SLUG: ${{ vars.KYON_GH_APP_SLUG || secrets.KYON_GH_APP_SLUG }}
       # Optional: sender on a domain onboarded in Cloudflare Email Service (docs/SETUP.md §C).
       KYON_EMAIL_FROM: ${{ vars.KYON_EMAIL_FROM }}
     steps:
