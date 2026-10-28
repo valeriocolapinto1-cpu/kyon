@@ -17,7 +17,7 @@ export function SidebarPill({ onSearch, bell }: { onSearch: () => void; bell?: R
   return (
     <nav
       aria-label={it.nav.label}
-      className="fixed top-0 bottom-0 left-0 z-30 hidden items-center py-4 pl-[max(1rem,var(--k-safe-left))] md:flex phone-landscape:flex phone-landscape:py-2"
+      className="fixed top-0 bottom-0 left-0 z-30 hidden items-start py-8 pl-[max(1rem,var(--k-safe-left))] md:flex phone-landscape:flex phone-landscape:items-center phone-landscape:py-2"
     >
       <div className="k-chrome flex flex-col items-center gap-1 rounded-pill p-1.5">
         <Link

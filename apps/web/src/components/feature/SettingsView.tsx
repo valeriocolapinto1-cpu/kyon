@@ -36,13 +36,16 @@ export function SettingsView() {
   ];
   return (
     <div className="flex flex-col gap-8">
-      <nav aria-label={it.settings.title} className="-mt-2 flex flex-wrap gap-2">
+      <nav
+        aria-label={it.settings.title}
+        className="-mx-4 -mt-2 flex snap-x gap-2 overflow-x-auto px-4 pb-1 md:mx-0 md:flex-wrap md:overflow-visible md:px-0"
+      >
         {links.map((link) => (
           <a
             key={link.href}
             href={link.href}
             data-plain
-            className="k-pressable inline-flex min-h-touch items-center rounded-pill bg-neutral-soft px-4 text-subhead font-semibold text-fg"
+            className="k-pressable inline-flex min-h-touch shrink-0 snap-start items-center rounded-pill bg-neutral-soft px-4 text-subhead font-semibold text-fg"
           >
             {link.label}
           </a>

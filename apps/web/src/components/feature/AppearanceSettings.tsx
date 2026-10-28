@@ -79,17 +79,6 @@ export function AppearanceSettings() {
             onChange={(accent) => update({ accent })}
           />
         </div>
-        <Row label={s.clock}>
-          <Segmented<Preferences['clockStyle']>
-            label={s.clock}
-            value={p.clockStyle}
-            onChange={(clockStyle) => update({ clockStyle })}
-            options={[
-              { value: 'analog', label: s.clockAnalog },
-              { value: 'digital', label: s.clockDigital },
-            ]}
-          />
-        </Row>
         <Row
           label={s.lite}
           help={p.lite === 'auto' && environment.liteDetected ? s.liteDetected : s.liteHelp}
@@ -112,16 +101,15 @@ export function AppearanceSettings() {
           {s.accessibility}
         </h2>
         <div className="flex flex-col gap-3 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-body text-fg" id="text-size-label">
-              {s.textSize}
-            </p>
-            <Switch
-              label={s.textSizeSystem}
-              checked={p.textScale === 'system'}
-              onCheckedChange={(system) => update({ textScale: system ? 'system' : 1 })}
-            />
-          </div>
+          <span id="text-size-label" className="sr-only">
+            {s.textSize}
+          </span>
+          <Switch
+            label={s.textSize}
+            help={s.textSizeSystem}
+            checked={p.textScale === 'system'}
+            onCheckedChange={(system) => update({ textScale: system ? 'system' : 1 })}
+          />
           {p.textScale !== 'system' && (
             <Slider.Root
               className="relative flex h-touch w-full touch-none items-center select-none"

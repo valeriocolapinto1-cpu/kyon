@@ -17,7 +17,12 @@ export function SplitView({
   className?: string;
 }) {
   return (
-    <div className={cn('grid gap-4 md:grid-cols-[minmax(16rem,22rem)_1fr]', className)}>
+    <div
+      className={cn(
+        'grid gap-4 md:grid-cols-[minmax(18rem,5fr)_minmax(0,7fr)] md:items-start',
+        className,
+      )}
+    >
       <section className={cn('min-w-0', showDetail && 'hidden md:block')}>{list}</section>
       <section className={cn('min-w-0', showDetail ? 'block' : 'hidden md:block')}>
         {detail}

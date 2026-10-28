@@ -56,17 +56,17 @@ describe('home layout', () => {
       { id: 'online' },
       'x',
       null,
-      { id: 'clock', hidden: 'yes' },
+      { id: 'contributions', hidden: 'yes' },
     ]);
     expect(layout[0]).toEqual({ id: 'online', hidden: true });
-    expect(layout[1]).toEqual({ id: 'clock', hidden: false });
+    expect(layout[1]).toEqual({ id: 'contributions', hidden: false });
     expect(layout).toHaveLength(HOME_BLOCKS.length);
   });
 
   it('moves blocks within range', () => {
     const layout = normalizeHomeLayout(null);
-    expect(moveHomeBlock(layout, 'contributions', -1)[0]?.id).toBe('contributions');
-    expect(moveHomeBlock(layout, 'clock', -1)).toBe(layout);
+    expect(moveHomeBlock(layout, 'myTasks', -1)[0]?.id).toBe('myTasks');
+    expect(moveHomeBlock(layout, 'contributions', -1)).toBe(layout);
     expect(moveHomeBlock(layout, 'online', 1)).toBe(layout);
   });
 });
