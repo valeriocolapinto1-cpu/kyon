@@ -54,8 +54,9 @@ await run(
   { cwd: webDir },
 );
 
-// Realtime first: the web Worker binds to its Durable Object classes by script name.
-for (const dir of [realtimeDir, cronDir, webDir]) {
+// Order matters on the very first deploy: the web Worker binds to the realtime Durable
+// Object classes by script name, and the cron Worker has a service binding to the web one.
+for (const dir of [realtimeDir, webDir, cronDir]) {
   console.log(`Deploying ${path.relative(repoRoot, dir)}...`);
   await run('pnpm', ['exec', 'wrangler', 'deploy', '--config', DEPLOY_CONFIG], { cwd: dir });
 }
