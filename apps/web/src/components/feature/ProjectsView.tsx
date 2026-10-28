@@ -350,13 +350,17 @@ export function ProjectsView() {
   const setTab = (next: Tab) =>
     router.replace(`${pathname}?id=${id}&tab=${next}`, { scroll: false });
 
+  // With no projects the empty state already carries the one "Nuovo progetto" button.
+  const noProjects = useProjects().data?.length === 0;
   const header = (
     <PageHeader
       title={it.projects.title}
       actions={
-        <GlassButton variant="primary" onClick={() => setNewOpen(true)}>
-          <Plus className="size-5" aria-hidden="true" /> {p.newProject}
-        </GlassButton>
+        noProjects ? undefined : (
+          <GlassButton variant="primary" onClick={() => setNewOpen(true)}>
+            <Plus className="size-5" aria-hidden="true" /> {p.newProject}
+          </GlassButton>
+        )
       }
     />
   );

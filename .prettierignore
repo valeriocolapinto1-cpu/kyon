@@ -12,3 +12,4 @@ playwright-report
 test-results
 .lighthouseci
 apps/web/AGENTS.md
+.claude/agents/

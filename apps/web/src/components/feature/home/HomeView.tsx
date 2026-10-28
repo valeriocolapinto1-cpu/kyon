@@ -5,9 +5,11 @@ import {
   Activity,
   ArrowRight,
   CalendarClock,
+  Check,
   History,
   MessageSquareText,
   PlayCircle,
+  Rocket,
   SlidersHorizontal,
   Users,
   X,
@@ -34,7 +36,9 @@ import {
 } from '@/lib/client/home';
 import { readLocalLocation } from '@/lib/client/location';
 import { useInstallReminder } from '@/lib/client/pwa';
+import { useGitHubStatus } from '@/lib/client/github';
 import { useMe } from '@/lib/client/me';
+import { useProjects } from '@/lib/client/projects';
 import { useGroupLive } from '@/lib/client/presence';
 import { formatDayShort } from '@/lib/format/day';
 import { relativeTime } from '@/lib/format/relative';
@@ -275,6 +279,54 @@ function InstallReminder() {
   );
 }
 
+/** First steps while the group has no project yet: one clear thing to do next. */
+function GettingStarted() {
+  const projects = useProjects();
+  const github = useGitHubStatus();
+  const me = useMe().data;
+  if (projects.data?.length !== 0 || !github.data) return null;
+  const connected = Boolean(github.data.connection);
+  const steps = [
+    { done: connected, label: h.start.github, href: '/settings#github' },
+    { done: false, label: h.start.project, href: '/progetti' },
+    ...(me?.role === 'admin'
+      ? [{ done: false, label: h.start.invite, href: '/settings#admin-title' }]
+      : []),
+  ];
+  const nextIndex = steps.findIndex((s) => !s.done);
+  return (
+    <GlassCard as="section" aria-labelledby="home-start" className="mb-4 flex flex-col gap-3">
+      <h2 id="home-start" className="flex items-center gap-2 text-headline text-fg">
+        <Rocket className="size-5 text-accent-text" aria-hidden="true" />
+        {h.start.title}
+      </h2>
+      <ol className="flex flex-col gap-1">
+        {steps.map((s, i) => (
+          <li key={s.href}>
+            <Link
+              href={s.href}
+              className="flex min-h-touch items-center gap-3 rounded-control px-2 py-1 hover:bg-neutral-soft"
+            >
+              <span
+                aria-hidden="true"
+                className={`flex size-6 shrink-0 items-center justify-center rounded-full text-footnote font-bold ${
+                  s.done ? 'bg-success-fill text-on-success' : 'bg-neutral-soft text-fg'
+                }`}
+              >
+                {s.done ? <Check className="size-4" /> : i + 1}
+              </span>
+              <span className={`text-subhead ${i === nextIndex ? 'font-semibold' : ''} text-fg`}>
+                {s.label}
+                {s.done && <span className="sr-only"> ({h.start.done})</span>}
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ol>
+    </GlassCard>
+  );
+}
+
 /** Home: blocks in the order (and visibility) the person chose, each with its own empty state. */
 export function HomeView() {
   const me = useMe().data;
@@ -333,12 +385,14 @@ export function HomeView() {
         subtitle={h.subtitle}
         actions={
           <GlassButton size="sm" variant="glass" onClick={() => setCustomizing(true)}>
-            <SlidersHorizontal className="size-4" aria-hidden="true" /> {h.customize}
+            <SlidersHorizontal className="size-4" aria-hidden="true" />
+            <span className="sr-only sm:not-sr-only">{h.customize}</span>
           </GlassButton>
         }
       />
       {home.data && <Resume data={home.data} />}
       <InstallReminder />
+      <GettingStarted />
       {home.isError ? (
         <EmptyState
           title={it.common.errorTitle}
@@ -350,7 +404,7 @@ export function HomeView() {
           }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div className="grid items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {layout
             .filter((b) => !b.hidden)
             .map((b) =>

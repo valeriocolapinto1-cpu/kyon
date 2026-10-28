@@ -50,7 +50,7 @@ export function ActivityView() {
       ) : !activity.data ? (
         <SkeletonList rows={5} />
       ) : events.length === 0 ? (
-        <EmptyState title={a.empty} body={it.home.subtitle} />
+        <EmptyState title={a.empty} body={a.emptyBody} />
       ) : (
         <GlassCard className="flex flex-col gap-4">
           <ol className="flex flex-col gap-4">

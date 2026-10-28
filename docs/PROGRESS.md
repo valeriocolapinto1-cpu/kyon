@@ -30,6 +30,10 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 - [ ] Su un **iPhone reale**: installare Kyon nella schermata Home e attivare le push (Settings → Notifiche → Invia una prova). Le push non sono verificabili negli e2e (nessun servizio push reale).
 - [ ] Un `.md` reale di Biohybrid (es. `PROSSIMI-PASSI.md`) per le fixture del parser (serve in Fase 4).
 
+## Revisione grafica (subagenti agency-agents)
+
+Fatta con UI Designer, Accessibility Auditor, UX Architect e Finish-Gate Reviewer (installati in `.claude/agents/`). Applicato: vetro più visibile (mesh e superfici più marcati, bordi e testo secondario ritoccati nei temi; contrasti ancora garantiti dai test), tour di benvenuto solo in Home, checklist "Per iniziare" nella Home vuota, orologio rimosso, colonne di Progetti 5/7, sidebar allineata in alto, Chat con pannello vuoto vero e conversazione unica aperta da sola su schermi larghi, Settings con chip su una riga scorrevole e riga "Dimensione del testo" ripulita, un solo "Nuovo progetto" a elenco vuoto, testo della Cronologia vuota. Non è un difetto: le sezioni Settings "vuote" sono placeholder di `Deferred` (si montano all'interazione, per la CPU del piano Free); "Riprendi: Settings" usa il titolo della pagina. Bundle kyon-web 1824,5 KiB gzip.
+
 ## Numeri del bundle (gzip, `pnpm size`)
 
 Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.

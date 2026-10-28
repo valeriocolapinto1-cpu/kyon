@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowLeft, BellOff, Hash, MessagesSquare, Plus, Users } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useRef, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { FormError } from '@/components/ui/FormError';
 import { GlassButton } from '@/components/ui/GlassButton';
+import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassInput } from '@/components/ui/GlassInput';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Sheet } from '@/components/ui/Sheet';
@@ -147,6 +148,14 @@ export function ChatView() {
   const open = (id: string | null) =>
     router.replace(id ? `${pathname}?room=${encodeURIComponent(id)}` : pathname, { scroll: false });
 
+  // With a single conversation there is nothing to choose: on wide screens it opens by itself.
+  const onlyRoomId = rooms.data?.length === 1 ? (rooms.data[0]?.id ?? null) : null;
+  useEffect(() => {
+    if (!roomId && onlyRoomId && window.matchMedia('(min-width: 768px)').matches) {
+      router.replace(`${pathname}?room=${encodeURIComponent(onlyRoomId)}`, { scroll: false });
+    }
+  }, [roomId, onlyRoomId, router, pathname]);
+
   const list = rooms.isPending ? (
     <SkeletonList rows={4} />
   ) : rooms.isError ? (
@@ -214,7 +223,13 @@ export function ChatView() {
               />
             </div>
           ) : (
-            <p className="rounded-card p-6 text-center text-body text-muted">{c.selectHint}</p>
+            <GlassCard className="flex min-h-64 items-center justify-center">
+              <EmptyState
+                icon={<MessagesSquare className="size-10" />}
+                title={c.selectHint}
+                body={c.selectBody}
+              />
+            </GlassCard>
           )}
         </div>
       </div>

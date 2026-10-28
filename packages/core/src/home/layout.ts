@@ -1,11 +1,5 @@
 /** The Home blocks a person can reorder and hide (the order here is the default). */
-export const HOME_BLOCKS = [
-  'contributions',
-  'myTasks',
-  'runs',
-  'comments',
-  'online',
-] as const;
+export const HOME_BLOCKS = ['contributions', 'myTasks', 'runs', 'comments', 'online'] as const;
 
 export type HomeBlockId = (typeof HOME_BLOCKS)[number];
 

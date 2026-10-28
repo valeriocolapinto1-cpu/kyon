@@ -83,15 +83,15 @@ const BASE = {
   },
   dark: {
     bg: '#0B0B0F',
-    surface: '#1C1C1E',
+    surface: '#2C2C30',
     text: '#F2F2F7',
     textHigh: '#FFFFFF',
-    muted: '#98989F',
+    muted: '#A1A1A6',
   },
 } as const;
 
 const ALPHA = {
-  normal: { surface: 0.72, chrome: 0.88 },
+  normal: { surface: 0.62, chrome: 0.86 },
   high: { surface: 1, chrome: 1 },
 } as const;
 
@@ -108,7 +108,7 @@ export function buildTheme(input: ThemeInput): Theme {
   const chrome: Rgba = { ...surfaceRgb, a: alpha.chrome };
 
   // Static mesh: soft tints of the accent and its neighbor. Flat in high contrast mode.
-  const strength = scheme === 'light' ? [0.24, 0.16, 0.1] : [0.32, 0.22, 0.14];
+  const strength = scheme === 'light' ? [0.4, 0.28, 0.2] : [0.5, 0.36, 0.26];
   const mesh: Rgb[] =
     contrast === 'high'
       ? [bg, bg, bg]
@@ -180,7 +180,7 @@ export function buildTheme(input: ThemeInput): Theme {
     border:
       contrast === 'high'
         ? hex(inputBorder)
-        : toRgbaCss({ ...WHITE, a: scheme === 'light' ? 0.7 : 0.14 }),
+        : toRgbaCss({ ...WHITE, a: scheme === 'light' ? 0.8 : 0.2 }),
     'input-border': hex(inputBorder),
     accent: hex(accentRaw),
     'accent-text': hex(accentText),
@@ -197,7 +197,7 @@ export function buildTheme(input: ThemeInput): Theme {
     'success-fill': hex(successFill.fill),
     'on-success': hex(successFill.on),
     'shadow-alpha': scheme === 'light' ? '0.10' : '0.45',
-    specular: scheme === 'light' ? 'rgb(255 255 255 / 0.9)' : 'rgb(255 255 255 / 0.22)',
+    specular: scheme === 'light' ? 'rgb(255 255 255 / 0.9)' : 'rgb(255 255 255 / 0.32)',
   };
 
   return {

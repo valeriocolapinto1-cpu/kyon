@@ -1,6 +1,7 @@
 'use client';
 
 import { useQueryClient } from '@tanstack/react-query';
+import { usePathname } from 'next/navigation';
 import { useState } from 'react';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { Sheet } from '@/components/ui/Sheet';
@@ -22,10 +23,12 @@ export function WelcomeTour({
   onOpenChange: (open: boolean) => void;
 }) {
   const me = useMe().data;
+  const pathname = usePathname();
   const queryClient = useQueryClient();
   const [dismissed, setDismissed] = useState(false);
   const [step, setStep] = useState(0);
-  const firstTime = Boolean(me && !me.tourDoneAt) && !dismissed;
+  // The steps talk about the Home, so the first-time tour waits for it (it never covers other pages).
+  const firstTime = Boolean(me && !me.tourDoneAt) && !dismissed && pathname === '/';
   const visible = open || firstTime;
   const total = t.steps.length;
   const current = t.steps[step] ?? t.steps[0];
