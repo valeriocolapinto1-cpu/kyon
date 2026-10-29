@@ -286,6 +286,7 @@ export async function getProjectDetail(db: Db, actor: Actor, projectId: string) 
       planHeadings: parseList(row.planHeadings, DEFAULT_PLAN_HEADINGS),
       ignoreGlobs: parseList(row.ignoreGlobs, []),
       showArchive: row.showArchive,
+      checklistFiles: row.checklistFiles ? parseList(row.checklistFiles, []) : null,
     },
     /** The repo's CLAUDE.md as read by the sync: only its size, the text stays on the server. */
     claudeMd: { found: Number(claude?.chars ?? 0) > 0, chars: Number(claude?.chars ?? 0) },
@@ -303,6 +304,7 @@ export interface SettingsPatch {
   planHeadings?: string[];
   ignoreGlobs?: string[];
   showArchive?: boolean;
+  checklistFiles?: string[];
 }
 
 export async function updateProjectSettings(
@@ -320,7 +322,15 @@ export async function updateProjectSettings(
   if (patch.planHeadings !== undefined) values.planHeadings = JSON.stringify(patch.planHeadings);
   if (patch.ignoreGlobs !== undefined) values.ignoreGlobs = JSON.stringify(patch.ignoreGlobs);
   if (patch.showArchive !== undefined) values.showArchive = patch.showArchive;
+  if (patch.checklistFiles !== undefined)
+    values.checklistFiles = JSON.stringify([...new Set(patch.checklistFiles)]);
   await db.update(project).set(values).where(eq(project.id, projectId));
+  // The repo did not change but what to read did: the next sync must list the tree again.
+  if (patch.checklistFiles !== undefined)
+    await db
+      .update(projectSync)
+      .set({ treeEtag: null })
+      .where(eq(projectSync.projectId, projectId));
 }
 
 export async function addMember(

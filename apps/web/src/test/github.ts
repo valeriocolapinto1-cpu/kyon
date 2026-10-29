@@ -39,7 +39,13 @@ export async function fakeRepo(
 }
 
 /** Exposes the user's repo to the group and makes it a project. Returns the project id. */
-export async function projectFromRepo(jar: CookieJar, fullName: string, name: string) {
+export async function projectFromRepo(
+  jar: CookieJar,
+  fullName: string,
+  name: string,
+  /** Chooses every non-archive .md as a checklist (what Kyon used to read); false leaves the choice to the test. */
+  selectFiles = true,
+) {
   const { repos } = await body(call('/api/repos', { jar }));
   const repo = repos.find(
     (r: { fullName: string; mine: boolean }) => r.fullName === fullName && r.mine,
@@ -48,7 +54,20 @@ export async function projectFromRepo(jar: CookieJar, fullName: string, name: st
   const created = await body(
     call('/api/projects', { method: 'POST', jar, json: { repoId: repo.id, name } }),
   );
-  return created.id as string;
+  const id = created.id as string;
+  if (selectFiles) {
+    const { files } = await body(call(`/api/projects/${id}/markdown-files`, { jar }));
+    await call(`/api/projects/${id}`, {
+      method: 'PATCH',
+      jar,
+      json: {
+        checklistFiles: (files as { path: string; kind: string }[])
+          .filter((f) => f.kind === 'tasks')
+          .map((f) => f.path),
+      },
+    });
+  }
+  return id;
 }
 
 export function repoFiles(
@@ -58,4 +77,14 @@ export function repoFiles(
 ) {
   const repo = fake.state.repos.find((r) => r.id === repoId);
   return repo?.branches?.get(branch) ?? new Map<string, string>();
+}
+
+/** Adds files to the project's checklists (what an owner does in "File checklist"). */
+export async function selectChecklistFiles(jar: CookieJar, projectId: string, paths: string[]) {
+  const { selected } = await body(call(`/api/projects/${projectId}/markdown-files`, { jar }));
+  await call(`/api/projects/${projectId}`, {
+    method: 'PATCH',
+    jar,
+    json: { checklistFiles: [...new Set([...((selected as string[] | null) ?? []), ...paths])] },
+  });
 }

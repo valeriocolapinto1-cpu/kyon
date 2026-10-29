@@ -6,7 +6,13 @@ import { ApiError } from '../errors';
 import { publishTasks } from '../realtime';
 import { GitHubError } from '../github/client';
 import { FileUnreadableError, getFile, getTree } from '../github/files';
-import { parseIgnoreGlobs, parsePlanKeywords, readBranch, repoAccess } from './access';
+import {
+  parseChecklistFiles,
+  parseIgnoreGlobs,
+  parsePlanKeywords,
+  readBranch,
+  repoAccess,
+} from './access';
 import { applyParsedFile, removeFile } from './apply';
 
 /**
@@ -82,9 +88,12 @@ export async function syncProject(
     }
 
     const ignore = parseIgnoreGlobs(row);
+    // Only the files the project chose as checklists are read; until it chooses, none is.
+    const selection = parseChecklistFiles(row);
+    const selected = new Set(selection ?? []);
     const wanted = tree.blobs
       .map((b) => ({ ...b, kind: classifyPath(b.path, ignore) }))
-      .filter((b) => b.kind === 'tasks' || (b.kind === 'archive' && row.showArchive));
+      .filter((b) => b.kind !== 'ignored' && selected.has(b.path));
     const existing = await db
       .select({ path: taskFile.path, blobSha: taskFile.blobSha })
       .from(taskFile)
@@ -118,8 +127,10 @@ export async function syncProject(
       );
     }
     const present = new Set(wanted.map((b) => b.path));
-    // A truncated tree lacks files: absence proves nothing, so nothing is removed.
-    const removed = tree.truncated ? [] : existing.filter((f) => !present.has(f.path));
+    // A truncated tree lacks files: absence proves nothing, so nothing is removed. Neither is
+    // anything while the project has not chosen its files yet (its tasks are just hidden).
+    const removed =
+      tree.truncated || selection === null ? [] : existing.filter((f) => !present.has(f.path));
     for (const f of removed) await removeFile(db, projectId, f.path, now);
 
     // The repo's CLAUDE.md is read along (one more request, only when it changed): sha '' means

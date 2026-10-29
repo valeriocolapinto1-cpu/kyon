@@ -78,6 +78,13 @@
       "when": 1793273863054,
       "tag": "0010_claude_md",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "6",
+      "when": 1793274256163,
+      "tag": "0011_checklist_files",
+      "breakpoints": true
     }
   ]
 }

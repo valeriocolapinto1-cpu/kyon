@@ -103,3 +103,15 @@ export function parseIgnoreGlobs(projectRow: typeof project.$inferSelect): strin
     return [];
   }
 }
+
+/** The .md files chosen as checklists; null while the project has not chosen yet. */
+export function parseChecklistFiles(projectRow: typeof project.$inferSelect): string[] | null {
+  if (!projectRow.checklistFiles) return null;
+  try {
+    const value: unknown = JSON.parse(projectRow.checklistFiles);
+    return Array.isArray(value) ? value.filter((x): x is string => typeof x === 'string') : null;
+  } catch (error) {
+    console.warn('Invalid checklist files', error);
+    return null;
+  }
+}

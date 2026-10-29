@@ -131,6 +131,7 @@ export const routes: [string, Module][] = [
   ['/api/projects/:id/threads', { POST: chat.threads }],
   ['/api/files/chat/:id', { GET: chat.file }],
   ['/api/projects/:id/sync', { POST: tasks.sync }],
+  ['/api/projects/:id/markdown-files', { GET: tasks.markdownFiles }],
   ['/api/projects/:id/tasks-file', { POST: tasks.tasksFile }],
   ['/api/internal/cron', { POST: internal.cron }],
 ];

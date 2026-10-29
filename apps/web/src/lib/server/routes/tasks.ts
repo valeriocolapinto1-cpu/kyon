@@ -12,6 +12,7 @@ import {
   updateLabel,
 } from '../tasks/board';
 import { taskHistory, updateTaskMeta } from '../tasks/meta';
+import { listMarkdownFiles } from '../tasks/checklist';
 import { syncProject } from '../tasks/sync';
 import { listProjectTasks } from '../tasks/view';
 import { add, createTasksFile, rename, setDone } from '../tasks/write';
@@ -83,6 +84,11 @@ export const sync = authedRoute<Id>(async ({ env, db, actor }, { id }) => {
   const result = await syncProject(db, env, id, actor.id);
   return json({ result, ...(await listProjectTasks(db, actor, id)) });
 });
+
+/** GET /api/projects/:id/markdown-files → the .md files of the repo to choose the checklists from. */
+export const markdownFiles = authedRoute<Id>(async ({ env, db, actor }, { id }) =>
+  json(await listMarkdownFiles(db, env, actor, id)),
+);
 
 /** POST /api/projects/:id/tasks-file → creates TASKS.md from the template (after confirmation). */
 export const tasksFile = authedRoute<Id>(async ({ env, db, actor }, { id }) => {

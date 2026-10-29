@@ -12,6 +12,7 @@ import {
   user,
 } from '@/db/schema';
 import { authorizeProject } from '../projects';
+import { parseChecklistFiles } from './access';
 import { avatarUrl } from '../users';
 import { latestRunsByTask } from '../prompts/runs';
 import { projectColumns, type StoredTask } from './apply';
@@ -33,7 +34,10 @@ export interface TaskView extends StoredTask {
 
 /** Everything the Task tab needs, in one request: files (with tables), tasks + metadata, columns. */
 export async function listProjectTasks(db: Db, actor: Actor, projectId: string) {
-  await authorizeProject(db, actor, projectId, 'project:view');
+  const { project: projectRow } = await authorizeProject(db, actor, projectId, 'project:view');
+  // Only the files the project chose as checklists are shown; none until it chooses.
+  const checklistFiles = parseChecklistFiles(projectRow);
+  const chosen = new Set(checklistFiles ?? []);
   const [files, metas, { columns }, labels, [sync], runs, comments] = await Promise.all([
     db.select().from(taskFile).where(eq(taskFile.projectId, projectId)).orderBy(taskFile.path),
     db
@@ -76,38 +80,40 @@ export async function listProjectTasks(db: Db, actor: Actor, projectId: string) 
   }
   const metaByStable = new Map(metas.map((m) => [`${m.meta.path}\n${m.meta.stableId}`, m]));
 
-  const viewFiles = files.map((f) => {
-    const parsed = JSON.parse(f.parsed) as {
-      tasks: StoredTask[];
-      tables: { headingPath: string[]; line: number; markdown: string }[];
-    };
-    const tasks: TaskView[] = [];
-    for (const t of parsed.tasks) {
-      const m = metaByStable.get(`${f.path}\n${t.stableId}`);
-      if (!m) continue;
-      tasks.push({
-        ...t,
-        id: m.meta.id,
-        path: f.path,
-        assignee: m.meta.assigneeId
-          ? {
-              id: m.meta.assigneeId,
-              name: m.assigneeName ?? '',
-              avatarUrl: avatarUrl(m.meta.assigneeId, m.assigneeAvatar),
-            }
-          : null,
-        priority: m.meta.priority,
-        dueDate: m.meta.dueDate,
-        columnId: m.meta.columnId,
-        position: m.meta.position,
-        labels: labelsByTask.get(m.meta.id) ?? [],
-        notesKyon: m.meta.notes,
-        run: runs.get(m.meta.id) ?? null,
-        comments: commentsByTask.get(m.meta.id) ?? 0,
-      });
-    }
-    return { path: f.path, kind: f.kind as 'tasks' | 'archive', tables: parsed.tables, tasks };
-  });
+  const viewFiles = files
+    .filter((f) => chosen.has(f.path))
+    .map((f) => {
+      const parsed = JSON.parse(f.parsed) as {
+        tasks: StoredTask[];
+        tables: { headingPath: string[]; line: number; markdown: string }[];
+      };
+      const tasks: TaskView[] = [];
+      for (const t of parsed.tasks) {
+        const m = metaByStable.get(`${f.path}\n${t.stableId}`);
+        if (!m) continue;
+        tasks.push({
+          ...t,
+          id: m.meta.id,
+          path: f.path,
+          assignee: m.meta.assigneeId
+            ? {
+                id: m.meta.assigneeId,
+                name: m.assigneeName ?? '',
+                avatarUrl: avatarUrl(m.meta.assigneeId, m.assigneeAvatar),
+              }
+            : null,
+          priority: m.meta.priority,
+          dueDate: m.meta.dueDate,
+          columnId: m.meta.columnId,
+          position: m.meta.position,
+          labels: labelsByTask.get(m.meta.id) ?? [],
+          notesKyon: m.meta.notes,
+          run: runs.get(m.meta.id) ?? null,
+          comments: commentsByTask.get(m.meta.id) ?? 0,
+        });
+      }
+      return { path: f.path, kind: f.kind as 'tasks' | 'archive', tables: parsed.tables, tasks };
+    });
 
   const orphaned = await db
     .select({
@@ -130,7 +136,11 @@ export async function listProjectTasks(db: Db, actor: Actor, projectId: string) 
     labels: labels.map((l) => ({ id: l.id, name: l.name, color: l.color })),
     // A file without tasks doesn't appear in the task views (its tables alone aren't tasks).
     files: viewFiles.filter((f) => f.tasks.length > 0),
-    orphaned: orphaned.map((o) => ({ ...o, orphanedAt: o.orphanedAt?.toISOString() ?? null })),
+    /** Chosen checklist files; null while the project has not chosen (the tab asks for it). */
+    checklistFiles,
+    orphaned: orphaned
+      .filter((o) => chosen.has(o.path))
+      .map((o) => ({ ...o, orphanedAt: o.orphanedAt?.toISOString() ?? null })),
     sync: {
       lastSyncAt: sync?.lastSyncAt?.toISOString() ?? null,
       lastError: sync?.lastError ?? null,

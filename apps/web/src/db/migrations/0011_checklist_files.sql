@@ -1,0 +1,1 @@
+ALTER TABLE `project` ADD `checklist_files` text;

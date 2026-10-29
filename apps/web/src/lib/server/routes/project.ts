@@ -33,6 +33,7 @@ const Settings = z
     planHeadings: z.array(z.string().trim().min(1).max(40)).max(30),
     ignoreGlobs: z.array(z.string().trim().min(1).max(120)).max(30),
     showArchive: z.boolean(),
+    checklistFiles: z.array(z.string().min(1).max(300)).max(500),
   })
   .partial();
 
