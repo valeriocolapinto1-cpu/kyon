@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { PersonName } from '@/components/ui/PersonName';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, ExternalLink, FolderKanban } from 'lucide-react';
 import { ActivityLine } from '@/components/feature/home/ActivityLine';
@@ -63,7 +64,7 @@ function Profile({ person }: { person: PersonProfile }) {
         <Avatar name={person.name} src={person.avatarUrl} size="lg" online={isOnline} />
         <div className="min-w-0 flex-1">
           <h1 tabIndex={-1} className="text-large font-bold tracking-tight text-fg outline-none">
-            {person.name}
+            <PersonName color={person.nameColor}>{person.name}</PersonName>
             {person.id === me?.id ? ` (${p.you})` : ''}
           </h1>
           <p className="flex flex-wrap items-center gap-2 text-subhead text-muted">
@@ -175,7 +176,9 @@ function PeopleList() {
                   online={online.includes(person.id)}
                 />
                 <span className="min-w-0 flex-1">
-                  <span className="block text-headline text-fg">{person.name}</span>
+                  <span className="block text-headline text-fg">
+                    <PersonName color={person.nameColor}>{person.name}</PersonName>
+                  </span>
                   <span className="block truncate text-footnote text-muted">
                     {online.includes(person.id) ? it.home.online : it.home.offline}
                     {person.statusText ? ` · ${person.statusText}` : ''}

@@ -75,15 +75,15 @@
     {
       "idx": 10,
       "version": "6",
-      "when": 1793273863054,
-      "tag": "0010_claude_md",
+      "when": 1793274342410,
+      "tag": "0010_name_color",
       "breakpoints": true
     },
     {
       "idx": 11,
       "version": "6",
-      "when": 1793274256163,
-      "tag": "0011_checklist_files",
+      "when": 1793283680677,
+      "tag": "0011_claude_md_and_checklist",
       "breakpoints": true
     }
   ]

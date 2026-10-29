@@ -28,6 +28,8 @@ export const user = sqliteTable('user', {
   // Kyon profile
   bio: text('bio'),
   statusText: text('status_text'),
+  /** Accent id (@kyon/core ACCENT_IDS) the person chose for their name in chat; null: default. */
+  nameColor: text('name_color'),
   avatarKey: text('avatar_key'),
   /** JSON of @kyon/core Preferences (theme, accent, accessibility, clock). */
   preferences: text('preferences'),

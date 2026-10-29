@@ -56,6 +56,8 @@ export const it = {
     offline: 'Non connesso',
     onlineCount: (n: number) => (n === 1 ? '1 persona online' : `${n} persone online`),
     allPeople: 'Tutte le persone',
+    showAll: (n: number) => `Mostra tutte (${n})`,
+    showLess: 'Mostra meno',
     allActivity: 'Tutta la cronologia',
     inProject: (project: string) => `in ${project}`,
     commentOn: (context: string) => `su «${context}»`,
@@ -394,6 +396,9 @@ export const it = {
     removeAvatar: 'Rimuovi foto',
     bio: 'Bio',
     bioPlaceholder: 'Due righe su di te',
+    nameColor: 'Colore del tuo nome',
+    nameColorHelp: 'Gli altri vedranno il tuo nome di questo colore nella chat.',
+    nameColorReset: 'Torna al colore predefinito',
     status: 'Stato',
     statusPlaceholder: 'Es. in focus fino alle 18',
     save: 'Salva',
@@ -463,7 +468,10 @@ export const it = {
     installHelp: 'Installa l’app Kyon sulle repo che vuoi usare. Poi torna qui.',
     refresh: 'Aggiorna elenco',
     refreshed: 'Elenco aggiornato',
-    yourRepos: 'Le tue repo',
+    yourRepos: 'Repo esposte',
+    noneExposed: 'Non hai ancora esposto nessuna repo.',
+    exposeMore: 'Esponi un’altra repo',
+    pickRepo: 'Scegli una repo…',
     noRepos: 'Nessuna repo ancora: installa l’app su almeno una repo.',
     visibility: 'Visibilità',
     exposure: {
@@ -487,6 +495,14 @@ export const it = {
     isProject: 'È già un progetto',
   },
   projects2: {
+    overview: {
+      enter: 'Entra nel progetto',
+      open: 'Aperte',
+      inProgress: 'In corso',
+      done: 'Fatte',
+      next: 'Prossime task',
+      synced: (when: string) => `Aggiornato ${when}`,
+    },
     newProject: 'Nuovo progetto',
     chooseRepo: 'Scegli una repo',
     chooseRepoHelp:
@@ -911,10 +927,7 @@ export const it = {
   admin2: {
     footerTitle: 'Blocco automatico dei prompt',
     footerHelp:
-      'Il testo che Kyon aggiunge in fondo a ogni prompt copiato. Variabili come nei template; la riga Kyon-Run viene aggiunta comunque se manca.',
-    footerSave: 'Salva blocco',
-    footerReset: 'Torna al testo di Kyon',
-    footerSaved: 'Blocco salvato',
+      'Il testo che Kyon aggiunge in fondo a ogni prompt copiato (non modificabile). La riga Kyon-Run viene aggiunta comunque se manca.',
   },
   notifications: {
     title: 'Notifiche',

@@ -1,8 +1,8 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "d50b020e-9fd5-428c-a8f2-e1799d3b6af3",
-  "prevId": "3b52b854-5aaa-4c9d-8a3a-ba357613a0db",
+  "id": "9ae4382c-a036-4e42-af2f-8170213500d4",
+  "prevId": "56d2242f-ba51-468e-b6ef-fa5de816b39e",
   "tables": {
     "account": {
       "name": "account",
@@ -3117,6 +3117,13 @@
         },
         "status_text": {
           "name": "status_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name_color": {
+          "name": "name_color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

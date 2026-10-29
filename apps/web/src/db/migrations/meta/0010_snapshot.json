@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "3b52b854-5aaa-4c9d-8a3a-ba357613a0db",
+  "id": "56d2242f-ba51-468e-b6ef-fa5de816b39e",
   "prevId": "76d63bc8-4cde-4c19-b5b2-87405a95d542",
   "tables": {
     "account": {
@@ -1805,20 +1805,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "claude_md_sha": {
-          "name": "claude_md_sha",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "claude_md": {
-          "name": "claude_md",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {},
@@ -3110,6 +3096,13 @@
         },
         "status_text": {
           "name": "status_text",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "name_color": {
+          "name": "name_color",
           "type": "text",
           "primaryKey": false,
           "notNull": false,

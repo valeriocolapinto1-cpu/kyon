@@ -10,6 +10,7 @@ export const GET = authedRoute(async ({ db }) => {
       name: user.name,
       avatarKey: user.avatarKey,
       statusText: user.statusText,
+      nameColor: user.nameColor,
     })
     .from(user)
     .orderBy(user.name);
@@ -19,6 +20,7 @@ export const GET = authedRoute(async ({ db }) => {
       name: r.name,
       avatarUrl: avatarUrl(r.id, r.avatarKey),
       statusText: r.statusText,
+      nameColor: r.nameColor,
     })),
   });
 });
