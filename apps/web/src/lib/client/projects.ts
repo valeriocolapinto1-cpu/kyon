@@ -28,6 +28,8 @@ export interface ProjectDetail {
     ignoreGlobs: string[];
     showArchive: boolean;
   };
+  /** The repo's CLAUDE.md as read by Kyon (size only). */
+  claudeMd: { found: boolean; chars: number };
   members: {
     id: string;
     name: string;

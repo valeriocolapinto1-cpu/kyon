@@ -7,7 +7,15 @@ import {
   type ProjectRole,
 } from '@kyon/core';
 import type { Db } from '@/db/client';
-import { activityEvent, githubRepo, kanbanColumn, project, projectMember, user } from '@/db/schema';
+import {
+  activityEvent,
+  githubRepo,
+  kanbanColumn,
+  project,
+  projectMember,
+  projectSync,
+  user,
+} from '@/db/schema';
 import { chunk, inChunks, rowsPerInsert } from './d1';
 import { ApiError } from './errors';
 import { avatarUrl } from './users';
@@ -236,6 +244,11 @@ export async function getProjectDetail(db: Db, actor: Actor, projectId: string) 
   const candidateUsers = await inChunks(candidates, (ids) =>
     db.select({ id: user.id, name: user.name }).from(user).where(inArray(user.id, ids)),
   );
+  const [claude] = await db
+    .select({ chars: sql<number>`coalesce(length(${projectSync.claudeMd}), 0)` })
+    .from(projectSync)
+    .where(eq(projectSync.projectId, projectId))
+    .limit(1);
   const permissions = Object.fromEntries(
     (
       [
@@ -274,6 +287,8 @@ export async function getProjectDetail(db: Db, actor: Actor, projectId: string) 
       ignoreGlobs: parseList(row.ignoreGlobs, []),
       showArchive: row.showArchive,
     },
+    /** The repo's CLAUDE.md as read by the sync: only its size, the text stays on the server. */
+    claudeMd: { found: Number(claude?.chars ?? 0) > 0, chars: Number(claude?.chars ?? 0) },
     members: memberViews,
     candidates: candidateUsers,
     permissions,

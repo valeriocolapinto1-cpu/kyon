@@ -334,6 +334,9 @@ export const projectSync = sqliteTable('project_sync', {
   pending: text('pending'),
   lastSyncAt: timestamp('last_sync_at'),
   lastError: text('last_error'),
+  /** The repo's CLAUDE.md as last read (blob sha + text), used in the prompt window. */
+  claudeMdSha: text('claude_md_sha'),
+  claudeMd: text('claude_md'),
 });
 
 export const activityEvent = sqliteTable(

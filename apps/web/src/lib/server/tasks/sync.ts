@@ -14,6 +14,8 @@ import { applyParsedFile, removeFile } from './apply';
  * changed files. Files over budget are remembered in `pending` and fetched on the next sync.
  */
 const MAX_FILES_PER_SYNC = 30;
+/** Longest CLAUDE.md kept for the prompt window (characters). */
+export const CLAUDE_MD_MAX = 30_000;
 
 export interface SyncResult {
   unchanged: boolean;
@@ -58,7 +60,9 @@ export async function syncProject(
         access.token,
         access.ref,
         branch,
-        state?.branch === branch && pendingBefore.length === 0 ? (state?.treeEtag ?? null) : null,
+        state?.branch === branch && pendingBefore.length === 0 && state.claudeMdSha !== null
+          ? (state.treeEtag ?? null)
+          : null,
       );
     } catch (error) {
       // "Branch + PR" mode before the first Kyon commit: read the default branch.
@@ -118,7 +122,30 @@ export async function syncProject(
     const removed = tree.truncated ? [] : existing.filter((f) => !present.has(f.path));
     for (const f of removed) await removeFile(db, projectId, f.path, now);
 
+    // The repo's CLAUDE.md is read along (one more request, only when it changed): sha '' means
+    // "looked, there is none", null means "never looked".
+    const claudeBlob = tree.blobs.find((b) => b.path === 'CLAUDE.md');
+    let claudeMd: { claudeMdSha: string; claudeMd: string | null } | null = null;
+    if (
+      (claudeBlob?.sha ?? '') !== (state?.claudeMdSha ?? null) &&
+      (claudeBlob || !tree.truncated)
+    ) {
+      if (!claudeBlob) claudeMd = { claudeMdSha: '', claudeMd: null };
+      else
+        try {
+          const file = await getFile(access.config, access.token, access.ref, 'CLAUDE.md', branch);
+          claudeMd = {
+            claudeMdSha: claudeBlob.sha,
+            claudeMd: file.content.slice(0, CLAUDE_MD_MAX),
+          };
+        } catch (error) {
+          if (!(error instanceof FileUnreadableError)) throw error;
+          claudeMd = { claudeMdSha: claudeBlob.sha, claudeMd: null };
+        }
+    }
+
     const values = {
+      ...claudeMd,
       branch,
       treeSha: tree.sha,
       // Keep the ETag only when everything was fetched: otherwise the next call must re-list.

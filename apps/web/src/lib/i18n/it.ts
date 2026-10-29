@@ -784,6 +784,10 @@ export const it = {
       `Ci sta già lavorando ${names}. Vuoi comunque lanciare una nuova esecuzione?`,
     copyAnyway: 'Copia lo stesso',
     readOnly: 'Puoi leggere i prompt ma non modificarli.',
+    claudeMdRead: (chars: number) =>
+      `CLAUDE.md della repo letto da Kyon (${chars.toLocaleString('it-IT')} caratteri): viene aggiunto da solo al prompt copiato. Per metterlo in un punto preciso usa {{claude_md}}.`,
+    claudeMdMissing: 'La repo non ha un CLAUDE.md: il prompt parte senza.',
+    claudeMdPlaceholder: '(qui Kyon inserisce il CLAUDE.md della repo)',
     claudeMd: 'Genera CLAUDE.md',
     claudeMdTitle: 'CLAUDE.md per la repo',
     claudeMdHelp:

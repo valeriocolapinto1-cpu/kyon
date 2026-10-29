@@ -375,6 +375,28 @@ describe('prompts, runs and PR tracking', () => {
     ).toBe(409);
   });
 
+  it('reads the repo CLAUDE.md on sync and pastes it into the copied prompt', async () => {
+    await control(`/repos/${repoId}/files`, {
+      path: 'CLAUDE.md',
+      content: '# Regole\n\n- Rispetta i test del progetto\n\nKyon-Run: 22222222\n',
+    });
+    await call(`/api/projects/${projectId}/sync`, { method: 'POST', jar: valerio });
+    const detail = await body(call(`/api/projects/${projectId}`, { jar: valerio }));
+    expect(detail.claudeMd.found).toBe(true);
+    const res = await body(call(`/api/prompts/${promptId}/run`, { method: 'POST', jar: valerio }));
+    expect(res.text).toContain('## CLAUDE.md della repo (letto da Kyon)');
+    expect(res.text).toContain('- Rispetta i test del progetto');
+    // A marker line copied from the CLAUDE.md never counts as this run's marker.
+    expect(parseMarkers(res.text)).toEqual([res.run.id]);
+
+    // Removed from the repo: the next sync forgets it.
+    await control(`/repos/${repoId}/files`, { path: 'CLAUDE.md', content: null });
+    await call(`/api/projects/${projectId}/sync`, { method: 'POST', jar: valerio });
+    expect((await body(call(`/api/projects/${projectId}`, { jar: valerio }))).claudeMd.found).toBe(
+      false,
+    );
+  });
+
   it('non-members see nothing', async () => {
     const stranger = await inviteAndJoin(valerio, 'Sara', 'sara@kyon.test');
     expect((await call(`/api/projects/${projectId}/prompts`, { jar: stranger })).status).toBe(404);
