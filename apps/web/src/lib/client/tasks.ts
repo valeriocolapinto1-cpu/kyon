@@ -50,6 +50,8 @@ export interface TasksData {
     tables: { headingPath: string[]; line: number; markdown: string }[];
     tasks: TaskItem[];
   }[];
+  /** Files chosen as checklists; null while the project has not chosen yet. */
+  checklistFiles: string[] | null;
   orphaned: { id: string; text: string; path: string; orphanedAt: string | null }[];
   sync: {
     lastSyncAt: string | null;
@@ -75,6 +77,28 @@ export function useTasks(projectId: string) {
   return useQuery({
     queryKey: tasksKey(projectId),
     queryFn: () => api<TasksData>(`/api/projects/${projectId}/tasks`),
+  });
+}
+
+export interface MarkdownFileInfo {
+  path: string;
+  kind: 'tasks' | 'archive';
+  /** Tasks already read from it. */
+  tasks: number;
+}
+
+export const markdownFilesKey = (projectId: string) => ['markdown-files', projectId] as const;
+
+/** The .md files of the repo to choose the checklists from (lists the repo tree: only on demand). */
+export function useMarkdownFiles(projectId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: markdownFilesKey(projectId),
+    queryFn: () =>
+      api<{ files: MarkdownFileInfo[]; selected: string[] | null; truncated: boolean }>(
+        `/api/projects/${projectId}/markdown-files`,
+      ),
+    enabled,
+    staleTime: 0,
   });
 }
 

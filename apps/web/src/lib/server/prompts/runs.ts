@@ -25,6 +25,7 @@ import {
   prompt,
   promptRun,
   promptVersion,
+  projectSync,
   taskFile,
   taskMeta,
   user,
@@ -136,7 +137,7 @@ export async function startRun(db: Db, env: CloudflareEnv, actor: Actor, promptI
   if (!task || task.orphanedAt)
     throw new ApiError('bad_request', 'La task di questo prompt non c’è più nella repo.');
   if (!row.currentVersionId) throw new ApiError('bad_request', 'Il prompt è vuoto.');
-  const [[version], [file], [repo], [assignee], others, footer] = await Promise.all([
+  const [[version], [file], [repo], [assignee], others, footer, [sync]] = await Promise.all([
     db.select().from(promptVersion).where(eq(promptVersion.id, row.currentVersionId)).limit(1),
     db
       .select({ parsed: taskFile.parsed })
@@ -159,6 +160,11 @@ export async function startRun(db: Db, env: CloudflareEnv, actor: Actor, promptI
         ),
       ),
     promptFooter(db),
+    db
+      .select({ claudeMd: projectSync.claudeMd })
+      .from(projectSync)
+      .where(eq(projectSync.projectId, proj.id))
+      .limit(1),
   ]);
   if (!version || !version.body.trim()) throw new ApiError('bad_request', 'Il prompt è vuoto.');
 
@@ -185,6 +191,7 @@ export async function startRun(db: Db, env: CloudflareEnv, actor: Actor, promptI
     branch,
     assignee: assignee?.name ?? '',
     subtasks: subtaskList(subtasks.map((s) => ({ text: plain(s.text), done: s.done }))),
+    claude_md: sync?.claudeMd ?? '',
     run_id: id,
   });
   const now = new Date();

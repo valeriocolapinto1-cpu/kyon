@@ -27,7 +27,10 @@ export interface ProjectDetail {
     planHeadings: string[];
     ignoreGlobs: string[];
     showArchive: boolean;
+    checklistFiles: string[] | null;
   };
+  /** The repo's CLAUDE.md as read by Kyon (size only). */
+  claudeMd: { found: boolean; chars: number };
   members: {
     id: string;
     name: string;

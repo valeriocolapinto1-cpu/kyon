@@ -9,6 +9,7 @@ export const TEMPLATE_VARIABLES = [
   'branch',
   'assignee',
   'subtasks',
+  'claude_md',
   'run_id',
 ] as const;
 export type TemplateVariable = (typeof TEMPLATE_VARIABLES)[number];
@@ -119,11 +120,33 @@ Kyon-Run: {{run_id}}
 
 Aggiungi la stessa riga come trailer in ogni messaggio di commit. Non modificare questo identificativo.`;
 
-/** Body (already chosen by the user) + footer, with the marker guaranteed. */
+/**
+ * The repo's CLAUDE.md as pasted in a prompt: a marker line copied from it must not be taken for
+ * this run's marker (it would link PRs to the wrong run), so those lines are left out.
+ */
+export function claudeMdForPrompt(content: string): string {
+  return content
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map((line) => (parseMarkers(line).length ? '(riga con un marcatore Kyon-Run omessa)' : line))
+    .join('\n')
+    .trim();
+}
+
+/**
+ * Body (already chosen by the user) + footer, with the marker guaranteed. When the repo has a
+ * CLAUDE.md that Kyon has read, it goes in automatically between body and footer, unless the
+ * template already places it with `{{claude_md}}`.
+ */
 export function buildFullPrompt(body: string, footer: string, values: TemplateValues) {
-  const main = renderTemplate(body.trim(), values);
-  const tail = renderTemplate((footer.trim() || DEFAULT_FOOTER).trim(), values);
-  let text = `${main.text}\n\n${tail.text}`;
+  const claudeMd = claudeMdForPrompt(values.claude_md);
+  const safe = { ...values, claude_md: claudeMd };
+  const main = renderTemplate(body.trim(), safe);
+  const tail = renderTemplate((footer.trim() || DEFAULT_FOOTER).trim(), safe);
+  const placed = templateVariables(`${body}\n${footer}`).known.includes('claude_md');
+  const context =
+    claudeMd && !placed ? `## CLAUDE.md della repo (letto da Kyon)\n\n${claudeMd}\n\n` : '';
+  let text = `${main.text}\n\n${context}${tail.text}`;
   if (!parseMarkers(text).includes(values.run_id))
     text += `\n\nScrivi questa riga esatta nella descrizione della PR e come trailer di ogni commit:\n\n${markerLine(values.run_id)}`;
   return { text: `${text}\n`, unknown: [...new Set([...main.unknown, ...tail.unknown])] };

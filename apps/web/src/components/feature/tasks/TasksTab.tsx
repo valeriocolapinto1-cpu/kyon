@@ -5,6 +5,7 @@ import {
   Columns3,
   Filter,
   Keyboard,
+  ListChecks,
   ListTodo,
   MoreHorizontal,
   Plus,
@@ -46,6 +47,7 @@ import { useMediaQuery } from '@/lib/hooks/useMediaQuery';
 import { it } from '@/lib/i18n/it';
 import { usePreferences, useReducedMotion } from '@/lib/preferences/context';
 import { CalendarView } from './CalendarView';
+import { ChecklistChooser, ChecklistSheet } from './ChecklistChooser';
 import { plainText } from '@/components/ui/InlineText';
 import { KanbanBoard } from './KanbanBoard';
 import { TaskDetail } from './TaskDetail';
@@ -102,7 +104,9 @@ export function TasksTab({ project }: { project: ProjectDetail }) {
   const canEdit = Boolean(project.permissions['project:edit_tasks']);
   const canManage = Boolean(project.permissions['project:settings']);
   const [filters, setFilters] = useState<TaskFilters>(EMPTY_FILTERS);
-  const [sheet, setSheet] = useState<null | 'add' | 'columns' | 'filters' | 'keys'>(null);
+  const [sheet, setSheet] = useState<null | 'add' | 'columns' | 'filters' | 'keys' | 'checklist'>(
+    null,
+  );
   const [announcement, setAnnouncement] = useState('');
   const [syncing, setSyncing] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -366,6 +370,21 @@ export function TasksTab({ project }: { project: ProjectDetail }) {
     );
   }
 
+  // A project that has not chosen its checklist files reads nothing yet: the choice comes first.
+  if (data.checklistFiles === null) {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1">
+          <h2 className="text-title3 font-semibold text-fg">{t.checklist.firstTitle}</h2>
+          <p className="text-body text-muted">
+            {canManage ? t.checklist.firstBody : t.checklist.ownerChooses}
+          </p>
+        </div>
+        {canManage && <ChecklistChooser projectId={projectId} canManage />}
+      </div>
+    );
+  }
+
   if (data.files.length === 0) {
     return (
       <EmptyState
@@ -373,27 +392,35 @@ export function TasksTab({ project }: { project: ProjectDetail }) {
         title={t.emptyTitle}
         body={t.emptyBody}
         action={
-          canEdit ? (
-            <GlassButton
-              variant="primary"
-              onClick={async () => {
-                if (!window.confirm(t.createTasksFileConfirm)) return;
-                try {
-                  const next = await api<TasksData>(`/api/projects/${projectId}/tasks-file`, {
-                    method: 'POST',
-                  });
-                  queryClient.setQueryData(tasksKey(projectId), next);
-                  toast({ tone: 'success', title: t.tasksFileCreated });
-                } catch (error) {
-                  toast({
-                    tone: 'error',
-                    title: error instanceof ApiClientError ? error.message : it.common.errorBody,
-                  });
-                }
-              }}
-            >
-              {t.createTasksFile}
-            </GlassButton>
+          canEdit || canManage ? (
+            <div className="flex flex-wrap justify-center gap-2">
+              {canManage && (
+                <GlassButton onClick={() => setSheet('checklist')}>{t.checklist.pick}</GlassButton>
+              )}
+              {canEdit && (
+                <GlassButton
+                  variant="primary"
+                  onClick={async () => {
+                    if (!window.confirm(t.createTasksFileConfirm)) return;
+                    try {
+                      const next = await api<TasksData>(`/api/projects/${projectId}/tasks-file`, {
+                        method: 'POST',
+                      });
+                      queryClient.setQueryData(tasksKey(projectId), next);
+                      toast({ tone: 'success', title: t.tasksFileCreated });
+                    } catch (error) {
+                      toast({
+                        tone: 'error',
+                        title:
+                          error instanceof ApiClientError ? error.message : it.common.errorBody,
+                      });
+                    }
+                  }}
+                >
+                  {t.createTasksFile}
+                </GlassButton>
+              )}
+            </div>
           ) : undefined
         }
       />
@@ -514,6 +541,15 @@ export function TasksTab({ project }: { project: ProjectDetail }) {
               icon: <Columns3 className="size-5" />,
               onSelect: () => setSheet('columns'),
             },
+            ...(canManage
+              ? [
+                  {
+                    label: t.checklist.menu,
+                    icon: <ListChecks className="size-5" />,
+                    onSelect: () => setSheet('checklist'),
+                  },
+                ]
+              : []),
             {
               label: t.syncNow,
               icon: <RefreshCw className="size-5" />,
@@ -615,6 +651,14 @@ export function TasksTab({ project }: { project: ProjectDetail }) {
         meId={me?.id ?? null}
         resultCount={visible.length}
       />
+      {canManage && (
+        <ChecklistSheet
+          open={sheet === 'checklist'}
+          onOpenChange={(isOpen) => setSheet(isOpen ? 'checklist' : null)}
+          projectId={projectId}
+          canManage={canManage}
+        />
+      )}
       <ShortcutsSheet
         open={sheet === 'keys'}
         onOpenChange={(isOpen) => setSheet(isOpen ? 'keys' : null)}

@@ -4,7 +4,14 @@ import biohybrid from '../../../../../packages/core/src/tasks/fixtures/biohybrid
 import type { CookieJar } from '@/test/d1';
 import { createTestD1, testEnv } from '@/test/d1';
 import { createFakeGitHub, installFakeFetch } from '@/test/fakeGithub';
-import { FAKE, connectGitHub, fakeRepo, projectFromRepo, repoFiles } from '@/test/github';
+import {
+  FAKE,
+  connectGitHub,
+  fakeRepo,
+  projectFromRepo,
+  repoFiles,
+  selectChecklistFiles,
+} from '@/test/github';
 import { body, call, inviteAndJoin, joinAs } from '@/test/http';
 
 let env: CloudflareEnv;
@@ -294,6 +301,7 @@ describe('task engine against the fake GitHub', () => {
 
   it('does not orphan tasks of files missing from a truncated tree', async () => {
     // Sorts last, so a truncated listing drops it.
+    await selectChecklistFiles(valerio, projectId, ['zzz-tail.md']);
     await externalEdit(repoId, 'zzz-tail.md', '- [ ] Task in coda\n');
     expect(byText(await sync(), 'Task in coda')).toBeTruthy();
 
@@ -315,6 +323,7 @@ describe('task engine against the fake GitHub', () => {
   });
 
   it('reads files over 1 MB through the blob API instead of seeing them empty', async () => {
+    await selectChecklistFiles(valerio, projectId, ['big.md']);
     await externalEdit(repoId, 'big.md', '- [ ] Task in un file grande\n');
     fake.state.largeFiles.add('big.md');
     try {
@@ -327,6 +336,7 @@ describe('task engine against the fake GitHub', () => {
   });
 
   it('keeps the last snapshot of a file it cannot read at all', async () => {
+    await selectChecklistFiles(valerio, projectId, ['huge.md']);
     await externalEdit(repoId, 'huge.md', '- [ ] Task in un file enorme\n');
     expect(byText(await sync(), 'Task in un file enorme')).toBeTruthy();
 

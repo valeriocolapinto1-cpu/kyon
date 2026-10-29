@@ -6,7 +6,13 @@ import { ApiError } from '../errors';
 import { publishTasks } from '../realtime';
 import { GitHubError } from '../github/client';
 import { FileUnreadableError, getFile, getTree } from '../github/files';
-import { parseIgnoreGlobs, parsePlanKeywords, readBranch, repoAccess } from './access';
+import {
+  parseChecklistFiles,
+  parseIgnoreGlobs,
+  parsePlanKeywords,
+  readBranch,
+  repoAccess,
+} from './access';
 import { applyParsedFile, removeFile } from './apply';
 
 /**
@@ -14,6 +20,8 @@ import { applyParsedFile, removeFile } from './apply';
  * changed files. Files over budget are remembered in `pending` and fetched on the next sync.
  */
 const MAX_FILES_PER_SYNC = 30;
+/** Longest CLAUDE.md kept for the prompt window (characters). */
+export const CLAUDE_MD_MAX = 30_000;
 
 export interface SyncResult {
   unchanged: boolean;
@@ -58,7 +66,9 @@ export async function syncProject(
         access.token,
         access.ref,
         branch,
-        state?.branch === branch && pendingBefore.length === 0 ? (state?.treeEtag ?? null) : null,
+        state?.branch === branch && pendingBefore.length === 0 && state.claudeMdSha !== null
+          ? (state.treeEtag ?? null)
+          : null,
       );
     } catch (error) {
       // "Branch + PR" mode before the first Kyon commit: read the default branch.
@@ -78,9 +88,12 @@ export async function syncProject(
     }
 
     const ignore = parseIgnoreGlobs(row);
+    // Only the files the project chose as checklists are read; until it chooses, none is.
+    const selection = parseChecklistFiles(row);
+    const selected = new Set(selection ?? []);
     const wanted = tree.blobs
       .map((b) => ({ ...b, kind: classifyPath(b.path, ignore) }))
-      .filter((b) => b.kind === 'tasks' || (b.kind === 'archive' && row.showArchive));
+      .filter((b) => b.kind !== 'ignored' && selected.has(b.path));
     const existing = await db
       .select({ path: taskFile.path, blobSha: taskFile.blobSha })
       .from(taskFile)
@@ -114,11 +127,36 @@ export async function syncProject(
       );
     }
     const present = new Set(wanted.map((b) => b.path));
-    // A truncated tree lacks files: absence proves nothing, so nothing is removed.
-    const removed = tree.truncated ? [] : existing.filter((f) => !present.has(f.path));
+    // A truncated tree lacks files: absence proves nothing, so nothing is removed. Neither is
+    // anything while the project has not chosen its files yet (its tasks are just hidden).
+    const removed =
+      tree.truncated || selection === null ? [] : existing.filter((f) => !present.has(f.path));
     for (const f of removed) await removeFile(db, projectId, f.path, now);
 
+    // The repo's CLAUDE.md is read along (one more request, only when it changed): sha '' means
+    // "looked, there is none", null means "never looked".
+    const claudeBlob = tree.blobs.find((b) => b.path === 'CLAUDE.md');
+    let claudeMd: { claudeMdSha: string; claudeMd: string | null } | null = null;
+    if (
+      (claudeBlob?.sha ?? '') !== (state?.claudeMdSha ?? null) &&
+      (claudeBlob || !tree.truncated)
+    ) {
+      if (!claudeBlob) claudeMd = { claudeMdSha: '', claudeMd: null };
+      else
+        try {
+          const file = await getFile(access.config, access.token, access.ref, 'CLAUDE.md', branch);
+          claudeMd = {
+            claudeMdSha: claudeBlob.sha,
+            claudeMd: file.content.slice(0, CLAUDE_MD_MAX),
+          };
+        } catch (error) {
+          if (!(error instanceof FileUnreadableError)) throw error;
+          claudeMd = { claudeMdSha: claudeBlob.sha, claudeMd: null };
+        }
+    }
+
     const values = {
+      ...claudeMd,
       branch,
       treeSha: tree.sha,
       // Keep the ETag only when everything was fetched: otherwise the next call must re-list.

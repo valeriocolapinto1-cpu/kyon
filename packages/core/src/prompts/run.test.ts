@@ -19,6 +19,7 @@ const values = {
   branch: 'claude/k7f3a9qm-validare-il-modello',
   assignee: '',
   subtasks: subtaskList([{ text: 'Raccogliere dati', done: true }]),
+  claude_md: '',
   run_id: 'k7f3a9qm',
 };
 
@@ -41,6 +42,33 @@ describe('templates', () => {
     expect(text).toContain('claude/k7f3a9qm-validare-il-modello');
     expect(text).toContain('  - [x] Raccogliere dati');
     expect(unknown).toEqual([]);
+  });
+
+  it('adds the repo CLAUDE.md automatically, between body and footer', () => {
+    const claude_md = '# Regole\n\n- Esegui i test prima della PR';
+    const { text } = buildFullPrompt('Corpo', DEFAULT_FOOTER, { ...values, claude_md });
+    expect(text).toContain('## CLAUDE.md della repo (letto da Kyon)\n\n# Regole');
+    expect(text.indexOf('Corpo')).toBeLessThan(text.indexOf('# Regole'));
+    expect(text.indexOf('# Regole')).toBeLessThan(text.indexOf('## Contesto da Kyon'));
+    expect(parseMarkers(text)).toEqual(['k7f3a9qm']);
+  });
+
+  it('does not repeat CLAUDE.md when the template places it, nor add it when absent', () => {
+    const claude_md = 'Regola unica';
+    const placed = buildFullPrompt('Prima {{claude_md}} dopo', DEFAULT_FOOTER, {
+      ...values,
+      claude_md,
+    });
+    expect(placed.text.match(/Regola unica/g)).toHaveLength(1);
+    expect(placed.text).not.toContain('letto da Kyon');
+    expect(buildFullPrompt('Corpo', DEFAULT_FOOTER, values).text).not.toContain('letto da Kyon');
+  });
+
+  it('leaves out marker lines of the CLAUDE.md so they cannot link another run', () => {
+    const claude_md = 'Regole\n\nKyon-Run: 22222222\n- `Kyon-Run: 33333333`\nFine';
+    const { text } = buildFullPrompt('Corpo', DEFAULT_FOOTER, { ...values, claude_md });
+    expect(parseMarkers(text)).toEqual(['k7f3a9qm']);
+    expect(text).toContain('Fine');
   });
 
   it('adds the marker even when an admin footer forgets it', () => {

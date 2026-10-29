@@ -3,9 +3,10 @@
 import { ArrowLeft, FileCode2, Plus, Sparkles } from 'lucide-react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { summarizeTask } from '@kyon/core';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { GlassButton } from '@/components/ui/GlassButton';
-import { InlineText } from '@/components/ui/InlineText';
+import { plainText } from '@/components/ui/InlineText';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import type { ProjectDetail } from '@/lib/client/projects';
 import { usePrompts } from '@/lib/client/prompts';
@@ -86,7 +87,7 @@ export function PromptsTab({ project }: { project: ProjectDetail }) {
               {items[0]?.taskGone ? (
                 p.taskGone
               ) : items[0]?.taskText ? (
-                <InlineText text={items[0].taskText} />
+                <span title={plainText(items[0].taskText)}>{summarizeTask(items[0].taskText)}</span>
               ) : (
                 p.noTask
               )}

@@ -3,7 +3,13 @@ import { verifyTicket } from '@kyon/core';
 import type { CookieJar } from '@/test/d1';
 import { createTestD1, testEnv } from '@/test/d1';
 import { createFakeGitHub, installFakeFetch } from '@/test/fakeGithub';
-import { connectGitHub, fakeRepo, projectFromRepo, repoFiles } from '@/test/github';
+import {
+  connectGitHub,
+  fakeRepo,
+  projectFromRepo,
+  repoFiles,
+  selectChecklistFiles,
+} from '@/test/github';
 import { body, call, inviteAndJoin, joinAs } from '@/test/http';
 
 let env: CloudflareEnv;
@@ -247,6 +253,7 @@ describe('board metadata: assignee, priority, due date, labels, columns, history
       (await body(
         call(`/api/projects/${projectId}/sync`, { method: 'POST', jar: valerio }),
       )) as TasksResponse;
+    await selectChecklistFiles(valerio, projectId, ['BIG.md']);
     const big = (r: TasksResponse) => r.files.find((f) => f.path === 'BIG.md')?.tasks ?? [];
 
     await push(`# Task\n\n${lines.join('\n')}\n`);

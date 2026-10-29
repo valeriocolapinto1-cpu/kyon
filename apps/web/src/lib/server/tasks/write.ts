@@ -22,7 +22,13 @@ import {
   putFile,
 } from '../github/files';
 import { authorizeProject } from '../projects';
-import { KYON_TASKS_BRANCH, parsePlanKeywords, readBranch, repoAccess } from './access';
+import {
+  KYON_TASKS_BRANCH,
+  parseChecklistFiles,
+  parsePlanKeywords,
+  readBranch,
+  repoAccess,
+} from './access';
 import { applyParsedFile } from './apply';
 
 type Mutation = { content: string; message: string } | null;
@@ -227,9 +233,17 @@ export async function createTasksFile(db: Db, env: CloudflareEnv, actor: Actor, 
     .where(eq(taskMeta.projectId, projectId))
     .limit(1);
   if (anyTask) throw new ApiError('conflict', 'Il progetto ha già delle task.');
-  return editFile(db, env, actor, projectId, 'TASKS.md', (content) =>
+  const result = await editFile(db, env, actor, projectId, 'TASKS.md', (content) =>
     content
       ? null
       : { content: tasksTemplate(row?.name ?? 'progetto'), message: 'docs: add TASKS.md for Kyon' },
   );
+  // The file Kyon creates is, of course, a checklist of the project.
+  const chosen = row ? (parseChecklistFiles(row) ?? []) : [];
+  if (row && !chosen.includes('TASKS.md'))
+    await db
+      .update(project)
+      .set({ checklistFiles: JSON.stringify([...chosen, 'TASKS.md']), updatedAt: new Date() })
+      .where(eq(project.id, projectId));
+  return result;
 }

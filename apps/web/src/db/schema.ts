@@ -201,6 +201,8 @@ export const project = sqliteTable(
     planHeadings: text('plan_headings'),
     /** JSON string[]: extra glob patterns to ignore. */
     ignoreGlobs: text('ignore_globs'),
+    /** JSON string[] of the .md files read as checklists; null = not chosen yet (nothing is read). */
+    checklistFiles: text('checklist_files'),
     showArchive: integer('show_archive', { mode: 'boolean' }).notNull().default(false),
     archivedAt: timestamp('archived_at'),
     createdAt: timestamp('created_at').notNull().default(now),
@@ -336,6 +338,9 @@ export const projectSync = sqliteTable('project_sync', {
   pending: text('pending'),
   lastSyncAt: timestamp('last_sync_at'),
   lastError: text('last_error'),
+  /** The repo's CLAUDE.md as last read (blob sha + text), used in the prompt window. */
+  claudeMdSha: text('claude_md_sha'),
+  claudeMd: text('claude_md'),
 });
 
 export const activityEvent = sqliteTable(

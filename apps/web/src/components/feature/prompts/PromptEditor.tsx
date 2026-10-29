@@ -173,6 +173,7 @@ export function PromptEditor({
     branch: 'claude/<id>-…',
     assignee: task?.assignee?.name ?? '',
     subtasks: subtaskList(subtasks.map((s) => ({ text: plainText(s.text), done: s.done }))),
+    claude_md: project.claudeMd.found ? p.claudeMdPlaceholder : '',
     run_id: '<id>',
   });
   const promptRuns = runs.filter((r) => r.promptId === prompt.id);
@@ -199,6 +200,9 @@ export function PromptEditor({
           ) : (
             <InlineText text={prompt.taskText ?? ''} />
           )}
+        </p>
+        <p className="text-footnote text-muted">
+          {project.claudeMd.found ? p.claudeMdRead(project.claudeMd.chars) : p.claudeMdMissing}
         </p>
         {canWrite && (
           <Segmented<PromptStatus>

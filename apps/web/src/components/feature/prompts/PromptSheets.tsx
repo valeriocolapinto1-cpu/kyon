@@ -2,7 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { diffLines } from '@kyon/core';
+import { diffLines, summarizeTask } from '@kyon/core';
 import { FormError } from '@/components/ui/FormError';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassInput } from '@/components/ui/GlassInput';
@@ -11,7 +11,7 @@ import { RadioCards } from '@/components/ui/RadioCards';
 import { Sheet } from '@/components/ui/Sheet';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
-import { plainText } from '@/components/ui/InlineText';
+import { InlineText } from '@/components/ui/InlineText';
 import { ApiClientError, api } from '@/lib/client/api';
 import { promptsKey } from '@/lib/client/projectLive';
 import { useTemplates, useVersions, type PromptItem } from '@/lib/client/prompts';
@@ -96,16 +96,21 @@ export function NewPromptSheet({
           onChange={(event) => setPicked(event.target.value)}
           options={choices.map((t) => ({
             value: t.id,
-            label: `${t.done ? '✓ ' : ''}${plainText(t.text)}`,
+            label: `${t.done ? '✓ ' : ''}${summarizeTask(t.text)}`,
           }))}
         />
+        {task && (
+          <p className="-mt-2 text-footnote text-muted">
+            <InlineText text={task.text} />
+          </p>
+        )}
         <GlassInput
           key={taskId}
           label={p.fields.title}
           name="title"
           required
           maxLength={120}
-          defaultValue={task ? plainText(task.text).slice(0, 120) : ''}
+          defaultValue={task ? summarizeTask(task.text) : ''}
         />
         <GlassSelect
           label={p.fields.template}
