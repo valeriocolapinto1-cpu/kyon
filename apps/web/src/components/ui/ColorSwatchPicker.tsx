@@ -8,7 +8,7 @@ import { cn } from '@/lib/cn';
 
 interface ColorSwatchPickerProps {
   label: string;
-  value: AccentId;
+  value: AccentId | null;
   scheme: 'light' | 'dark';
   onChange: (accent: AccentId) => void;
 }
@@ -18,7 +18,7 @@ export function ColorSwatchPicker({ label, value, scheme, onChange }: ColorSwatc
   return (
     <RadioGroup.Root
       aria-label={label}
-      value={value}
+      value={value ?? ''}
       onValueChange={(next) => onChange(next as AccentId)}
       className="flex flex-wrap gap-2"
     >

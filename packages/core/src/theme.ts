@@ -30,6 +30,8 @@ export const ACCENTS = {
 export type AccentId = keyof typeof ACCENTS;
 export const ACCENT_IDS = Object.keys(ACCENTS) as AccentId[];
 export const DEFAULT_ACCENT: AccentId = 'blue';
+export const isAccentId = (value: unknown): value is AccentId =>
+  typeof value === 'string' && (ACCENT_IDS as string[]).includes(value);
 
 export type Scheme = 'light' | 'dark';
 export type ContrastMode = 'normal' | 'high';

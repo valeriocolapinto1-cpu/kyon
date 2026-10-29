@@ -28,6 +28,7 @@ import { cn } from '@/lib/cn';
 import { relativeTime } from '@/lib/format/relative';
 import { it } from '@/lib/i18n/it';
 import { ProjectMenu } from './ProjectMenu';
+import { ProjectOverview } from './ProjectOverview';
 import { RunClosedToasts } from './prompts/RunClosedToasts';
 import { ProjectLiveProvider } from '@/lib/client/projectLive';
 import { TasksTab } from './tasks/TasksTab';
@@ -135,10 +136,12 @@ function ProjectRow({ project, selected }: { project: ProjectSummary; selected: 
   return (
     <GlassCard
       as={Link}
-      href={`/progetti?id=${project.id}`}
+      href={`/progetti?sel=${encodeURIComponent(project.id)}`}
+      replace
+      scroll={false}
       data-plain
       interactive
-      aria-current={selected ? 'page' : undefined}
+      aria-current={selected ? 'true' : undefined}
       className={cn('flex items-center justify-between gap-3', selected && 'ring-2 ring-focus')}
     >
       <span className="min-w-0 flex-1">
@@ -345,6 +348,7 @@ export function ProjectsView() {
   const pathname = usePathname();
   const [newOpen, setNewOpen] = useState(false);
   const id = params.get('id');
+  const selectedId = params.get('sel');
   const tabParam = params.get('tab');
   const tab: Tab = TABS.includes(tabParam as Tab) ? (tabParam as Tab) : 'task';
   const setTab = (next: Tab) =>
@@ -382,11 +386,27 @@ export function ProjectsView() {
         </>
       ) : (
         <SplitView
-          list={<ProjectList selectedId={id} onNew={() => setNewOpen(true)} />}
+          showDetail={Boolean(selectedId)}
+          list={<ProjectList selectedId={selectedId} onNew={() => setNewOpen(true)} />}
           detail={
-            <GlassCard className="flex min-h-64 items-center justify-center text-center">
-              <p className="text-body text-muted">{it.projects.selectHint}</p>
-            </GlassCard>
+            selectedId ? (
+              <>
+                <Link
+                  href="/progetti"
+                  replace
+                  scroll={false}
+                  data-plain
+                  className="mb-3 inline-flex min-h-touch items-center gap-1 font-semibold text-accent-text md:hidden"
+                >
+                  <ArrowLeft className="size-5" aria-hidden="true" /> {p.back}
+                </Link>
+                <ProjectOverview id={selectedId} />
+              </>
+            ) : (
+              <GlassCard className="flex min-h-64 items-center justify-center text-center">
+                <p className="text-body text-muted">{it.projects.selectHint}</p>
+              </GlassCard>
+            )
           }
         />
       )}

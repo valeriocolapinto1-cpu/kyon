@@ -35,6 +35,7 @@ export interface Person {
   name: string;
   avatarUrl: string | null;
   statusText: string | null;
+  nameColor: string | null;
 }
 
 export const githubKey = ['github'] as const;

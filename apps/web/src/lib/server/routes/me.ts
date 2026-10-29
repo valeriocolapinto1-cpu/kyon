@@ -1,3 +1,4 @@
+import { ACCENT_IDS } from '@kyon/core';
 import { z } from 'zod';
 import { getMe, updateMe } from '@/lib/server/users';
 import { authedRoute, json, parseJson, rateLimit } from '@/lib/server/http';
@@ -9,6 +10,7 @@ const Patch = z
     name: z.string().trim().min(1).max(60),
     bio: z.string().trim().max(280).nullable(),
     statusText: z.string().trim().max(60).nullable(),
+    nameColor: z.enum(ACCENT_IDS).nullable(),
     preferences: z.record(z.string(), z.unknown()),
     homeLayout: z.array(z.object({ id: z.string().max(40), hidden: z.boolean() })).max(20),
   })

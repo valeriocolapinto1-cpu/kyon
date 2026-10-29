@@ -4,12 +4,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Camera, LogOut, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useRef, useState, type FormEvent } from 'react';
+import { isAccentId } from '@kyon/core';
 import { Avatar } from '@/components/ui/Avatar';
+import { ColorSwatchPicker } from '@/components/ui/ColorSwatchPicker';
 import { FormError } from '@/components/ui/FormError';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassInput } from '@/components/ui/GlassInput';
 import { PasswordField } from '@/components/ui/PasswordField';
+import { PersonName } from '@/components/ui/PersonName';
 import { useToast } from '@/components/ui/Toast';
 import { ApiClientError, api } from '@/lib/client/api';
 import { changeEmail, changePassword, signOut } from '@/lib/client/auth';
@@ -17,6 +20,7 @@ import { resizeImage } from '@/lib/client/image';
 import { meKey, type Me } from '@/lib/client/me';
 import { passwordError } from '@/lib/client/passwordRules';
 import { it } from '@/lib/i18n/it';
+import { usePreferences } from '@/lib/preferences/context';
 
 const a = it.account;
 const message = (error: unknown) =>
@@ -45,6 +49,17 @@ function ProfileForm({ me }: { me: Me }) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
+  const { resolved } = usePreferences();
+  const scheme = resolved['data-scheme'] === 'dark' ? 'dark' : 'light';
+  const nameColorMutation = useMutation({
+    mutationFn: (nameColor: string | null) =>
+      api<Me>('/api/me', { method: 'PATCH', json: { nameColor } }),
+    onSuccess: (data) => {
+      queryClient.setQueryData(meKey, data);
+      void queryClient.invalidateQueries({ queryKey: ['people'] });
+      toast({ title: a.saved, tone: 'success' });
+    },
+  });
   const save = useMutation({
     mutationFn: (body: { name: string; bio: string | null; statusText: string | null }) =>
       api<Me>('/api/me', { method: 'PATCH', json: body }),
@@ -147,6 +162,31 @@ function ProfileForm({ me }: { me: Me }) {
           {a.save}
         </GlassButton>
       </form>
+      <div className="flex flex-col gap-3">
+        <p className="text-subhead font-medium text-fg" id="name-color-label">
+          {a.nameColor}:{' '}
+          <PersonName color={me.nameColor} className="font-semibold text-fg">
+            {me.name}
+          </PersonName>
+        </p>
+        <p className="text-footnote text-muted">{a.nameColorHelp}</p>
+        <ColorSwatchPicker
+          label={a.nameColor}
+          value={isAccentId(me.nameColor) ? me.nameColor : null}
+          scheme={scheme}
+          onChange={(nameColor) => nameColorMutation.mutate(nameColor)}
+        />
+        {me.nameColor && (
+          <GlassButton
+            size="sm"
+            variant="plain"
+            className="self-start"
+            onClick={() => nameColorMutation.mutate(null)}
+          >
+            {a.nameColorReset}
+          </GlassButton>
+        )}
+      </div>
     </Section>
   );
 }
@@ -279,7 +319,7 @@ export function AccountSettings({ me }: { me: Me }) {
     }
   };
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="flex flex-col gap-6">
       <ProfileForm me={me} />
       <Section id="account-security" title={a.title}>
         <EmailForm me={me} />

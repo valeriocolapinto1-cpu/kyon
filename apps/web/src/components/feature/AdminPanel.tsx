@@ -11,7 +11,6 @@ import { FormError } from '@/components/ui/FormError';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { GlassInput } from '@/components/ui/GlassInput';
-import { GlassTextarea } from '@/components/ui/GlassTextarea';
 import { Sheet } from '@/components/ui/Sheet';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import { useToast } from '@/components/ui/Toast';
@@ -259,74 +258,29 @@ function Users({ me }: { me: Me }) {
   );
 }
 
+/** The text Kyon appends to copied prompts. Shown for reference only: it is not editable here. */
 function PromptFooter() {
   const a = it.admin2;
-  const queryClient = useQueryClient();
-  const { toast } = useToast();
   const footer = useQuery({
     queryKey: ['admin', 'prompt-footer'],
     queryFn: () => api<{ footer: string; custom: boolean }>('/api/admin/prompt-footer'),
   });
-  const save = useMutation({
-    mutationFn: (value: string) =>
-      api<{ footer: string; custom: boolean }>('/api/admin/prompt-footer', {
-        method: 'PUT',
-        json: { footer: value },
-      }),
-    onSuccess: (data) => {
-      queryClient.setQueryData(['admin', 'prompt-footer'], data);
-      toast({ tone: 'success', title: a.footerSaved });
-    },
-  });
   return (
-    <GlassCard
-      as="section"
-      aria-labelledby="admin-footer"
-      className="flex flex-col gap-4 lg:col-span-2"
-    >
+    <GlassCard as="section" aria-labelledby="admin-footer" className="flex flex-col gap-3">
       <h3 id="admin-footer" className="text-title3 font-semibold text-fg">
         {a.footerTitle}
       </h3>
+      <p className="text-footnote text-muted">{a.footerHelp}</p>
       {footer.isPending ? (
         <SkeletonList rows={2} />
       ) : (
-        <form
-          key={footer.data?.footer}
-          className="flex flex-col gap-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            save.mutate(String(new FormData(event.currentTarget).get('footer') ?? ''));
-          }}
+        <pre
+          tabIndex={0}
+          aria-label={a.footerTitle}
+          className="max-h-64 overflow-auto rounded-control bg-neutral-soft p-3 font-mono text-footnote whitespace-pre-wrap text-fg"
         >
-          <GlassTextarea
-            label={a.footerTitle}
-            hint={a.footerHelp}
-            name="footer"
-            rows={10}
-            defaultValue={footer.data?.footer ?? ''}
-            maxLength={10_000}
-            className="[&_textarea]:font-mono"
-          />
-          <FormError
-            message={
-              save.error instanceof ApiClientError
-                ? save.error.message
-                : save.error
-                  ? it.common.errorBody
-                  : null
-            }
-          />
-          <div className="flex flex-wrap gap-2">
-            <GlassButton type="submit" variant="primary" size="sm" disabled={save.isPending}>
-              {a.footerSave}
-            </GlassButton>
-            {footer.data?.custom && (
-              <GlassButton size="sm" variant="plain" onClick={() => save.mutate('')}>
-                {a.footerReset}
-              </GlassButton>
-            )}
-          </div>
-        </form>
+          {footer.data?.footer ?? ''}
+        </pre>
       )}
     </GlassCard>
   );
@@ -338,7 +292,7 @@ export function AdminPanel({ me }: { me: Me }) {
       <h2 id="admin-title" className="text-title2 font-semibold text-fg">
         {t.title}
       </h2>
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="flex flex-col gap-6">
         <Invites />
         <Users me={me} />
         <PromptFooter />

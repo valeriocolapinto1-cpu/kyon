@@ -23,19 +23,28 @@ test('connect GitHub, expose a repo, create a project and keep hidden repos priv
   const page = await owner.context.newPage();
 
   await connectGitHub(page, login);
-  const list = page
-    .getByRole('heading', { name: 'Le tue repo' })
-    .locator('xpath=following-sibling::ul[1]');
-  await expect(list.getByRole('button')).toHaveCount(2);
+  // Nothing is exposed yet: the list is empty and both repos wait in the picker.
+  await expect(page.getByText('Non hai ancora esposto nessuna repo.')).toBeVisible();
+  const picker = page.getByLabel('Esponi un’altra repo');
+  await expect(picker.locator('option')).toHaveCount(3);
   await expectNoA11yViolations(page);
 
-  // Expose one repo to the whole group.
-  await list.getByRole('button', { name: new RegExp(`pubblica-${tag}`) }).click();
+  // Expose one repo to the whole group, picking it from the menu.
+  const publicRepo = await picker
+    .locator('option', { hasText: `pubblica-${tag}` })
+    .getAttribute('value');
+  await picker.selectOption(publicRepo ?? '');
+  const list = page
+    .getByRole('heading', { name: 'Repo esposte' })
+    .locator('xpath=following-sibling::ul[1]');
   await page.getByRole('radio', { name: /Tutto il gruppo/ }).click();
   await page.getByRole('button', { name: 'Salva' }).click();
   await expect(
     list.getByRole('button', { name: new RegExp(`pubblica-${tag}.*Tutto il gruppo`) }),
   ).toBeVisible();
+  // The other repo stays out of the list, still available in the picker.
+  await expect(list.getByRole('button')).toHaveCount(1);
+  await expect(picker.locator('option')).toHaveCount(2);
 
   // Create the project from it.
   await page.goto('/progetti');
@@ -66,6 +75,7 @@ test('connect GitHub, expose a repo, create a project and keep hidden repos priv
 
   // Members can't delete; the owner can, after typing the name.
   await otherPage.getByRole('link', { name: new RegExp(`Progetto ${tag}`) }).click();
+  await otherPage.getByRole('link', { name: 'Entra nel progetto' }).click();
   await otherPage.getByRole('button', { name: 'Menu progetto' }).click();
   await expect(otherPage.getByRole('button', { name: 'Abbandona progetto' })).toBeVisible();
   await expect(otherPage.getByRole('button', { name: 'Elimina progetto' })).toHaveCount(0);

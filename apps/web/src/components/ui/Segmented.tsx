@@ -31,7 +31,10 @@ export function Segmented<T extends string>({
       value={value}
       onValueChange={(next) => onChange(next as T)}
       orientation="horizontal"
-      className={cn('relative inline-flex rounded-pill bg-accent-soft p-1', className)}
+      className={cn(
+        'relative flex w-full max-w-full rounded-pill bg-accent-soft p-1 sm:w-auto',
+        className,
+      )}
     >
       <SlidingPill
         index={options.findIndex((o) => o.value === value)}
@@ -45,7 +48,7 @@ export function Segmented<T extends string>({
             key={option.value}
             value={option.value}
             className={cn(
-              'relative min-h-touch flex-1 rounded-pill px-4 text-subhead font-semibold',
+              'relative min-h-touch min-w-0 flex-1 rounded-pill px-3 text-center text-subhead leading-tight font-semibold sm:px-4',
               selected ? 'text-fg' : 'text-muted',
             )}
           >

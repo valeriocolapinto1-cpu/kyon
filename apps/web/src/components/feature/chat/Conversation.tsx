@@ -175,7 +175,7 @@ export function Conversation({
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-separator pb-2">
           <div className="min-w-0">
             <h2
-              className="truncate text-title3 font-semibold text-fg"
+              className="truncate text-headline font-semibold text-fg"
               id={`room-title-${roomId}`}
               tabIndex={-1}
             >
@@ -275,7 +275,7 @@ export function Conversation({
               body,
               replyTo: reply,
               attachments,
-              me: { id: me.id, name: me.name, avatarUrl: me.avatarUrl },
+              me: { id: me.id, name: me.name, avatarUrl: me.avatarUrl, nameColor: me.nameColor },
             });
           }}
           onSaveEdit={async (message, body) => {

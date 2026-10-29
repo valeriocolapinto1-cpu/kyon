@@ -1,5 +1,5 @@
 import { eq } from 'drizzle-orm';
-import { sanitizePreferences, type Preferences } from '@kyon/core';
+import { isAccentId, sanitizePreferences, type Preferences } from '@kyon/core';
 import type { Db } from '@/db/client';
 import { user } from '@/db/schema';
 import { ApiError } from './errors';
@@ -11,6 +11,8 @@ export interface Me {
   role: 'admin' | 'user';
   bio: string | null;
   statusText: string | null;
+  /** Accent id chosen for the name in chat (null: default color). */
+  nameColor: string | null;
   avatarUrl: string | null;
   /** null until the user saves preferences from any device. */
   preferences: Preferences | null;
@@ -48,6 +50,7 @@ export async function getMe(db: Db, id: string): Promise<Me> {
     role: row.role === 'admin' ? 'admin' : 'user',
     bio: row.bio,
     statusText: row.statusText,
+    nameColor: isAccentId(row.nameColor) ? row.nameColor : null,
     avatarUrl: avatarUrl(row.id, row.avatarKey),
     preferences: prefs ? sanitizePreferences(prefs) : null,
     homeLayout: parseJsonColumn(row.homeLayout),
@@ -60,6 +63,7 @@ export interface ProfilePatch {
   name?: string;
   bio?: string | null;
   statusText?: string | null;
+  nameColor?: string | null;
   preferences?: unknown;
   homeLayout?: unknown;
 }
@@ -69,6 +73,8 @@ export async function updateMe(db: Db, id: string, patch: ProfilePatch): Promise
   if (patch.name !== undefined) values.name = patch.name;
   if (patch.bio !== undefined) values.bio = patch.bio || null;
   if (patch.statusText !== undefined) values.statusText = patch.statusText || null;
+  if (patch.nameColor !== undefined)
+    values.nameColor = isAccentId(patch.nameColor) ? patch.nameColor : null;
   if (patch.preferences !== undefined)
     values.preferences = JSON.stringify(sanitizePreferences(patch.preferences));
   if (patch.homeLayout !== undefined) values.homeLayout = JSON.stringify(patch.homeLayout);

@@ -9,6 +9,7 @@ import { Badge, type BadgeTone } from '@/components/ui/Badge';
 import { Checkbox } from '@/components/ui/Checkbox';
 import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { GlassSelect } from '@/components/ui/GlassSelect';
 import { RadioCards } from '@/components/ui/RadioCards';
 import { Sheet } from '@/components/ui/Sheet';
 import { SkeletonList } from '@/components/ui/Skeleton';
@@ -145,6 +146,9 @@ export function GitHubSettings({ me }: { me: Me }) {
 
   const connection = status.data?.connection;
   const mine = (repos.data ?? []).filter((r) => r.mine);
+  // Only the repos shared with someone are listed; the others are picked from the menu below.
+  const exposed = mine.filter((r) => r.exposure !== 'hidden');
+  const notExposed = mine.filter((r) => r.exposure === 'hidden');
 
   return (
     <GlassCard as="section" aria-labelledby="github" className="flex flex-col gap-4">
@@ -211,32 +215,48 @@ export function GitHubSettings({ me }: { me: Me }) {
           ) : mine.length === 0 ? (
             <p className="text-subhead text-muted">{g.noRepos}</p>
           ) : (
-            <ul className="flex flex-col divide-y divide-separator">
-              {mine.map((repo) => (
-                <li key={repo.id}>
-                  <button
-                    type="button"
-                    onClick={() => setEditing(repo)}
-                    className="k-pressable flex min-h-touch w-full flex-wrap items-center justify-between gap-2 py-3 text-left"
-                  >
-                    <span className="flex items-center gap-2">
-                      {repo.private ? (
-                        <Lock className="size-4 text-muted" aria-label={g.private} />
-                      ) : (
-                        <Unlock className="size-4 text-muted" aria-label={g.public} />
-                      )}
-                      <span className="text-body text-fg">{repo.fullName}</span>
-                    </span>
-                    <span className="flex flex-wrap items-center gap-1">
-                      {!repo.available && <Badge tone="danger">{g.unavailable}</Badge>}
-                      {repo.projectId && <Badge tone="accent">{g.isProject}</Badge>}
-                      <Badge tone={tones[repo.exposure]}>{g.exposure[repo.exposure]}</Badge>
-                      <span className="sr-only">— {g.visibility}</span>
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+            <>
+              {exposed.length === 0 && <p className="text-subhead text-muted">{g.noneExposed}</p>}
+              {notExposed.length > 0 && (
+                <GlassSelect
+                  label={g.exposeMore}
+                  value=""
+                  onChange={(event) =>
+                    setEditing(notExposed.find((r) => r.id === event.target.value) ?? null)
+                  }
+                  options={[
+                    { value: '', label: g.pickRepo },
+                    ...notExposed.map((r) => ({ value: r.id, label: r.fullName })),
+                  ]}
+                />
+              )}
+              <ul className="flex flex-col divide-y divide-separator">
+                {exposed.map((repo) => (
+                  <li key={repo.id}>
+                    <button
+                      type="button"
+                      onClick={() => setEditing(repo)}
+                      className="k-pressable flex min-h-touch w-full flex-wrap items-center justify-between gap-2 py-3 text-left"
+                    >
+                      <span className="flex items-center gap-2">
+                        {repo.private ? (
+                          <Lock className="size-4 text-muted" aria-label={g.private} />
+                        ) : (
+                          <Unlock className="size-4 text-muted" aria-label={g.public} />
+                        )}
+                        <span className="text-body text-fg">{repo.fullName}</span>
+                      </span>
+                      <span className="flex flex-wrap items-center gap-1">
+                        {!repo.available && <Badge tone="danger">{g.unavailable}</Badge>}
+                        {repo.projectId && <Badge tone="accent">{g.isProject}</Badge>}
+                        <Badge tone={tones[repo.exposure]}>{g.exposure[repo.exposure]}</Badge>
+                        <span className="sr-only">— {g.visibility}</span>
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </>
       )}

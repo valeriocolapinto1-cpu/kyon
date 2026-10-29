@@ -24,6 +24,7 @@ import { GlassButton } from '@/components/ui/GlassButton';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { InlineText } from '@/components/ui/InlineText';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { PersonName } from '@/components/ui/PersonName';
 import { PriorityBadge } from '@/components/ui/PriorityBadge';
 import { SkeletonList } from '@/components/ui/Skeleton';
 import {
@@ -91,6 +92,24 @@ function MoreLink({ href, children }: { href: string; children: ReactNode }) {
   );
 }
 
+/** Shows the first item only; the rest opens with a button (keeps the Home short). */
+function useFirstOnly<T>(items: T[]) {
+  const [open, setOpen] = useState(false);
+  const shown = open ? items : items.slice(0, 1);
+  const toggle =
+    items.length > 1 ? (
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="inline-flex min-h-touch items-center gap-1 self-start text-subhead font-semibold text-accent-text"
+      >
+        {open ? h.showLess : h.showAll(items.length)}
+      </button>
+    ) : null;
+  return { shown, toggle };
+}
+
 function DueLabel({ day, todayDay }: { day: string | null; todayDay: string }) {
   if (!day) return <span className="text-muted">{h.noDue}</span>;
   if (day < todayDay) return <span className="font-semibold text-danger">{h.overdue}</span>;
@@ -100,81 +119,93 @@ function DueLabel({ day, todayDay }: { day: string | null; todayDay: string }) {
 
 function MyTasks({ data }: { data: HomeData }) {
   const [todayDay] = useState(() => today());
+  const { shown, toggle } = useFirstOnly(data.myTasks);
   if (!data.myTasks.length) return <Empty id="myTasks" />;
   return (
-    <ul className="flex flex-col gap-1">
-      {data.myTasks.map((t) => (
-        <li key={t.id}>
-          <Link
-            href={taskHref(t.projectId, t.id)}
-            className="flex min-h-touch items-center gap-3 rounded-control px-2 py-1 hover:bg-neutral-soft"
-          >
-            <PriorityBadge priority={t.priority as Priority} />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate text-subhead text-fg">
-                <InlineText text={t.text} />
+    <>
+      <ul className="flex flex-col gap-1">
+        {shown.map((t) => (
+          <li key={t.id}>
+            <Link
+              href={taskHref(t.projectId, t.id)}
+              className="flex min-h-touch items-center gap-3 rounded-control px-2 py-1 hover:bg-neutral-soft"
+            >
+              <PriorityBadge priority={t.priority as Priority} />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-subhead text-fg">
+                  <InlineText text={t.text} />
+                </span>
+                <span className="block text-footnote">
+                  <span className="text-muted">{t.projectName} · </span>
+                  <DueLabel day={t.dueDate} todayDay={todayDay} />
+                </span>
               </span>
-              <span className="block text-footnote">
-                <span className="text-muted">{t.projectName} · </span>
-                <DueLabel day={t.dueDate} todayDay={todayDay} />
-              </span>
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {toggle}
+    </>
   );
 }
 
 function Runs({ data }: { data: HomeData }) {
+  const { shown, toggle } = useFirstOnly(data.runs);
   if (!data.runs.length) return <Empty id="runs" />;
   return (
-    <ul className="flex flex-col gap-1">
-      {data.runs.map((r) => (
-        <li key={r.id}>
-          <Link
-            href={`/progetti?id=${encodeURIComponent(r.projectId)}&tab=prompt`}
-            className="flex min-h-touch flex-col rounded-control px-2 py-1 hover:bg-neutral-soft"
-          >
-            <span className="truncate text-subhead text-fg">
-              <InlineText text={r.taskText} />
-            </span>
-            <span className="flex flex-wrap items-center gap-x-2 text-footnote text-muted">
-              <RunStateBadge state={r.state as RunState} prNumber={r.prNumber} compact />
-              <span>
-                {r.projectName} · {r.launchedBy?.name ?? '—'} · {relativeTime(r.copiedAt)}
+    <>
+      <ul className="flex flex-col gap-1">
+        {shown.map((r) => (
+          <li key={r.id}>
+            <Link
+              href={`/progetti?id=${encodeURIComponent(r.projectId)}&tab=prompt`}
+              className="flex min-h-touch flex-col rounded-control px-2 py-1 hover:bg-neutral-soft"
+            >
+              <span className="truncate text-subhead text-fg">
+                <InlineText text={r.taskText} />
               </span>
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+              <span className="flex flex-wrap items-center gap-x-2 text-footnote text-muted">
+                <RunStateBadge state={r.state as RunState} prNumber={r.prNumber} compact />
+                <span>
+                  {r.projectName} · {r.launchedBy?.name ?? '—'} · {relativeTime(r.copiedAt)}
+                </span>
+              </span>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {toggle}
+    </>
   );
 }
 
 function Comments({ data }: { data: HomeData }) {
+  const { shown, toggle } = useFirstOnly(data.comments);
   if (!data.comments.length) return <Empty id="comments" />;
   return (
-    <ul className="flex flex-col gap-2">
-      {data.comments.map((m) => (
-        <li key={m.id}>
-          <Link
-            href={messageHref(m.roomId, m.projectId, m.taskId)}
-            className="flex gap-3 rounded-control border border-border bg-surface-solid p-3 hover:bg-neutral-soft"
-          >
-            <Avatar name={m.author?.name ?? '?'} src={m.author?.avatarUrl} size="sm" />
-            <span className="min-w-0 flex-1">
-              <span className="block text-footnote text-muted">
-                <span className="font-semibold text-fg">{m.author?.name ?? it.chat.someone}</span>
-                {m.context ? ` ${h.commentOn(m.context)}` : ''} · {relativeTime(m.createdAt)}
+    <>
+      <ul className="flex flex-col gap-2">
+        {shown.map((m) => (
+          <li key={m.id}>
+            <Link
+              href={messageHref(m.roomId, m.projectId, m.taskId)}
+              className="flex gap-3 rounded-control border border-border bg-surface-solid p-3 hover:bg-neutral-soft"
+            >
+              <Avatar name={m.author?.name ?? '?'} src={m.author?.avatarUrl} size="sm" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-footnote text-muted">
+                  <span className="font-semibold text-fg">{m.author?.name ?? it.chat.someone}</span>
+                  {m.context ? ` ${h.commentOn(m.context)}` : ''} · {relativeTime(m.createdAt)}
+                </span>
+                <span className="line-clamp-2 block text-subhead text-fg">{m.excerpt}</span>
+                <span className="block text-caption text-muted">{m.projectName}</span>
               </span>
-              <span className="line-clamp-2 block text-subhead text-fg">{m.excerpt}</span>
-              <span className="block text-caption text-muted">{m.projectName}</span>
-            </span>
-          </Link>
-        </li>
-      ))}
-    </ul>
+            </Link>
+          </li>
+        ))}
+      </ul>
+      {toggle}
+    </>
   );
 }
 
@@ -202,7 +233,7 @@ function Online() {
                 <Avatar name={p.name} src={p.avatarUrl} size="sm" online={isOnline} />
                 <span className="min-w-0 flex-1">
                   <span className="block text-subhead text-fg">
-                    {p.name}
+                    <PersonName color={p.nameColor}>{p.name}</PersonName>
                     {p.id === me?.id ? ` (${it.people.you})` : ''}
                   </span>
                   <span className="block truncate text-footnote text-muted">
@@ -342,7 +373,7 @@ export function HomeView() {
           <Block key={id} id={id} footer={<MoreLink href="/attivita">{h.allActivity}</MoreLink>}>
             {data.contributions.length ? (
               <ul className="flex flex-col gap-3">
-                {data.contributions.slice(0, 6).map((e) => (
+                {data.contributions.slice(0, 1).map((e) => (
                   <ActivityLine key={e.id} event={e} />
                 ))}
               </ul>

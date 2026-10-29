@@ -5,6 +5,7 @@ import {
   allThemeInputs,
   buildTheme,
   buildThemeCss,
+  isAccentId,
   nonTextTarget,
   textTarget,
 } from './theme';
@@ -61,5 +62,13 @@ describe('theme contrast (accent × scheme × contrast)', () => {
     const css = buildThemeCss();
     expect(css.match(/:root\[data-accent=/g)).toHaveLength(44);
     expect(css).toContain('--k-accent-text:');
+  });
+});
+
+describe('isAccentId', () => {
+  it('accepts accent ids only (used for the name color people pick)', () => {
+    for (const id of ACCENT_IDS) expect(isAccentId(id)).toBe(true);
+    for (const bad of ['', 'nope', null, undefined, 3, '#ff0000'])
+      expect(isAccentId(bad)).toBe(false);
   });
 });

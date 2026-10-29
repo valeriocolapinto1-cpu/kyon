@@ -1,5 +1,6 @@
 'use client';
 
+import { PersonName } from '@/components/ui/PersonName';
 import { useQuery } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -204,9 +205,9 @@ export function MessageItem({
           id={`message-${m.id}-meta`}
           className={cn('flex flex-wrap items-baseline gap-2', grouped && 'sr-only')}
         >
-          <span className="text-subhead font-semibold text-fg">
+          <PersonName color={m.author?.nameColor} className="text-subhead font-semibold text-fg">
             {mine ? `${name} (${c.you})` : name}
-          </span>
+          </PersonName>
           <time dateTime={m.createdAt} className="text-caption text-muted">
             {time}
           </time>
@@ -230,7 +231,11 @@ export function MessageItem({
         {m.deleted ? (
           <p className="text-subhead text-muted italic">{c.deleted}</p>
         ) : (
-          m.body && <Markdown source={m.body} highlight={highlight} copyLabel={c.copyCode} />
+          m.body && (
+            <div className="text-subhead">
+              <Markdown source={m.body} highlight={highlight} copyLabel={c.copyCode} />
+            </div>
+          )
         )}
         {m.edited && <span className="text-caption text-muted">({c.edited})</span>}
 
