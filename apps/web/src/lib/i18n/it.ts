@@ -562,6 +562,29 @@ export const it = {
     emptyTitle: 'Nessuna task in questa repo',
     emptyBody:
       'Kyon legge le task dai file .md: caselle [ ] e [x], oppure elenchi sotto titoli come "Prossimi passi" o "TODO".',
+    checklist: {
+      menu: 'File checklist',
+      title: 'File checklist',
+      description:
+        'Scegli i file .md che sono vere checklist: Kyon legge le task solo da questi. Gli altri (note, idee, documentazione) restano fuori.',
+      firstTitle: 'Quali file sono checklist?',
+      firstBody:
+        'Prima di mostrare le task scegli i file .md che contengono le tue checklist. Potrai cambiarli quando vuoi.',
+      ownerChooses: 'Un proprietario del progetto deve scegliere quali file sono checklist.',
+      ownerOnly: 'Solo chi gestisce il progetto può cambiare i file.',
+      legend: 'File .md della repo',
+      count: (n: number) => (n === 1 ? '1 task' : `${n} task`),
+      archive: 'archivio, sola lettura',
+      none: 'La repo non ha file .md utilizzabili.',
+      loading: 'Cerco i file .md della repo…',
+      loadError: 'Non riesco a elencare i file della repo.',
+      truncated: 'La repo è molto grande: l’elenco potrebbe essere incompleto.',
+      save: 'Salva e leggi',
+      saving: 'Leggo i file…',
+      saved: 'File checklist aggiornati',
+      chosen: (n: number) => (n === 1 ? '1 file scelto' : `${n} file scelti`),
+      pick: 'Scegli i file checklist',
+    },
     createTasksFile: 'Crea TASKS.md',
     createTasksFileConfirm:
       'Kyon creerà TASKS.md nella repo con un modello da completare (un commit). Procedo?',

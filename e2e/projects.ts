@@ -33,11 +33,15 @@ export async function projectWithTasks(
   request: APIRequestContext,
   baseURL: string,
   label: string,
+  options: { files?: Record<string, string>; select?: boolean } = {},
 ): Promise<Setup> {
   const tag = `${label}-${Date.now()}`;
   const login = `gh-${tag}`;
   const res = await request.post(`${FAKE_GITHUB}/__fake/users`, {
-    data: { login, repos: [{ name: `repo-${tag}`, files: { 'TASKS.md': TASKS_MD } }] },
+    data: {
+      login,
+      repos: [{ name: `repo-${tag}`, files: options.files ?? { 'TASKS.md': TASKS_MD } }],
+    },
   });
   const { repoIds } = (await res.json()) as { repoIds: number[] };
   const owner = await newMember(browser, request, baseURL, `tasks-${tag}`);
@@ -54,6 +58,15 @@ export async function projectWithTasks(
     data: { repoId: repo?.id, name: `Task ${tag}` },
   });
   const { id } = (await created.json()) as { id: string };
+  // A project reads only the .md files chosen as checklists: choose the non-archive ones.
+  if (options.select !== false) {
+    const listed = (await (await api.get(`/api/projects/${id}/markdown-files`)).json()) as {
+      files: { path: string; kind: string }[];
+    };
+    await api.patch(`/api/projects/${id}`, {
+      data: { checklistFiles: listed.files.filter((f) => f.kind === 'tasks').map((f) => f.path) },
+    });
+  }
   return { context: owner.context, page, projectId: id, repoId: repoIds[0] ?? 0, tag };
 }
 

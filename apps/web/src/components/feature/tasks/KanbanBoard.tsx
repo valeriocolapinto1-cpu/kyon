@@ -1,6 +1,8 @@
 'use client';
 
+import { ChevronRight } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react';
+import { groupByFile } from '@kyon/core';
 import type { MenuEntry } from '@/components/ui/Menu';
 import { columnTasks, type ColumnItem, type TaskItem, type TasksData } from '@/lib/client/tasks';
 import { cn } from '@/lib/cn';
@@ -64,16 +66,46 @@ export function KanbanBoard({
     () => [...data.columns].sort((a, b) => a.position - b.position),
     [data.columns],
   );
-  const byColumn = useMemo(() => {
+  const fileOrder = useMemo(() => data.files.map((f) => f.path), [data.files]);
+  // Each column groups its cards by the file they come from, one drop-down per file. What the
+  // user opened or closed is remembered; otherwise a lone file is open and several are closed.
+  const [choices, setChoices] = useState<ReadonlyMap<string, boolean>>(() => new Map());
+  const groupKey = (columnId: string, path: string) => `${columnId}\u001f${path}`;
+  const setGroupOpen = (columnId: string, path: string, open: boolean) =>
+    setChoices((current) => new Map(current).set(groupKey(columnId, path), open));
+  const columnGroups = useMemo(() => {
     const fallback = columns.find((c) => !c.isDone && !c.isInProgress) ?? columns[0];
     const map = new Map<string, TaskItem[]>(columns.map((c) => [c.id, []]));
     for (const task of tasks) {
       const key = task.columnId && map.has(task.columnId) ? task.columnId : fallback?.id;
       if (key) map.get(key)?.push(task);
     }
-    for (const list of map.values()) list.sort((a, b) => a.position - b.position);
-    return map;
-  }, [columns, tasks]);
+    return new Map(
+      columns.map((c) => {
+        const list = (map.get(c.id) ?? []).sort((a, b) => a.position - b.position);
+        const files = groupByFile(list, fileOrder);
+        const groups = files.map((g) => ({
+          ...g,
+          // Also open while it holds the card whose detail is shown.
+          open:
+            (choices.get(groupKey(c.id, g.path)) ?? files.length === 1) ||
+            g.tasks.some((x) => x.id === selectedId),
+        }));
+        return [c.id, { total: list.length, groups }] as const;
+      }),
+    );
+  }, [columns, tasks, fileOrder, choices, selectedId]);
+  // The cards on screen, column by column in display order: what keyboard and drag work on.
+  const byColumn = useMemo(
+    () =>
+      new Map(
+        [...columnGroups].map(([id, { groups }]) => [
+          id,
+          groups.filter((g) => g.open).flatMap((g) => g.tasks),
+        ]),
+      ),
+    [columnGroups],
+  );
 
   const [focusId, setFocusId] = useState<string | null>(null);
   const [menuOpenId, setMenuOpenId] = useState<string | null>(null);
@@ -85,13 +117,16 @@ export function KanbanBoard({
     refocus.current = null;
   });
 
-  const activeId = tasks.some((x) => x.id === focusId) ? focusId : (tasks[0]?.id ?? null);
+  const onScreen = useMemo(() => [...byColumn.values()].flat(), [byColumn]);
+  const activeId = onScreen.some((x) => x.id === focusId) ? focusId : (onScreen[0]?.id ?? null);
 
   const move = (task: TaskItem, column: ColumnItem, visibleIndex: number) => {
     const visible = byColumn.get(column.id) ?? [];
     const total = visible.filter((x) => x.id !== task.id).length + 1;
     const position = Math.min(visibleIndex, total - 1) + 1;
     refocus.current = task.id;
+    // The card must stay in sight where it lands.
+    setGroupOpen(column.id, task.path, true);
     onMove(
       task,
       { columnId: column.id, index: fullIndex(data, visible, column.id, visibleIndex, task.id) },
@@ -192,6 +227,7 @@ export function KanbanBoard({
     >
       {columns.map((column, col) => {
         const list = byColumn.get(column.id) ?? [];
+        const { total, groups } = columnGroups.get(column.id) ?? { total: 0, groups: [] };
         const target = drag?.target?.columnId === column.id ? drag.target.index : null;
         const headingId = `kanban-col-${column.id}`;
         const indicator = (
@@ -213,7 +249,7 @@ export function KanbanBoard({
               id={headingId}
               className="flex items-center justify-between gap-2 px-1 pb-2 text-headline text-fg"
             >
-              <span className="sr-only">{t.columnCount(column.name, list.length)}</span>
+              <span className="sr-only">{t.columnCount(column.name, total)}</span>
               <span aria-hidden="true" className="truncate">
                 {column.name}
               </span>
@@ -221,46 +257,78 @@ export function KanbanBoard({
                 aria-hidden="true"
                 className="rounded-pill bg-neutral-soft px-2 text-footnote font-semibold text-muted"
               >
-                {list.length}
+                {total}
               </span>
             </h3>
             <ol className="flex min-h-24 flex-1 flex-col gap-2">
-              {list.map((task) => {
-                // The dragged card stays in place (faded) so the layout doesn't jump; drop
-                // indices count only the other cards.
-                const dragged = task.id === drag?.id;
-                const index = dragged ? -1 : others.indexOf(task);
+              {groups.map((group, groupIndex) => {
+                const panelId = `kanban-group-${column.id}-${groupIndex}`;
                 return (
-                  <li key={task.id} className="flex flex-col gap-2">
-                    {!dragged && target === index && indicator}
-                    <div>
-                      <TaskCard
-                        task={task}
-                        subtasks={subtasks(task)}
-                        today={today}
-                        tabIndex={task.id === activeId ? 0 : -1}
-                        canEdit={canEdit}
-                        menu={menuFor(task)}
-                        menuOpen={menuOpenId === task.id}
-                        onMenuOpenChange={(open) => setMenuOpenId(open ? task.id : null)}
-                        onOpen={() => onOpen(task)}
-                        onKeyDown={onKeyDown(task, col, list.indexOf(task))}
-                        onFocus={() => setFocusId(task.id)}
-                        onPointerDown={handle(task.id)}
-                        selected={selectedId === task.id}
-                        buttonRef={(el) => {
-                          if (el) buttons.current.set(task.id, el);
-                          else buttons.current.delete(task.id);
-                        }}
+                  <li key={group.path} className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      aria-expanded={group.open}
+                      aria-controls={group.open ? panelId : undefined}
+                      title={group.path}
+                      onClick={() => setGroupOpen(column.id, group.path, !group.open)}
+                      className="flex min-h-touch w-full items-center gap-2 rounded-control bg-neutral-soft px-3 text-left text-subhead font-semibold text-fg focus-visible:ring-2 focus-visible:ring-focus"
+                    >
+                      <ChevronRight
+                        className={cn(
+                          'size-4 shrink-0 transition-transform',
+                          group.open && 'rotate-90',
+                        )}
+                        aria-hidden="true"
                       />
-                    </div>
+                      <span className="min-w-0 flex-1 truncate">{group.path}</span>
+                      <span aria-hidden="true" className="text-footnote font-semibold text-muted">
+                        {group.tasks.length}
+                      </span>
+                      <span className="sr-only">{t.checklist.count(group.tasks.length)}</span>
+                    </button>
+                    {group.open && (
+                      <ol id={panelId} className="flex flex-col gap-2">
+                        {group.tasks.map((task) => {
+                          // The dragged card stays in place (faded) so the layout doesn't jump;
+                          // drop indices count only the other cards on screen.
+                          const dragged = task.id === drag?.id;
+                          const index = dragged ? -1 : others.indexOf(task);
+                          return (
+                            <li key={task.id} className="flex flex-col gap-2">
+                              {!dragged && target === index && indicator}
+                              <div>
+                                <TaskCard
+                                  task={task}
+                                  subtasks={subtasks(task)}
+                                  today={today}
+                                  tabIndex={task.id === activeId ? 0 : -1}
+                                  canEdit={canEdit}
+                                  menu={menuFor(task)}
+                                  menuOpen={menuOpenId === task.id}
+                                  onMenuOpenChange={(open) => setMenuOpenId(open ? task.id : null)}
+                                  onOpen={() => onOpen(task)}
+                                  onKeyDown={onKeyDown(task, col, list.indexOf(task))}
+                                  onFocus={() => setFocusId(task.id)}
+                                  onPointerDown={handle(task.id)}
+                                  selected={selectedId === task.id}
+                                  buttonRef={(el) => {
+                                    if (el) buttons.current.set(task.id, el);
+                                    else buttons.current.delete(task.id);
+                                  }}
+                                />
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ol>
+                    )}
                   </li>
                 );
               })}
               {target !== null && target >= others.length && (
                 <li aria-hidden="true">{indicator}</li>
               )}
-              {list.length === 0 && target === null && (
+              {groups.length === 0 && target === null && (
                 <li className="flex min-h-16 items-center justify-center rounded-control border border-dashed border-separator text-footnote text-muted">
                   {t.emptyColumn}
                 </li>
