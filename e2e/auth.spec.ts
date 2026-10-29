@@ -46,7 +46,7 @@ test.describe('auth', () => {
     baseURL,
   }, info) => {
     // The admin creates an invite from Settings.
-    await page.goto('/settings');
+    await page.goto('/settings#admin-title');
     await page.getByLabel('Per chi è? (facoltativo)').fill(`Ospite ${info.project.name}`);
     await page.getByRole('button', { name: 'Nuovo invito' }).click();
     const link = await page.getByRole('textbox', { name: 'Copia link' }).inputValue();
@@ -82,8 +82,8 @@ test.describe('auth', () => {
 
     // Members don't see the admin panel.
     await guestPage.goto('/settings');
-    await expect(guestPage.getByRole('heading', { name: 'Dispositivi connessi' })).toBeVisible();
-    await expect(guestPage.getByRole('heading', { name: 'Admin', exact: true })).toHaveCount(0);
+    await expect(guestPage.getByRole('button', { name: 'Dispositivi connessi' })).toBeVisible();
+    await expect(guestPage.getByRole('button', { name: 'Admin', exact: true })).toHaveCount(0);
     await guest.close();
 
     // The same link cannot be used twice.
@@ -102,7 +102,7 @@ test.describe('auth', () => {
   }, info) => {
     const member = await newMember(browser, request, baseURL ?? '', `reset-${info.project.name}`);
     await member.context.close();
-    await page.goto('/settings');
+    await page.goto('/settings#admin-title');
     const row = page.getByRole('listitem').filter({ hasText: member.email });
     await row.getByRole('button', { name: 'Link per nuova password' }).click();
     const link = await page.getByRole('textbox', { name: 'Copia link' }).inputValue();
@@ -139,16 +139,15 @@ test.describe('auth', () => {
     await secondPage.getByRole('button', { name: 'Accedi' }).click();
     await expect(secondPage.getByRole('heading', { level: 1, name: 'Home' })).toBeVisible();
 
-    await page.goto('/settings');
-    // Sections below the fold mount on the first sign of use: a key press mounts them all.
+    await page.goto('/settings#sessions-title');
     await expect(page.getByRole('heading', { name: 'Dispositivi connessi' })).toBeVisible();
-    await page.keyboard.press('Shift');
     await expect(page.getByText('Questo dispositivo', { exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Disconnetti tutti gli altri' }).click();
     await expect(page.getByText('Altri dispositivi disconnessi', { exact: true })).toBeVisible();
     await secondPage.reload();
     await expect(secondPage).toHaveURL(/\/login/);
 
+    await page.getByRole('button', { name: 'Account', exact: true }).click();
     await page.getByRole('button', { name: 'Esci' }).click();
     await expect(page).toHaveURL(/\/login/);
     await page.goto('/');

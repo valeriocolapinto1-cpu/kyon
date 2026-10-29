@@ -18,7 +18,7 @@ export interface MessageView {
   roomId: string;
   seq: number;
   clientId: string;
-  author: { id: string; name: string; avatarUrl: string | null } | null;
+  author: { id: string; name: string; avatarUrl: string | null; nameColor: string | null } | null;
   body: string;
   deleted: boolean;
   edited: boolean;
@@ -48,7 +48,12 @@ async function views(db: Db, actor: Actor, rows: MessageRow[]): Promise<MessageV
   const [authors, reactions, files, pins, replies] = await Promise.all([
     inChunks(authorIds, (slice) =>
       db
-        .select({ id: user.id, name: user.name, avatarKey: user.avatarKey })
+        .select({
+          id: user.id,
+          name: user.name,
+          avatarKey: user.avatarKey,
+          nameColor: user.nameColor,
+        })
         .from(user)
         .where(inArray(user.id, slice)),
     ),
@@ -114,7 +119,12 @@ async function views(db: Db, actor: Actor, rows: MessageRow[]): Promise<MessageV
       seq: row.seq,
       clientId: row.clientId,
       author: author
-        ? { id: author.id, name: author.name, avatarUrl: avatarUrl(author.id, author.avatarKey) }
+        ? {
+            id: author.id,
+            name: author.name,
+            avatarUrl: avatarUrl(author.id, author.avatarKey),
+            nameColor: author.nameColor,
+          }
         : null,
       body: deleted ? '' : row.body,
       deleted,

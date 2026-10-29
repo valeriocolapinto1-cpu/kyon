@@ -26,8 +26,9 @@ test('home blocks: my tasks, resume where I left off, customize, people and hist
   await page.goto('/');
   const myTasks = page.getByRole('region', { name: 'Le mie task' });
   await expect(myTasks.getByRole('link', { name: /Scrivere il parser/ })).toBeVisible();
+  // Only the latest contribution is shown; the history has the rest.
   await expect(page.getByRole('region', { name: 'Ultimi contributi' })).toContainText(
-    'ha assegnato',
+    'Tutta la cronologia',
   );
   await expect(page.getByRole('region', { name: 'Chi è online' })).toContainText(me.name);
   await expectNoA11yViolations(page);

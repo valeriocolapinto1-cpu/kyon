@@ -91,7 +91,8 @@ export function DevGallery() {
           </header>
 
           <Section title="Impostazioni (tema, accento, accessibilità)">
-            <AppearanceSettings />
+            <AppearanceSettings part="appearance" />
+            <AppearanceSettings part="a11y" />
           </Section>
 
           <Section title="GlassCard">

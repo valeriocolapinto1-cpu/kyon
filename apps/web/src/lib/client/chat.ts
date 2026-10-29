@@ -33,7 +33,7 @@ export interface ChatMessage {
   roomId: string;
   seq: number;
   clientId: string;
-  author: { id: string; name: string; avatarUrl: string | null } | null;
+  author: { id: string; name: string; avatarUrl: string | null; nameColor: string | null } | null;
   body: string;
   deleted: boolean;
   edited: boolean;
@@ -235,7 +235,7 @@ export function useConversation(
       body: string;
       replyTo: ChatMessage | null;
       attachments: ChatAttachment[];
-      me: { id: string; name: string; avatarUrl: string | null };
+      me: { id: string; name: string; avatarUrl: string | null; nameColor: string | null };
     }) => {
       const clientId = crypto.randomUUID();
       const draft: ChatMessage = {

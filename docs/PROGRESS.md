@@ -34,6 +34,10 @@ Memoria tra le sessioni: **leggi questo file per primo** e riprendi dalla fase c
 
 Fatta con UI Designer, Accessibility Auditor, UX Architect e Finish-Gate Reviewer (installati in `.claude/agents/`). Applicato: vetro più visibile (mesh e superfici più marcati, bordi e testo secondario ritoccati nei temi; contrasti ancora garantiti dai test), tour di benvenuto solo in Home, checklist "Per iniziare" nella Home vuota, orologio rimosso, colonne di Progetti 5/7, sidebar allineata in alto, Chat con pannello vuoto vero e conversazione unica aperta da sola su schermi larghi, Settings con chip su una riga scorrevole e riga "Dimensione del testo" ripulita, un solo "Nuovo progetto" a elenco vuoto, testo della Cronologia vuota. Non è un difetto: le sezioni Settings "vuote" sono placeholder di `Deferred` (si montano all'interazione, per la CPU del piano Free); "Riprendi: Settings" usa il titolo della pagina. Bundle kyon-web 1824,5 KiB gzip.
 
+## Ritocchi su richiesta (Home, Progetti, Chat, Settings)
+
+Home: ogni blocco mostra un solo elemento con "Mostra tutte (N)" (Ultimi contributi: un contributo e "Tutta la cronologia"). Progetti: un clic sull'elenco apre l'anteprima nel pannello affianco (`?sel=`, panoramica con conteggi, prossime task, membri) e il pulsante "Entra nel progetto" apre il progetto (`?id=`). Chat: elementi più piccoli, colonna elenco più stretta, **colore del nome** a scelta (migrazione `0010_name_color`, colonna `user.name_color` con un id accento; il testo è derivato per tema con `buildTheme`, quindi resta AA). Settings: una sezione per volta (Grafica per prima, Account in fondo), pillole che non escono dai contenitori (Segmented), GitHub mostra solo le repo esposte e un menu per esporne altre, il blocco automatico dei prompt è solo in lettura. Bundle kyon-web 1838,6 KiB gzip.
+
 ## Numeri del bundle (gzip, `pnpm size`)
 
 Soglia di allarme 2,4 MB per Worker, limite Free 3 MB.

@@ -62,7 +62,7 @@ function RoomRow({
       <Icon className="size-5 shrink-0 text-muted" aria-hidden="true" />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
-          <span className={cn('truncate text-body text-fg', room.unread > 0 && 'font-semibold')}>
+          <span className={cn('truncate text-subhead text-fg', room.unread > 0 && 'font-semibold')}>
             {roomTitle(room)}
           </span>
           {room.muted && <BellOff className="size-4 shrink-0 text-muted" aria-label={c.muted} />}
@@ -194,7 +194,7 @@ export function ChatView() {
       <div className={cn(selected && 'sr-only md:not-sr-only')}>
         <PageHeader title={c.title} />
       </div>
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(16rem,20rem)_minmax(0,1fr)]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-[minmax(14rem,17rem)_minmax(0,1fr)]">
         <div className={cn('k-glass rounded-card p-2', selected && 'hidden md:block')}>{list}</div>
         <div
           ref={pane}

@@ -23,6 +23,7 @@ test.describe('appearance settings', () => {
       .getByRole('radio', { name: 'Scuro' })
       .click();
     await expect(html).toHaveAttribute('data-scheme', 'dark');
+    await page.getByRole('button', { name: 'Accessibilità' }).click();
     await page
       .getByRole('radiogroup', { name: 'Alto contrasto' })
       .getByRole('radio', { name: 'Sì' })

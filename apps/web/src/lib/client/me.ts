@@ -11,6 +11,7 @@ export interface Me {
   role: 'admin' | 'user';
   bio: string | null;
   statusText: string | null;
+  nameColor: string | null;
   avatarUrl: string | null;
   preferences: Preferences | null;
   homeLayout: unknown;
